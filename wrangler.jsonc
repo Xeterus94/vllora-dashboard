@@ -1,21 +1,21 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "vllora-backoffice",
+  "name": "vllora-dashboard",
   "main": "worker/index.ts",
   "compatibility_date": "2026-01-01",
-  "workers_dev": false,
+  "workers_dev": true,
   "preview_urls": false,
   "assets": { "directory": "./dist", "binding": "ASSETS", "run_worker_first": true },
   "triggers": { "crons": ["15 2 * * *"] },
   "vars": {
     "ENVIRONMENT": "production",
-    "APP_ORIGIN": "https://portal.example.com",
-    "MASTER_API_BASE": "https://portal.example.com",
+    "APP_ORIGIN": "https://vllora-dashboard.ionstefan0904.workers.dev",
+    "MASTER_API_BASE": "https://vllora-dashboard.ionstefan0904.workers.dev",
     "EXTRA_ORIGINS": "",
     "MEDIA_PUBLIC_BASE": "",
     "AE_DATASET": "vllora_metrics",
     "BUSINESS_AE_DATASET": "vllora_business_events",
-    "WORKER_SCRIPT_NAME": "vllora-backoffice"
+    "WORKER_SCRIPT_NAME": "vllora-dashboard"
   },
   "d1_databases": [{ "binding": "DB", "database_name": "vllora_backoffice", "database_id": "cd10bf6f-f38a-4752-b5e5-1ae960ec88f6", "migrations_dir": "worker/migrations" }],
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "vllora-media" }],
@@ -24,5 +24,5 @@
     { "binding": "ANALYTICS", "dataset": "vllora_metrics" },
     { "binding": "BUSINESS_ANALYTICS", "dataset": "vllora_business_events" }
   ]
-  // Add the platform's Cloudflare custom domain/route before deployment.
+  // Add a Cloudflare custom domain/route here if replacing the workers.dev address.
 }
