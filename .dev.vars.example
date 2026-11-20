@@ -1,0 +1,6 @@
+BOOTSTRAP_TOKEN=replace-with-local-random-token
+TRACK_SALT=replace-with-local-random-salt
+# Optional reset test provider, never used in production:
+# DEV_EMAIL_API_URL=http://localhost:9001/emails
+# EMAIL_FROM=Vllora <test@example.com>
+# RESEND_API_KEY=mock
