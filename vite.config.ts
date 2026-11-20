@@ -1,19 +1,22 @@
-import path from "path";
-import { fileURLToPath } from "url";
-import tailwindcss from "@tailwindcss/vite";
-import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
-import { viteSingleFile } from "vite-plugin-singlefile";
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import { fileURLToPath } from 'node:url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [react(), tailwindcss(), viteSingleFile()],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "src"),
+export default defineConfig(({ command }) => ({
+  base: command === 'build' ? './' : '/',
+  plugins: [react(), tailwindcss()],
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  server: {
+    allowedHosts: [
+      '.e2b.app',
+      ...(process.env.DEV_TENANT_HOSTS || 'siteclient.com').split(','),
+    ],
+    proxy: {
+      '^/(api(?:/|$)|admin(?:/|$)|media/|track\\.js$)': {
+        target: 'http://127.0.0.1:8787',
+        changeOrigin: false,
+      },
     },
   },
-});
+}));
