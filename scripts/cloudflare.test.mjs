@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { pbkdf2Sync } from 'node:crypto';
 import { test } from 'node:test';
 import {
   bootstrapToken,
@@ -9,7 +10,7 @@ import {
 } from './test-runtime.mjs';
 
 test(
-  'producție simulată: branding, Cloudflare Routes, SQL Analytics Engine și rollup cron',
+  'producție simulată: autentificare, branding, Cloudflare Routes, Analytics Engine și rollup cron',
   { timeout: 30000 },
   async (t) => {
     const origin = 'https://master.example.com',
@@ -120,9 +121,48 @@ test(
       body: { username: 'master', name: 'Master', password: masterPassword },
     });
     assert.equal(boot.status, 201, boot.contents);
+    const userId = boot.json.user.id;
+    const { password_hash } = await env.db
+      .prepare('SELECT password_hash FROM users WHERE id=?')
+      .bind(userId)
+      .first();
+    assert.match(password_hash, /^[0-9a-f]{32}:[0-9a-f]{64}$/);
+    const [salt, key] = password_hash.split(':');
+    assert.equal(
+      key,
+      pbkdf2Sync(masterPassword, salt, 210_000, 32, 'sha256').toString('hex'),
+    );
+
+    // Model an existing D1 row minted by the old Worker, including UTF-8 password bytes.
+    const legacySalt = '0123456789abcdef'.repeat(2),
+      legacyPassword = 'ParolăVeche!2026';
+    const legacyKey = pbkdf2Sync(
+      legacyPassword,
+      legacySalt,
+      210_000,
+      32,
+      'sha256',
+    );
+    await env.db
+      .prepare('UPDATE users SET password_hash=? WHERE id=?')
+      .bind(`${legacySalt}:${legacyKey.toString('hex')}`, userId)
+      .run();
+    for (const [username, password] of [
+      ['master', masterPassword],
+      ['unknown-master', legacyPassword],
+    ]) {
+      const invalid = await root('/api/auth/login', {
+        method: 'POST',
+        body: { username, password },
+      });
+      assert.equal(invalid.status, 401, invalid.contents);
+      assert.equal(invalid.json.error, 'Utilizator sau parolă incorectă.');
+    }
+    const privateRoute = await root('/derive', { method: 'POST', body: {} });
+    assert.equal(privateRoute.status, 404);
     const login = await root('/api/auth/login', {
       method: 'POST',
-      body: { username: 'master', password: masterPassword },
+      body: { username: 'master', password: legacyPassword },
     });
     assert.equal(login.status, 200, login.contents);
     assert.match(login.headers.get('set-cookie'), /Secure/);

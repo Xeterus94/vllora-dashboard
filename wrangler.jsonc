@@ -17,6 +17,8 @@
     "BUSINESS_AE_DATASET": "vllora_business_events",
     "WORKER_SCRIPT_NAME": "vllora-dashboard"
   },
+  "durable_objects": { "bindings": [{ "name": "PASSWORD_KDF", "class_name": "PasswordKdf" }] },
+  "migrations": [{ "tag": "password-kdf-v1", "new_sqlite_classes": ["PasswordKdf"] }],
   "d1_databases": [{ "binding": "DB", "database_name": "vllora_backoffice", "database_id": "cd10bf6f-f38a-4752-b5e5-1ae960ec88f6", "migrations_dir": "worker/migrations" }],
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "vllora-media" }],
   // Optional: add the BRAND_CACHE namespace binding after provisioning it.

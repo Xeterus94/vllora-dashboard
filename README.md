@@ -3,6 +3,7 @@
 Aplicația React și API-ul rulează în același Cloudflare Worker. Masterul administrează site-uri, conturi, branding, media, metrici și jurnalul de activitate. Clientul intră la `https://domeniul-lui.ro/admin`, își schimbă parola temporară la prima autentificare și vede exclusiv datele propriului site. Domeniul platformei este rezervat masterului.
 
 - **Worker + D1:** sesiuni în cookie `HttpOnly`, limitare persistentă, resetare cu link prin Resend și autorizare pe hostname și site. Portalul nu folosește ID-ul trimis de browser pentru a alege site-ul.
+- **Parole:** PBKDF2-SHA256 cu 210.000 de iterații, calculat într-un Durable Object privat și fără stare. Hash-urile deja salvate în D1 rămân compatibile.
 - **R2 + KV:** biblioteca fiecărui site, logo/favicon și branding detectat automat (opțional cache în KV); uploadurile UI se convertesc în WebP înainte de transfer. Metadatele și fișierele sunt separate.
 - **Analytics Engine + D1:** trafic prin `track.js`, istoric pe zile și fallback la rollup. Metricile de business folosesc un dataset separat și un registru D1 pentru deduplicare și valori financiare exacte.
 - Dashboardul HTML dinaintea acestui modul rămâne în `legacy/standalone-dashboard.html`. Componentele React de demo existente nu mai sunt importate de aplicația nouă.
@@ -54,7 +55,7 @@ Testele pornesc un Workerd izolat cu baze efemere; nu porni aplicația separat. 
    | `CF_API_TOKEN` | Opțional: automatizare rute, **Zone:Read** și **Workers Routes:Edit** strict pe zonele administrate |
    | `RESEND_API_KEY` + `EMAIL_FROM` | Recuperare parolă; domeniu expeditor verificat în Resend cu înregistrările DNS cerute |
 
-5. Rulează `npm run deploy`. Creează apoi masterul și elimină `BOOTSTRAP_TOKEN`:
+5. Rulează `npm run deploy`. Wrangler creează automat binding-ul `PASSWORD_KDF` la deploy prin migrația Durable Objects din `wrangler.jsonc`; nu este nevoie să creezi o resursă manual sau să modifici schema D1 pentru acest binding. Creează apoi masterul și elimină `BOOTSTRAP_TOKEN`:
 
    ```sh
    curl -X POST https://portal.domeniu.ro/api/bootstrap \

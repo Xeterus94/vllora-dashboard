@@ -3,6 +3,7 @@ import { HTTPException } from 'hono/http-exception';
 
 export interface Env {
   DB: D1Database;
+  PASSWORD_KDF: DurableObjectNamespace;
   MEDIA: R2Bucket;
   ASSETS: Fetcher;
   BRAND_CACHE?: KVNamespace;
