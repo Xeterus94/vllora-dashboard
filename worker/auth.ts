@@ -4,7 +4,6 @@ import {
   all,
   audit,
   dev,
-  encode,
   equal,
   fail,
   hash,
@@ -22,6 +21,7 @@ import {
   type Site,
   type User,
 } from './core';
+import { hashPassword, verifyPassword } from './password';
 
 const SID = 'vllora_sid';
 const TTL = 12 * 60 * 60;
@@ -81,29 +81,6 @@ export function temporary() {
     }
   return `${value.slice(0, 4)}-${value.slice(4, 9)}-${value.slice(9)}`;
 }
-export async function derive(password: string, salt = random(16)) {
-  const key = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(password),
-    'PBKDF2',
-    false,
-    ['deriveBits'],
-  );
-  const bits = await crypto.subtle.deriveBits(
-    {
-      name: 'PBKDF2',
-      salt: new TextEncoder().encode(salt),
-      iterations: 210000,
-      hash: 'SHA-256',
-    },
-    key,
-    256,
-  );
-  return `${salt}:${encode(new Uint8Array(bits))}`;
-}
-const dummy = '00000000000000000000000000000000:' + '0'.repeat(64);
-const verify = async (password: string, digest: string) =>
-  equal(await derive(password, digest.split(':')[0]), digest);
 const scope = (tenant: Site | null) =>
   tenant
     ? "role='client_admin' AND client_id=?"
@@ -177,7 +154,7 @@ auth.post('/login', async (c) => {
     ...(tenant ? [tenant.id] : []),
   ).first<User>();
   if (
-    !(await verify(password, u?.password_hash || dummy)) ||
+    !(await verifyPassword(c.env, password, u?.password_hash)) ||
     !u ||
     (tenant && tenant.status !== 'active')
   )
@@ -234,7 +211,7 @@ auth.post('/change-password', async (c) => {
     typeof current !== 'string' ||
     current.length > 256 ||
     next === current ||
-    !(await verify(current, u.password_hash))
+    !(await verifyPassword(c.env, current, u.password_hash))
   )
     return fail(
       400,
@@ -248,7 +225,7 @@ auth.post('/change-password', async (c) => {
       c.env,
       `UPDATE users SET password_hash=?,password_version=password_version+1,must_change_password=0 WHERE id=? AND password_version=?
       AND EXISTS(SELECT 1 FROM sessions WHERE token_hash=? AND user_id=users.id AND expires_at>?)`,
-      await derive(next),
+      await hashPassword(c.env, next),
       u.id,
       u.password_version,
       oldSession,
@@ -292,7 +269,7 @@ auth.patch('/recovery-email', async (c) => {
   if (
     typeof b.current_password !== 'string' ||
     b.current_password.length > 256 ||
-    !(await verify(b.current_password, u.password_hash))
+    !(await verifyPassword(c.env, b.current_password, u.password_hash))
   )
     return fail(400, 'Parola curentă este incorectă.');
   const [updated] = await c.env.DB.batch([
@@ -422,7 +399,7 @@ auth.post('/reset-password', async (c) => {
     ...(tenant ? [tenant.id] : []),
   ).first<User>();
   if (!row || (tenant && tenant.status !== 'active')) return fail(400, invalid);
-  const nextHash = await derive(next);
+  const nextHash = await hashPassword(c.env, next);
   const [result] = await c.env.DB.batch([
     stmt(
       c.env,
@@ -475,7 +452,7 @@ export async function bootstrap(c: Ctx) {
       login,
       text(b.name, 100, 'Nume'),
       b.email === undefined ? null : email(b.email),
-      await derive(strong(b.password)),
+      await hashPassword(c.env, strong(b.password)),
       Date.now(),
     ),
     stmt(

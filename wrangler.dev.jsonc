@@ -6,6 +6,8 @@
   "dev": { "ip": "0.0.0.0", "port": 8787 },
   "assets": { "directory": "./dist", "binding": "ASSETS", "run_worker_first": true },
   "vars": { "ENVIRONMENT": "development", "APP_ORIGIN": "http://localhost:8787", "DEV_TENANT_HOSTS": "siteclient.com" },
+  "durable_objects": { "bindings": [{ "name": "PASSWORD_KDF", "class_name": "PasswordKdf" }] },
+  "migrations": [{ "tag": "password-kdf-v1", "new_sqlite_classes": ["PasswordKdf"] }],
   "d1_databases": [{ "binding": "DB", "database_name": "vllora_backoffice", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "worker/migrations" }],
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "vllora-media" }],
   "kv_namespaces": [{ "binding": "BRAND_CACHE", "id": "00000000000000000000000000000000" }]

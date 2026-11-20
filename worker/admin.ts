@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { DAY, day, range, trafficStats, utc } from './analytics';
-import { derive, email, requireRole, temporary, username } from './auth';
+import { email, requireRole, temporary, username } from './auth';
 import { applyBrand, color, importImage } from './branding';
 import {
   all,
@@ -31,6 +31,7 @@ import {
   settingsUpsert,
   validateMetrics,
 } from './metrics';
+import { hashPassword } from './password';
 import { removeRoute, syncRoute } from './routes';
 
 export const admin = new Hono<Bindings>();
@@ -379,7 +380,7 @@ admin.post('/sites/:id/users', async (c) => {
         text(b.name ?? login, 100, 'Nume'),
         b.email === undefined ? null : email(b.email),
         site.id,
-        await derive(pass),
+        await hashPassword(c.env, pass),
         Date.now(),
       ),
       audit(c.env, 'client_created', actor(c), site.id),
@@ -433,7 +434,7 @@ admin.post('/users/:id/reset-password', async (c) => {
     stmt(
       c.env,
       'UPDATE users SET password_hash=?,password_version=password_version+1,must_change_password=1 WHERE id=?',
-      await derive(pass),
+      await hashPassword(c.env, pass),
       u.id,
     ),
     stmt(c.env, 'DELETE FROM sessions WHERE user_id=?', u.id),

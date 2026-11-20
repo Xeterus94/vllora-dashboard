@@ -20,6 +20,19 @@ export async function runtime({ bindings = {}, outbound } = {}) {
     format: 'esm',
     platform: 'browser',
     target: 'es2022',
+    // Local workerd doesn't enforce this production Web Crypto limit.
+    banner: {
+      js: `
+      const nativeDeriveBits = crypto.subtle.deriveBits.bind(crypto.subtle);
+      Object.defineProperty(crypto.subtle, 'deriveBits', {
+        value(algorithm, key, length) {
+          if (algorithm?.name === 'PBKDF2' && algorithm.iterations > 100_000)
+            throw new DOMException('PBKDF2 iteration limit exceeded', 'NotSupportedError');
+          return nativeDeriveBits(algorithm, key, length);
+        },
+      });
+    `,
+    },
   });
   const mf = new Miniflare(
     convertV4MiniflareOptions({
@@ -29,6 +42,9 @@ export async function runtime({ bindings = {}, outbound } = {}) {
       host: '127.0.0.1',
       port: 0,
       d1Databases: { DB: 'test-backoffice' },
+      durableObjects: {
+        PASSWORD_KDF: { className: 'PasswordKdf', useSQLite: true },
+      },
       r2Buckets: { MEDIA: 'test-media' },
       kvNamespaces: { BRAND_CACHE: 'test-branding' },
       bindings: {

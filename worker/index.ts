@@ -28,6 +28,8 @@ import {
 import { listMedia, removeImage, serveMedia, upload } from './media';
 import { businessReport, collectEvent } from './metrics';
 
+export { PasswordKdf } from './password';
+
 const mount = /^\/admin(?=\/|$)/;
 const worker = new Hono<Bindings>({
   getPath: (request) => new URL(request.url).pathname.replace(mount, '') || '/',

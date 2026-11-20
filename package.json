@@ -17,6 +17,7 @@
     "test:ui": "npm run build && node --test scripts/browser.test.mjs"
   },
   "dependencies": {
+    "@noble/hashes": "2.0.1",
     "clsx": "2.1.1",
     "hono": "^4.13.19",
     "lucide-react": "^1.76.0",
