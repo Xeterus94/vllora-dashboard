@@ -17,7 +17,7 @@
     "BUSINESS_AE_DATASET": "vllora_business_events",
     "WORKER_SCRIPT_NAME": "vllora-backoffice"
   },
-  "d1_databases": [{ "binding": "DB", "database_name": "vllora_backoffice", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "worker/migrations" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "vllora_backoffice", "database_id": "cd10bf6f-f38a-4752-b5e5-1ae960ec88f6", "migrations_dir": "worker/migrations" }],
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "vllora-media" }],
   // Optional: add the BRAND_CACHE namespace binding after provisioning it.
   "analytics_engine_datasets": [
