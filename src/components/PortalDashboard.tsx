@@ -1,6 +1,14 @@
 import { portalTitle } from '../../shared/portal-brand';
 import { useEffect, useState } from 'react';
-import { ExternalLink, LogOut, RefreshCw } from 'lucide-react';
+import {
+  ExternalLink,
+  Images,
+  LayoutDashboard,
+  LayoutTemplate,
+  LogOut,
+  RefreshCw,
+  UserRound,
+} from 'lucide-react';
 import {
   ApiError,
   message,
@@ -119,15 +127,15 @@ export function PortalDashboard({
           </div>
           <span className="badge">{identity.user.name}</span>
         </div>
-        <nav className="tabs" aria-label="Portal">
+        <nav className="tabs portal-tabs" aria-label="Portal">
           {(
             [
-              ['overview', 'Prezentare'],
-              ['editor', 'Editează site-ul'],
-              ['media', 'Bibliotecă media'],
-              ['account', 'Cont și notițe'],
+              ['overview', 'Prezentare', LayoutDashboard],
+              ['editor', 'Editează site-ul', LayoutTemplate],
+              ['media', 'Bibliotecă media', Images],
+              ['account', 'Cont și notițe', UserRound],
             ] as const
-          ).map(([id, label]) => (
+          ).map(([id, label, Icon]) => (
             <button
               key={id}
               aria-current={tab === id ? 'page' : undefined}
@@ -135,7 +143,7 @@ export function PortalDashboard({
                 if (id !== tab && canLeaveEditor()) setTab(id);
               }}
             >
-              {label}
+              <Icon size={16} aria-hidden="true" /> {label}
             </button>
           ))}
         </nav>

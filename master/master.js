@@ -53,6 +53,8 @@
     'Right now across all hosted sites': 'În acest moment, pentru toate site-urile găzduite',
     'Content update requests': 'Cereri de actualizare a conținutului', 'Opened': 'Deschise', 'Resolved': 'Rezolvate',
     'Activity': 'Activitate', 'Subscriptions, incidents and client requests': 'Abonamente, incidente și cereri ale clienților',
+    'Client sites': 'Site-uri clienți', 'Navigation menu': 'Meniu de navigare', 'Sort by': 'Sortează după',
+    'Reverse sort order': 'Inversează sortarea', 'Ascending': 'Crescător', 'Descending': 'Descrescător', 'Edit website': 'Editează site-ul',
     'Client sites & subscriptions': 'Site-uri și abonamente ale clienților', 'Search client, domain…': 'Caută client, domeniu…',
     'Add New Client': 'Adaugă client nou', 'Add new client': 'Adaugă client nou', 'Save Changes': 'Salvează modificările',
     'Delete': 'Șterge', 'Cancel': 'Anulează', 'Edit client': 'Editează clientul', 'Status & Billing': 'Stare și facturare',
@@ -815,9 +817,9 @@
     var parsed = Date.parse(iso + 'T00:00:00');
     if (isNaN(parsed)) return null;
     var today = new Date(); today.setHours(0, 0, 0, 0);
-    var parts = entry[0].match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      var day = parts ? new Date(+parts[1], +parts[2] - 1, +parts[3]) : new Date(parsed);
-      day.setHours(0, 0, 0, 0);
+    var parts = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    var day = parts ? new Date(+parts[1], +parts[2] - 1, +parts[3]) : new Date(parsed);
+    day.setHours(0, 0, 0, 0);
     return DAYS - 1 - Math.round((today - day) / 86400000);
   }
   function resolveRange() {
@@ -1348,6 +1350,31 @@
       '<span class="relative flex h-1.5 w-1.5">' + animate + '<span class="relative inline-flex h-1.5 w-1.5 rounded-full ' + (dot[status] || 'bg-slate-400') + '"></span></span>' + esc(status) + '</span>';
   }
 
+  function renderClientCards(rows) {
+    var specs = [{ key: 'mrr', label: 'MRR' }].concat(COLUMNS.filter(function (col) { return col.sortable; }));
+    var sort = $('#clientCardSort');
+    if (!sort.options.length) sort.innerHTML = specs.map(function (col) {
+      return '<option value="' + col.key + '">' + esc(col.label) + '</option>';
+    }).join('');
+    sort.value = state.sort.key;
+    $('#clientCardOrder').textContent = state.sort.dir === 'asc' ? '↑' : '↓';
+    $('#clientCardOrder').setAttribute('title', state.sort.dir === 'asc' ? 'Ascending' : 'Descending');
+    function stat(label, value) { return '<div><dt>' + label + '</dt><dd>' + value + '</dd></div>'; }
+    $('#clientCards').innerHTML = rows.map(function (row) {
+      var c = row.c;
+      var edit = '<button type="button" data-edit="' + esc(c.id) + '" class="client-card-action">Edit</button>';
+      var cms = state.auth ? '<a class="client-card-action client-card-action-primary" href="/portal-admin/?editSite=' + encodeURIComponent(c.id) + '">Edit website</a>' : '';
+      return '<li class="client-summary">' +
+        '<div class="client-summary-title"><h4>' + esc(c.name) + '</h4>' + pill(row.status) + '</div>' +
+        '<p class="client-summary-domain">' + esc(c.domain) + '</p>' +
+        '<dl>' + stat('Plan', esc(c.plan) + ' · ' + esc(c.billing)) + stat('Price', fmtMoney(row.price) + ' <span>' + (c.billing === 'Annual' ? 'per year' : 'per month') + '</span>') +
+        stat('Segment', esc(c.industry)) + stat('Next renewal', esc(c.renewal || '—')) +
+        stat('Uptime', row.uptime === null ? '—' : row.uptime.toFixed(2) + '%') +
+        stat('Visitors', row.visitors === null ? '—' : fmtNum(row.visitors, true)) + '</dl>' +
+        '<div class="client-summary-actions">' + edit + cms + '</div></li>';
+    }).join('') || '<li class="py-6 text-center text-sm text-slate-500">No sites match the current filters.</li>';
+  }
+
   var PAGE = 10;
 
   function renderTable(dash) {
@@ -1377,6 +1404,7 @@
     if (state.page > pages - 1) state.page = pages - 1;
     var visible = all.slice(state.page * PAGE, state.page * PAGE + PAGE);
 
+    renderClientCards(visible);
     $('#tableBody').innerHTML = visible.map(function (r) {
       var c = r.c;
       var initials = c.name.split(' ').slice(0, 2).map(function (w) { return w[0]; }).join('').toUpperCase();
@@ -1708,6 +1736,20 @@
     }).join('');
     localizeDOM();
   }
+  function openMobileNav() {
+    var nav = $('#mobileNav');
+    if (nav.open) return;
+    nav.showModal();
+    $('#navOpen').setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeMobileNav() {
+    var nav = $('#mobileNav');
+    if (!nav.open) return;
+    nav.close();
+    $('#navOpen').setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+  }
   function openSettings() {
     if (!$('#editor').classList.contains('hidden')) readEditorForm();
     state.settingsReturnFocus = document.activeElement;
@@ -1717,12 +1759,14 @@
       }),
       segments: state.settings.segments.slice()
     };
-    $('#mobileNav').classList.add('hidden');
+    closeMobileNav();
     $('#settingsGoal').value = String(state.settings.goal);
     settingsError('');
     renderSettingsPlans();
     renderSettingsSegments();
     $('#settings').classList.remove('hidden');
+    $('#app').inert = true;
+    $('#editor').inert = true;
     document.body.style.overflow = 'hidden';
     $('#settingsGoal').focus();
   }
@@ -1730,6 +1774,8 @@
     $('#settings').classList.add('hidden');
     state.settingsDraft = null;
     var editorOpen = !$('#editor').classList.contains('hidden');
+    $('#app').inert = editorOpen;
+    $('#editor').inert = false;
     if (editorOpen && state.form) {
       var currentClient = state.clients.filter(function (c) { return c.id === state.editing; })[0];
       if (!findPlan(state.form.plan) && (!currentClient || currentClient.plan !== state.form.plan)) {
@@ -1743,7 +1789,7 @@
     document.body.style.overflow = editorOpen ? 'hidden' : '';
     var target = state.settingsReturnFocus;
     if (target && typeof target.focus === 'function' && !target.closest('#mobileNav')) target.focus();
-    else { var headerButton = $('#settingsHeaderBtn'); if (headerButton) headerButton.focus(); }
+    else { var headerButton = $('#settingsHeaderBtn'); (headerButton.offsetParent ? headerButton : $('#navOpen')).focus(); }
     state.settingsReturnFocus = null;
   }
   function saveSettings() {
@@ -1795,6 +1841,7 @@
 
   /* ----------------------------------------------------------- editor */
   function openEditor(id) {
+    state.editorReturnFocus = document.activeElement;
     state.editing = id || null;
     state.deleteArmed = false;
     $('#saveError').classList.add('hidden');
@@ -1831,12 +1878,19 @@
     if (liveCms) $('#liveCmsLink').href = '/portal-admin/?editSite=' + encodeURIComponent(c.id);
     setTab('billing');
     $('#editor').classList.remove('hidden');
+    $('#app').inert = true;
     document.body.style.overflow = 'hidden';
+    $('#editorPanel').scrollTop = 0;
+    $('#editorTitle').focus({ preventScroll: true });
   }
   function closeEditor(force) {
     if (state.saving && !force) return;   // block backdrop-close mid-save, allow programmatic close
+    var wasOpen = !$('#editor').classList.contains('hidden');
     $('#editor').classList.add('hidden');
+    $('#app').inert = false;
     document.body.style.overflow = '';
+    if (wasOpen && state.editorReturnFocus?.isConnected) state.editorReturnFocus.focus({ preventScroll: true });
+    state.editorReturnFocus = null;
   }
   function setTab(tab) {
     $('#tab-billing').classList.toggle('hidden', tab !== 'billing');
@@ -2194,6 +2248,7 @@
     });
     function toggleCustomRange(open) {
       var panel = $('#customRangePanel');
+      var returnFocus = !open && panel.contains(document.activeElement);
       panel.classList.toggle('hidden', !open);
       $('#customRangeBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
       if (open) {
@@ -2203,8 +2258,8 @@
         $('#customEnd').value = state.filters.customEnd || today;
         $('#customStart').max = today; $('#customEnd').max = today;
         $('#customRangeError').classList.add('hidden');
-        $('#customStart').focus();
-      }
+        $('#customStart').focus({ preventScroll: true });
+      } else if (returnFocus) $('#customRangeBtn').focus({ preventScroll: true });
     }
     $('#customRangeBtn').addEventListener('click', function () { toggleCustomRange($('#customRangePanel').classList.contains('hidden')); });
     $('#customRangeCancel').addEventListener('click', function () { toggleCustomRange(false); });
@@ -2264,10 +2319,10 @@
       if (e.target.closest('#jumpSuspended')) { state.status = 'Suspended'; state.page = 0; render(); $('#sec-clients').scrollIntoView({ behavior: 'smooth' }); return; }
       if (e.target.closest('#retryBtn') && state.auth) { refresh(false); return; }
       if (e.target.closest('#exportCsv')) { exportCsv(); return; }
-      if (e.target.closest('#addClient')) { openEditor(null); return; }
+      if (e.target.closest('#addClient')) { toggleCustomRange(false); openEditor(null); return; }
       if (e.target.closest('[data-close-editor]')) { closeEditor(); return; }
-      if (e.target.closest('[data-close-nav]')) { $('#mobileNav').classList.add('hidden'); return; }
-      if (e.target.closest('#navOpen')) { $('#mobileNav').classList.remove('hidden'); return; }
+      if (e.target.closest('[data-close-nav]')) { closeMobileNav(); return; }
+      if (e.target.closest('#navOpen')) { toggleCustomRange(false); openMobileNav(); return; }
       if (e.target.closest('#refreshBtn') && state.auth) { refresh(false); return; }
       if (e.target.closest('#logoutBtn')) { logout(); return; }
       if (e.target.closest('[data-language-toggle]')) { setLanguage(state.lang === 'en' ? 'ro' : 'en'); return; }
@@ -2381,10 +2436,22 @@
     $('#settingsForm').addEventListener('submit', function (e) { e.preventDefault(); saveSettings(); });
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') {
-        if (!$('#settings').classList.contains('hidden')) closeSettings();
+        if (!$('#customRangePanel').classList.contains('hidden')) toggleCustomRange(false);
+        else if (!$('#settings').classList.contains('hidden')) closeSettings();
         else if (!$('#editor').classList.contains('hidden')) closeEditor();
-        $('#mobileNav').classList.add('hidden');
+        closeMobileNav();
       }
+    });
+
+    $('#mobileNav').addEventListener('cancel', function (e) { e.preventDefault(); closeMobileNav(); });
+    window.matchMedia('(min-width: 1280px)').addEventListener('change', function (e) { if (e.matches) closeMobileNav(); });
+    $('#clientCardSort').addEventListener('change', function () {
+      state.sort = { key: this.value, dir: this.value === 'client' || this.value === 'industry' ? 'asc' : 'desc' };
+      state.page = 0; render();
+    });
+    $('#clientCardOrder').addEventListener('click', function () {
+      state.sort.dir = state.sort.dir === 'asc' ? 'desc' : 'asc';
+      state.page = 0; render();
     });
 
     // table controls
@@ -2402,8 +2469,12 @@
       a.addEventListener('click', function (e) {
         e.preventDefault();
         var target = document.querySelector(a.getAttribute('href'));
-        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        $('#mobileNav').classList.add('hidden');
+        var fromMenu = a.closest('#mobileNav');
+        closeMobileNav();
+        if (target) {
+          if (fromMenu) { target.tabIndex = -1; target.focus({ preventScroll: true }); }
+          target.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
+        }
       });
     });
 

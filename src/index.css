@@ -756,3 +756,31 @@ th {
 .cms-company { margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
 .cms-company legend { padding: 0 5px; font-weight: 600; }
 .cms-company-footer { background: var(--subtle); }
+
+/* Keep common actions readable and reachable without sideways scrolling. */
+.staff-site-cards { display: none; }
+.staff-site-card { display: grid; gap: 12px; min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--subtle); overflow-wrap: anywhere; }
+.staff-site-meta, .staff-site-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.staff-site-meta { justify-content: space-between; }
+.staff-site-actions .button { flex: 1 1 auto; }
+.portal-tabs svg { flex: none; }
+@media (max-width: 1024px) {
+  .staff-site-table { display: none; }
+  .staff-site-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(310px, 100%), 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+}
+@media (max-width: 650px) {
+  .portal-tabs, .cms-form .tabs, .site-settings-tabs { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cms-bar > .controls { width: 100%; }
+  .cms-bar > .controls > :is(a, button) { flex: 1 1 auto; }
+  .cms-files select { flex: 1 1 175px; }
+  .head-inner > .brand-lockup { flex: 1 1 155px; }
+  .section-heading > .field:has(input[type='search']) { flex: 1 0 100%; }
+  .media-grid { grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr)); }
+}
+@media (max-width: 767px), (pointer: coarse) {
+  .button, .button.small, .icon-button, .tabs button { min-height: 44px; }
+  .cms-row-actions .button { min-width: 44px; }
+  .field :is(input, select, textarea), .cms-files select { font-size: 16px; min-height: 44px; }
+  .page { padding-bottom: max(28px, calc(16px + env(safe-area-inset-bottom))); }
+}
+@media (pointer: coarse) { .media-drag-hint { display: none; } }
