@@ -5,7 +5,7 @@ export const color = (value: unknown): string | undefined =>
   typeof value === 'string' && /^#[\da-f]{6}$/i.test(value)
     ? value.toLowerCase()
     : undefined;
-const discoveredColor = (value: unknown) =>
+export const discoveredColor = (value: unknown) =>
   color(value) ||
   (typeof value === 'string' && /^#[\da-f]{3}$/i.test(value)
     ? '#' + [...value.slice(1)].map((c) => c + c).join('')
@@ -23,7 +23,7 @@ const normalizeName = (v: unknown) =>
   typeof v === 'string'
     ? v.replace(/\s+/g, ' ').trim().slice(0, 100) || undefined
     : undefined;
-const absolute = (v: unknown, base: string) => {
+export const absolute = (v: unknown, base: string) => {
   try {
     return typeof v === 'string' && v.trim()
       ? safeUrl(new URL(v, base).href)?.href
@@ -46,7 +46,7 @@ function safeUrl(input: string) {
     return null;
   }
 }
-async function external(
+export async function external(
   input: string,
   limit: number,
   accept: string,

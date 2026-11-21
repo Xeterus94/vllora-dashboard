@@ -146,6 +146,46 @@ test(
     await master
       .getByLabel('Titlu principal', { exact: true })
       .fill('Publicat de master');
+    await master.route('**/content/import', (route) =>
+      route.fulfill({
+        json: {
+          source: 'manifest',
+          fields: {
+            siteName: 'Nume detectat',
+            primaryColor: '#224466',
+            heroTitle: 'Nu suprascrie',
+          },
+          images: [],
+          services: [],
+          hours: [],
+        },
+      }),
+    );
+    await master.getByRole('button', { name: 'Importă de pe site' }).click();
+    await master
+      .getByRole('status')
+      .filter({ hasText: 'preluate din manifest' })
+      .waitFor();
+    assert.equal(
+      await master.getByLabel('Titlu principal', { exact: true }).inputValue(),
+      'Publicat de master',
+    );
+    const untouched = await call(
+      env.mf,
+      masterOrigin,
+      '/api/content?site=portfolio.example.com',
+    );
+    assert.equal(untouched.json.content.siteName, '');
+    await master.getByRole('button', { name: 'Nume și culori' }).click();
+    assert.equal(
+      await master.getByLabel('Numele public al site-ului').inputValue(),
+      'Nume detectat',
+    );
+    assert.equal(
+      await master.getByLabel('Culoare principală (HEX)').inputValue(),
+      '#224466',
+    );
+
     master.once('dialog', (dialog) => dialog.dismiss());
     await master
       .getByRole('button', { name: 'Bibliotecă media', exact: true })
@@ -204,6 +244,7 @@ test(
       '/api/content?site=portfolio.example.com',
     );
     assert.equal(fromMaster.json.content.heroTitle, 'Publicat de master');
+    assert.equal(fromMaster.json.businessName, 'Nume detectat');
     assert.equal(fromMaster.json.content.gallery[0].id, masterImage.id);
 
     await master.goto(`${masterOrigin}/portal-admin/`);
@@ -517,11 +558,12 @@ test(
     // Exercise the public-site adapter separately; it must not inject markup or unsafe links.
     const publicSite = await browser.newPage();
     t.after(() => publicSite.close());
-    const html = `<h1 data-vllora-field="heroTitle">Original</h1>
+    const html = `<main data-vllora-theme><h1 data-vllora-field="heroTitle">Original</h1>
+      <span data-vllora-field="siteName">Nume vechi</span><img data-vllora-logo src="/old.svg" alt="Siglă">
       <a data-vllora-link="bookingUrl" href="https://example.org/booking">Rezervă</a>
       <div data-vllora-list="services" data-vllora-template="service"><p>Rezervă existentă</p></div>
       <template id="service"><p data-vllora-item="name"></p></template>
-      <script defer src="/vllora-content.js" data-api="https://cms.example.org/api/content"></script>`;
+      </main><script defer src="/vllora-content.js" data-api="https://cms.example.org/api/content"></script>`;
     const adapter = await readFile(
       'integrations/static-cms/vllora-content.js',
       'utf8',
@@ -539,6 +581,10 @@ test(
         json: {
           content: {
             heroTitle: '<em>Text literal</em>',
+            primaryColor: '#224466',
+            siteScheme: 'dark',
+            siteName: 'Nume nou',
+            logoUrl: 'https://img.example.org/logo.webp',
             services: [{ name: 'Tuns actualizat' }],
             bookingUrl: 'javascript:void(0)',
           },
@@ -552,6 +598,20 @@ test(
       .waitFor();
     await publicSite.getByText('Tuns actualizat', { exact: true }).waitFor();
     assert.equal(await publicSite.locator('h1 em').count(), 0);
+    await publicSite.getByText('Nume nou', { exact: true }).waitFor();
+    assert.equal(
+      await publicSite.getByRole('img', { name: 'Siglă' }).getAttribute('src'),
+      'https://img.example.org/logo.webp',
+    );
+    assert.deepEqual(
+      await publicSite
+        .locator('[data-vllora-theme]')
+        .evaluate((el) => [
+          el.style.getPropertyValue('--vllora-primary'),
+          el.dataset.vlloraScheme,
+        ]),
+      ['#224466', 'dark'],
+    );
     assert.equal(
       await publicSite
         .getByRole('link', { name: 'Rezervă' })

@@ -40,6 +40,7 @@ import {
 } from './portfolio';
 import { removeRoute, syncRoute } from './routes';
 import { editorContent, publishContent } from './site-content';
+import { inspectSite } from './site-import';
 
 export const admin = new Hono<Bindings>();
 admin.use('*', async (c, next) => {
@@ -544,6 +545,9 @@ admin.get('/audit', async (c) =>
 );
 admin.get('/sites/:id/content', async (c) =>
   editorContent(c, (await editable(c)).id),
+);
+admin.post('/sites/:id/content/import', async (c) =>
+  inspectSite(c, await editable(c)),
 );
 admin.put('/sites/:id/content', async (c) =>
   publishContent(c, (await editable(c)).id),

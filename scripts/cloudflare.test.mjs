@@ -3,6 +3,7 @@ import { pbkdf2Sync } from 'node:crypto';
 import { test } from 'node:test';
 import {
   bootstrapToken,
+  clientPassword,
   call,
   masterPassword,
   png,
@@ -33,7 +34,27 @@ test(
       },
       outbound: async (request) => {
         const url = new URL(request.url);
-        if (url.hostname === brand && url.pathname.startsWith('/.well-known/'))
+        if (
+          url.hostname === brand &&
+          url.pathname === '/.well-known/vllora-content.json'
+        )
+          return Response.json({
+            version: 1,
+            content: {
+              siteName: 'Nume comercial',
+              primaryColor: '#abc',
+              heroTitle: 'Titlu din manifest',
+              services: [{ name: 'Tuns', price: '85 lei' }],
+              hours: [{ day: 'Luni', time: '9–18' }],
+              images: ['/photo.webp', 'javascript:void(0)', '/photo.webp'],
+              bookingUrl: 'https://127.0.0.1/contact',
+              unknown: 'private-config',
+            },
+          });
+        if (
+          url.hostname === brand &&
+          url.pathname === '/.well-known/vllora-brand.json'
+        )
           return Response.json({
             name: 'Contractul de brand',
             logo: '/logo.png',
@@ -44,7 +65,7 @@ test(
           return new Response(png);
         if (url.hostname === fallback && url.pathname === '/')
           return new Response(
-            `<html><head><title>Titlu alternativ</title><meta property="og:site_name" content="Brand din HTML"><link rel="stylesheet" href="/assets/theme.css"><link rel="stylesheet" href="https://styles-outside.example.org/theme.css"><link rel="icon" href="/favicon.ico"></head><body><img class="site-logo" src="/brand-mark.png" alt="Brand"></body></html>`,
+            `<html><head><title>Titlu alternativ</title><meta property="og:site_name" content="Brand din HTML"><link rel="stylesheet" href="/assets/theme.css"><link rel="stylesheet" href="https://styles-outside.example.org/theme.css"><link rel="icon" href="/favicon.ico"></head><body><img class="site-logo" src="/brand-mark.png" alt="Brand"><h1>Pagina de test</h1><p data-cms="subtitlu">Din HTML-ul public</p><a href="tel:+40700123456">Sună</a><div id="galerie"><img src="/assets/work.webp" alt=""></div></body></html>`,
             { headers: { 'Content-Type': 'text/html' } },
           );
         if (url.hostname === fallback && url.pathname === '/assets/theme.css')
@@ -386,6 +407,111 @@ test(
     assert.equal(other.json.site.primary_color, '#524079');
     assert.equal(other.json.site.secondary_color, '#334455');
     assert.ok(other.json.site.logo_url);
+    const importPath = `/sites/${siteId}/content/import`;
+    assert.equal(
+      (await root(`/api/admin${importPath}`, { method: 'POST' })).status,
+      401,
+    );
+    const before = (await admin(`/sites/${siteId}/content`)).json;
+    const suggestion = await admin(importPath, 'POST');
+    assert.equal(suggestion.status, 200, suggestion.contents);
+    assert.equal(suggestion.json.source, 'manifest');
+    assert.equal(suggestion.json.fields.siteName, 'Nume comercial');
+    assert.equal(suggestion.json.fields.primaryColor, '#aabbcc');
+    assert.equal(suggestion.json.fields.secondaryColor, '#abcdef');
+    assert.equal(suggestion.json.fields.logoUrl, `https://${brand}/logo.png`);
+    assert.deepEqual(suggestion.json.images, [`https://${brand}/photo.webp`]);
+    assert.equal(suggestion.json.hours[0].time, '9–18');
+    assert.equal(suggestion.json.services[0].price, '85 lei');
+    assert.doesNotMatch(
+      suggestion.contents,
+      /private-config|127.0.0.1|javascript:/,
+    );
+    assert.deepEqual((await admin(`/sites/${siteId}/content`)).json, before);
+    const tenantImportPath = '/admin/api/portal/content/import';
+    const customer = (path, opts) =>
+      call(env.mf, `https://${brand}`, path, opts);
+    assert.equal(
+      (await customer(tenantImportPath, { method: 'POST' })).status,
+      401,
+    );
+    const staffOnTenant = await customer(tenantImportPath, {
+      method: 'POST',
+      cookie: login.cookie,
+    });
+    assert.notEqual(staffOnTenant.status, 200);
+    const account = await admin(`/sites/${siteId}/users`, 'POST', {
+      username: 'import.client',
+      name: 'Client import',
+    });
+    const temp = account.json.temporary_password;
+    const session = await customer('/admin/api/auth/login', {
+      method: 'POST',
+      body: { username: 'import.client', password: temp },
+    });
+    assert.equal(session.status, 200, session.contents);
+    assert.equal(
+      (
+        await customer(tenantImportPath, {
+          method: 'POST',
+          cookie: session.cookie,
+        })
+      ).status,
+      403,
+    );
+    const changed = await customer('/admin/api/auth/change-password', {
+      method: 'POST',
+      cookie: session.cookie,
+      body: { current_password: temp, new_password: clientPassword },
+    });
+    assert.equal(changed.status, 200, changed.contents);
+    const clientImport = await customer(tenantImportPath, {
+      method: 'POST',
+      cookie: changed.cookie,
+    });
+    assert.equal(clientImport.status, 200, clientImport.contents);
+    assert.deepEqual(clientImport.json, suggestion.json);
+    assert.equal(
+      (
+        await call(env.mf, `https://${fallback}`, tenantImportPath, {
+          method: 'POST',
+          cookie: changed.cookie,
+        })
+      ).status,
+      401,
+    );
+    const fromHtml = await admin(
+      `/sites/${other.json.site.id}/content/import`,
+      'POST',
+    );
+    assert.equal(fromHtml.status, 200, fromHtml.contents);
+    assert.equal(fromHtml.json.source, 'html');
+    assert.equal(fromHtml.json.fields.heroTitle, 'Pagina de test');
+    assert.equal(fromHtml.json.fields.heroSubtitle, 'Din HTML-ul public');
+    assert.equal(fromHtml.json.fields.phone, '+40700123456');
+    assert.equal(fromHtml.json.fields.primaryColor, '#524079');
+    assert.deepEqual(fromHtml.json.images, [
+      `https://${fallback}/assets/work.webp`,
+    ]);
+    const publishedImport = await admin(`/sites/${siteId}/content`, 'PUT', {
+      revision: before.revision,
+      content: {
+        ...suggestion.json.fields,
+        images: suggestion.json.images,
+        services: suggestion.json.services,
+        hours: suggestion.json.hours,
+      },
+    });
+    assert.equal(publishedImport.status, 200, publishedImport.contents);
+    assert.equal(
+      (await root(`/api/content?site=${brand}`)).json.businessName,
+      'Nume comercial',
+    );
+    assert.match(
+      (await customer('/admin/')).contents,
+      /Contractul de brand · Admin Dashboard/,
+    );
+
     assert.equal(
       (
         await admin(`/sites/${siteId}/media/import`, 'POST', {

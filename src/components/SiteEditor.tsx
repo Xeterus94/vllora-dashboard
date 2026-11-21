@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import {
   ArrowDown,
   ArrowUp,
+  Download,
   ExternalLink,
   Eye,
   FileText,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react';
 import {
   documentLimit,
+  fillFromSite,
   galleryLimit,
   hoursLimit,
   servicesLimit,
@@ -21,6 +23,7 @@ import {
   type CmsTextField,
   type EditorData,
   type SiteContent,
+  type SiteImport,
 } from '../../shared/site-content';
 import {
   adminSite,
@@ -32,18 +35,24 @@ import {
   type MediaList,
   type Site,
 } from '../lib/api';
+import { brandStyle } from '../lib/brand';
 import { Alert, Field, Panel, useAction } from './PortalUI';
 import { FilePicker } from './FilePicker';
 
 const sections = [
   ['intro', 'Prima pagină'],
+  ['brand', 'Nume și culori'],
   ['services', 'Servicii și prețuri'],
   ['media', 'Galerie și fișiere'],
   ['contact', 'Program și contact'],
 ] as const;
-type Slot = 'heroMedia' | 'gallery' | 'documents';
+type Slot = 'heroMedia' | 'logoMedia' | 'gallery' | 'documents';
+const singleImage = (slot: Slot): slot is 'heroMedia' | 'logoMedia' =>
+  slot === 'heroMedia' || slot === 'logoMedia';
+const hexColor = (value: string) => /^#[a-f0-9]{6}$/i.test(value);
 const fileLimit = {
   heroMedia: 1,
+  logoMedia: 1,
   gallery: galleryLimit,
   documents: documentLimit,
 };
@@ -202,6 +211,20 @@ export function SiteEditor({
     setDraft((previous) => previous && { ...previous, ...patch });
     setNotice('');
   };
+  const importFromSite = () => {
+    setNotice('');
+    setBusyLabel('Se caută conținutul public…');
+    void action.run(async () => {
+      const source = await request<SiteImport>(`${editorPath}/import`, 'POST');
+      const next = fillFromSite(draft, source);
+      setDraft(next);
+      setNotice(
+        JSON.stringify(next) === JSON.stringify(draft)
+          ? 'Nu există câmpuri goale de completat cu datele detectate. Nu am înlocuit nimic.'
+          : `Date ${source.source === 'manifest' ? 'preluate din manifestul site-ului' : 'detectate pe pagina publică'} adăugate în editor. Verifică și publică atunci când sunt corecte.`,
+      );
+    });
+  };
   const field = (
     name: CmsTextField,
     label: string,
@@ -218,7 +241,7 @@ export function SiteEditor({
       ) : (
         <input
           type={options?.url ? 'url' : 'text'}
-          maxLength={options?.url ? 2048 : 1200}
+          maxLength={options?.url ? 2048 : name === 'siteName' ? 100 : 1200}
           value={draft[name]}
           onChange={(e) => edit({ [name]: e.target.value })}
         />
@@ -232,7 +255,7 @@ export function SiteEditor({
         : file.content_type.startsWith('image/'),
     );
     if (!matching.length) return;
-    if (slot === 'heroMedia') edit({ heroMedia: matching[0] });
+    if (singleImage(slot)) edit({ [slot]: matching[0] });
     else
       edit({
         [slot]: [
@@ -243,8 +266,9 @@ export function SiteEditor({
       });
   };
   const upload = (slot: Slot, files: File[]) => {
-    const available =
-      slot === 'heroMedia' ? 1 : fileLimit[slot] - draft[slot].length;
+    const available = singleImage(slot)
+      ? 1
+      : fileLimit[slot] - draft[slot].length;
     if (files.length > available) {
       action.setError(
         `Mai poți adăuga ${available} fișier(e) în această secțiune.`,
@@ -265,7 +289,11 @@ export function SiteEditor({
                 ? 'Alege un document PDF.'
                 : 'Alege o imagine.',
             );
-          const result = await uploadMedia(mediaPath, file, 'gallery');
+          const result = await uploadMedia(
+            mediaPath,
+            file,
+            slot === 'logoMedia' ? 'logo' : 'gallery',
+          );
           const valid =
             slot === 'documents'
               ? result.item.content_type === 'application/pdf'
@@ -289,12 +317,11 @@ export function SiteEditor({
     });
   };
   const picker = (slot: Slot, label: string) => {
-    const files =
-      slot === 'heroMedia'
-        ? draft.heroMedia
-          ? [draft.heroMedia]
-          : []
-        : draft[slot];
+    const files = singleImage(slot)
+      ? draft[slot]
+        ? [draft[slot]]
+        : []
+      : draft[slot];
     const options = media.filter(
       (file) =>
         !files.some((selected) => file.id === selected.id) &&
@@ -303,14 +330,14 @@ export function SiteEditor({
           : file.content_type.startsWith('image/')),
     );
     const disabled =
-      action.busy || (slot !== 'heroMedia' && files.length >= fileLimit[slot]);
+      action.busy || (!singleImage(slot) && files.length >= fileLimit[slot]);
     return (
       <div className="cms-files stack">
         <div className="controls">
           <FilePicker
             label={label}
             onFiles={(files) => upload(slot, files)}
-            multiple={slot !== 'heroMedia'}
+            multiple={!singleImage(slot)}
             disabled={disabled}
             accept={
               slot === 'documents' ? '.pdf,application/pdf' : 'image/*,.ico'
@@ -350,8 +377,8 @@ export function SiteEditor({
                   index={index}
                   length={files.length}
                   onRemove={() =>
-                    slot === 'heroMedia'
-                      ? edit({ heroMedia: null })
+                    singleImage(slot)
+                      ? edit({ [slot]: null })
                       : edit({ [slot]: remove(draft[slot], index) })
                   }
                   onMove={
@@ -406,6 +433,14 @@ export function SiteEditor({
           </p>
         </div>
         <div className="controls">
+          <button
+            type="button"
+            className="button secondary"
+            disabled={action.busy}
+            onClick={importFromSite}
+          >
+            <Download size={17} /> Importă de pe site
+          </button>
           <a
             className="button secondary"
             href={`https://${site.domain}`}
@@ -428,6 +463,8 @@ export function SiteEditor({
         Previzualizarea arată conținutul, nu designul exact al site-ului.
         Modificările apar public doar în secțiunile conectate la CMS. Fișierele
         încărcate nu sunt private. Pozele noi se comprimă automat în WebP.
+        Importul completează doar câmpurile goale și păstrează imaginile ca
+        linkuri către site-ul sursă.
       </p>
       {staff && site.status === 'suspended' && (
         <p className="muted">
@@ -459,6 +496,11 @@ export function SiteEditor({
                   {field('heroTitle', 'Titlu principal')}
                   {field('heroSubtitle', 'Subtitlu principal', { long: true })}
                   {picker('heroMedia', 'Atașează imagine principală')}
+                  {field(
+                    'heroImageUrl',
+                    'Imagine principală din link (rezervă)',
+                    { url: true },
+                  )}
                   {field('announcement', 'Anunț')}
                   <div className="form-grid">
                     {field('bookingLabel', 'Text buton programări')}
@@ -472,6 +514,54 @@ export function SiteEditor({
                   {field('aboutText', 'Text Despre', { long: true })}
                 </Panel>
               </>
+            )}
+            {section === 'brand' && (
+              <Panel
+                title="Aspect și identitate"
+                description="Aceste setări sunt pentru pagina publică. Nu schimbă sigla sau culorile panoului de autentificare."
+              >
+                {field('siteName', 'Numele public al site-ului')}
+                {picker('logoMedia', 'Atașează sigla site-ului')}
+                {field('logoUrl', 'Siglă din link (rezervă)', { url: true })}
+                <div className="form-grid">
+                  {(
+                    [
+                      ['primaryColor', 'Culoare principală'],
+                      ['secondaryColor', 'Culoare secundară'],
+                      ['accentColor', 'Culoare de accent'],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <Field key={key} label={label}>
+                      <span className="controls cms-color-control">
+                        <input
+                          type="color"
+                          aria-label={`Alege: ${label}`}
+                          value={hexColor(draft[key]) ? draft[key] : '#000000'}
+                          onChange={(e) => edit({ [key]: e.target.value })}
+                        />
+                        <input
+                          aria-label={`${label} (HEX)`}
+                          value={draft[key]}
+                          placeholder="#RRGGBB"
+                          maxLength={7}
+                          pattern="#[a-fA-F0-9]{6}"
+                          onChange={(e) => edit({ [key]: e.target.value })}
+                        />
+                      </span>
+                    </Field>
+                  ))}
+                  <Field label="Temă publică">
+                    <select
+                      value={draft.siteScheme}
+                      onChange={(e) => edit({ siteScheme: e.target.value })}
+                    >
+                      <option value="">Păstrează tema site-ului</option>
+                      <option value="light">Luminoasă</option>
+                      <option value="dark">Întunecată</option>
+                    </select>
+                  </Field>
+                </div>
+              </Panel>
             )}
             {section === 'services' && (
               <Panel
@@ -571,6 +661,9 @@ export function SiteEditor({
                             length={draft.images.length}
                             onRemove={() =>
                               edit({ images: remove(draft.images, i) })
+                            }
+                            onMove={(step) =>
+                              edit({ images: move(draft.images, i, step) })
                             }
                           />
                         </div>
@@ -691,12 +784,41 @@ function ContentPreview({
   site: Site;
   content: SiteContent;
 }) {
+  const imageUrl = (value: string) => {
+    try {
+      return new URL(value).protocol === 'https:' ? value : '';
+    } catch {
+      return '';
+    }
+  };
+  const hero = content.heroMedia?.url || imageUrl(content.heroImageUrl);
+  const logo = content.logoMedia?.url || imageUrl(content.logoUrl);
+  const brand = {
+    ...site,
+    primary_color: hexColor(content.primaryColor)
+      ? content.primaryColor
+      : site.primary_color,
+    secondary_color: hexColor(content.secondaryColor)
+      ? content.secondaryColor
+      : site.secondary_color,
+    accent_color: hexColor(content.accentColor)
+      ? content.accentColor
+      : site.accent_color,
+    scheme:
+      content.siteScheme === 'dark' || content.siteScheme === 'light'
+        ? content.siteScheme
+        : site.scheme,
+  } as const;
   const images = [
     ...content.images,
     ...content.gallery.map((file) => file.url),
   ];
   return (
-    <aside className="cms-preview" aria-label="Previzualizare conținut">
+    <aside
+      className={`cms-preview ${brand.scheme === 'dark' ? 'cms-preview-dark' : 'cms-preview-light'}`}
+      style={brandStyle(brand)}
+      aria-label="Previzualizare conținut"
+    >
       <div className="cms-preview-chrome">
         <Eye size={16} /> <strong>Previzualizare</strong>
         <small>{site.domain}</small>
@@ -705,10 +827,10 @@ function ContentPreview({
         {content.announcement && (
           <p className="cms-preview-banner">{content.announcement}</p>
         )}
-        {content.heroMedia ? (
+        {hero ? (
           <img
             className="cms-preview-image"
-            src={content.heroMedia.url}
+            src={hero}
             alt="Imagine principală"
           />
         ) : (
@@ -717,7 +839,10 @@ function ContentPreview({
           </div>
         )}
         <div className="cms-preview-copy">
-          <span className="eyebrow">{site.name}</span>
+          <div className="cms-preview-brand">
+            {logo && <img src={logo} alt="" />}
+            <span className="eyebrow">{content.siteName || site.name}</span>
+          </div>
           <h3>{content.heroTitle || 'Titlul paginii tale'}</h3>
           <p>
             {content.heroSubtitle || 'Adaugă un subtitlu pentru vizitatori.'}
