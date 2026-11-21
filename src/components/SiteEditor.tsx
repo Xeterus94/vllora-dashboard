@@ -41,6 +41,8 @@ import { brandStyle } from '../lib/brand';
 import { Alert, Field, Panel, useAction } from './PortalUI';
 import { CompanyFields } from './CompanyFields';
 import { FilePicker } from './FilePicker';
+import { LiveSitePreview, PageFields } from './SitePages';
+import { mergePages, type PageField } from '../../shared/site-pages';
 
 const sections = [
   ['intro', 'Prima pagină'],
@@ -48,6 +50,7 @@ const sections = [
   ['services', 'Servicii și prețuri'],
   ['media', 'Galerie și fișiere'],
   ['contact', 'Program și contact'],
+  ['pages', 'Toate paginile'],
 ] as const;
 type Slot = 'heroMedia' | 'logoMedia' | 'gallery' | 'documents';
 const singleImage = (slot: Slot): slot is 'heroMedia' | 'logoMedia' =>
@@ -143,6 +146,8 @@ export function SiteEditor({
   const [preview, setPreview] = useState(false),
     [notice, setNotice] = useState('');
   const [busyLabel, setBusyLabel] = useState('');
+  const [live, setLive] = useState(false),
+    [pagePath, setPagePath] = useState('/');
   const action = useAction();
   const dirty =
     !!data && JSON.stringify(data.content) !== JSON.stringify(draft);
@@ -154,6 +159,27 @@ export function SiteEditor({
         setData(result);
         setDraft(result.content);
         setLoadError('');
+        if (staff) {
+          // Automatically fill only sites advertising the multipage integration.
+          void request<SiteImport>(`${editorPath}/import?pages=1`, 'POST')
+            .then((source) => {
+              const pages = source.pages;
+              if (active && pages?.length)
+                setDraft(
+                  (previous) =>
+                    previous &&
+                    (previous.pages?.length
+                      ? {
+                          ...previous,
+                          pages: mergePages(previous.pages, pages),
+                        }
+                      : fillFromSite(previous, source)),
+                );
+            })
+            .catch(() => {
+              /* Legacy sites still support manual import. */
+            });
+        }
       },
       (error) => {
         if (active) setLoadError(message(error));
@@ -170,7 +196,7 @@ export function SiteEditor({
     return () => {
       active = false;
     };
-  }, [attempt, editorPath, mediaPath]);
+  }, [attempt, editorPath, mediaPath, staff]);
   useEffect(() => {
     onDirty(dirty);
     return () => onDirty(false);
@@ -221,13 +247,46 @@ export function SiteEditor({
     setBusyLabel('Se caută conținutul public…');
     void action.run(async () => {
       const source = await request<SiteImport>(`${editorPath}/import`, 'POST');
-      const next = fillFromSite(draft, source);
+      const next = fillFromSite(
+        draft,
+        staff ? source : { ...source, pages: undefined },
+      );
       setDraft(next);
+      if (staff && source.pages?.length) setSection('pages');
       setNotice(
         JSON.stringify(next) === JSON.stringify(draft)
           ? 'Nu există câmpuri goale de completat cu datele detectate. Nu am înlocuit nimic.'
-          : `Date ${source.source === 'manifest' ? 'preluate din manifestul site-ului' : 'detectate pe pagina publică'} adăugate în editor. Verifică secțiunea „Galerie și fișiere”, apoi apasă „Publică modificările” ca să apară pe site.`,
+          : `Date ${source.source === 'manifest' ? 'preluate din manifestul site-ului' : 'detectate pe pagina publică'} adăugate în editor. Verifică secțiunea ${staff && source.pages?.length ? '„Toate paginile”' : '„Galerie și fișiere”'}, apoi apasă „Publică modificările” ca să apară pe site.`,
       );
+    });
+  };
+  const changePage = (path: string, changed: PageField) => {
+    setDraft(
+      (previous) =>
+        previous && {
+          ...previous,
+          pages: previous.pages?.map((page) =>
+            page.path === path
+              ? {
+                  ...page,
+                  fields: page.fields.map((field) =>
+                    field.id === changed.id ? changed : field,
+                  ),
+                }
+              : page,
+          ),
+        },
+    );
+    setNotice('');
+  };
+  const uploadPageImage = (path: string, field: PageField, file: File) => {
+    setBusyLabel('Se încarcă imaginea…');
+    void action.run(async () => {
+      const { item } = await uploadMedia(mediaPath, file, 'gallery');
+      if (!item.content_type.startsWith('image/'))
+        throw new Error('Alege o imagine.');
+      setMedia((old) => [item, ...old]);
+      changePage(path, { ...field, value: '', media: item });
     });
   };
   const field = (
@@ -455,18 +514,37 @@ export function SiteEditor({
           >
             Deschide site-ul <ExternalLink size={15} />
           </a>
+          {staff && (
+            <button
+              type="button"
+              className="button secondary"
+              aria-pressed={live}
+              onClick={() => {
+                setLive(!live);
+                setPreview(false);
+              }}
+            >
+              <Eye size={17} />{' '}
+              {live ? 'Înapoi la editare' : 'Previzualizează site-ul real'}
+            </button>
+          )}
           <button
             type="button"
             className="button secondary"
             aria-pressed={preview}
-            onClick={() => setPreview((value) => !value)}
+            onClick={() => {
+              setLive(false);
+              setPreview((value) => !value);
+            }}
           >
             <Eye size={17} /> {preview ? 'Înapoi la editor' : 'Previzualizează'}
           </button>
         </div>
       </header>
       <p className="muted cms-info">
-        Previzualizarea arată conținutul, nu designul exact al site-ului.
+        Previzualizarea de conținut este schematică.{' '}
+        {staff &&
+          'Previzualizarea site-ului real folosește designul original și arată modificările nepublicate numai pe paginile conectate.'}
         Modificările apar public doar în secțiunile conectate la CMS. Fișierele
         încărcate nu sunt private. Pozele noi se comprimă automat în WebP.
         Importul completează câmpurile goale, corectează linkurile vechi
@@ -479,21 +557,44 @@ export function SiteEditor({
           până la reactivare.
         </p>
       )}
-      <div className={`cms-grid${preview ? ' cms-preview-only' : ''}`}>
+      {live && (
+        <LiveSitePreview
+          domain={site.domain}
+          pages={draft.pages ?? []}
+          path={pagePath}
+          select={setPagePath}
+          content={draft}
+        />
+      )}
+      <div
+        hidden={live}
+        className={`cms-grid${preview ? ' cms-preview-only' : ''}`}
+      >
         <form onSubmit={publish} className="cms-form stack" hidden={preview}>
           <nav className="tabs" aria-label="Secțiuni editor">
-            {sections.map(([id, name]) => (
-              <button
-                key={id}
-                type="button"
-                aria-current={section === id ? 'page' : undefined}
-                onClick={() => setSection(id)}
-              >
-                {name}
-              </button>
-            ))}
+            {sections
+              .filter(([id]) => staff || id !== 'pages')
+              .map(([id, name]) => (
+                <button
+                  key={id}
+                  type="button"
+                  aria-current={section === id ? 'page' : undefined}
+                  onClick={() => setSection(id)}
+                >
+                  {name}
+                </button>
+              ))}
           </nav>
           <fieldset disabled={action.busy} className="cms-fields stack">
+            {staff && section === 'pages' && (
+              <PageFields
+                pages={draft.pages ?? []}
+                path={pagePath}
+                select={setPagePath}
+                change={changePage}
+                upload={uploadPageImage}
+              />
+            )}
             {section === 'intro' && (
               <>
                 <Panel

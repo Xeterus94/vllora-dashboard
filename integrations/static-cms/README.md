@@ -98,3 +98,56 @@ Adaugă atributele în **subsolul site-ului**, imediat după elementul care afi�
 ```
 
 Site-urile cu adaptor propriu trebuie să citească aceste patru chei noi din `content`. Câmpurile goale trebuie omise, nu confundate cu datele de facturare din master. Textele se afișează ca text simplu (`textContent`), nu ca HTML.
+
+## Toate paginile în master (manifest CMS v2)
+
+În master, deschide **Conținut site (CMS) → Deschide editorul vizual → Toate paginile**. La deschidere, editorul caută automat inventarul v2 și precompletează câmpurile noi cu valorile originale. Importul nu suprascrie câmpurile deja conectate și modificate, inclusiv imaginile eliminate. Nimic nu apare public până la **Publică modificările**. Importul v1 și fallbackul primei pagini rămân disponibile.
+
+### Leagă designul și datele de editor
+
+1. Pune versiunea actuală de `vllora-content.js` pe **fiecare pagină publică**, după codul care ascultă datele de grafic. Păstrează CSS-ul, animațiile și scripturile existente. Nu adăuga scriptul pentru a edita pagini private, rezervări, date despre clienți sau setări interne.
+2. Marchează elementele editabile cu identificatori stabili per pagină. `data-vllora-text` se pune pe elemente fără markup copil, de exemplu un `<span>` aflat în interiorul unui titlu animat. Pentru imagini, marchează `<img>` (inclusiv în `<picture>`). Pentru fundaluri, folosește `data-vllora-background`; valoarea inițială este în `data-vllora-value`. SVG-urile sau graficele desenate ca fișiere imagine pot fi tratate ca imagini. Titlurile, textele din butoane, etichetele și valorile grafice trebuie mapate separat dacă vrei să le editezi separat.
+
+```html
+<h1 class="reveal"><span data-vllora-text="title" data-vllora-label="Titlu">Despre noi</span></h1>
+<img data-vllora-image="cover" data-vllora-label="Copertă" src="/assets/cover.webp" alt="Echipa">
+<canvas id="chart" data-vllora-number="yearly.total" data-vllora-label="Total anual" data-vllora-value="425"></canvas>
+<script defer src="/chart-app.js"></script>
+<script defer src="/vllora-content.js" data-api="https://dashboard.example.com/api/content"></script>
+```
+
+3. Generează `/.well-known/vllora-content.json` din folderul public final, înainte de deploy. Rulează `node integrations/static-cms/build-manifest.mjs /cale/catre/site-output` din checkoutul dashboardului după `npm ci`, de exemplu într-un workflow GitHub Actions cu ambele proiecte. Scriptul citește textele, adresele imaginilor și valorile marcate din HTML, păstrează `content` din vechiul manifest și nu accesează rețeaua. Nu rula pe un director care conține pagini sau date private. Dacă paginile sau câmpurile sunt generate în browser, generează manifestul din aceleași date publice pe care le folosește aplicația și aplică valorile în componentele originale; scanarea HTML nu execută codul site-ului.
+
+Format minim, dacă îl generezi din aplicație:
+
+```json
+{
+  "version": 2,
+  "content": {},
+  "pages": [
+    { "path": "/despre/", "title": "Despre noi", "fields": [
+      { "id": "title", "label": "Titlu", "kind": "text", "value": "Despre noi" },
+      { "id": "cover", "label": "Copertă", "kind": "image", "value": "/assets/cover.webp" },
+      { "id": "yearly.total", "label": "Total anual", "kind": "number", "value": "425" }
+    ] }
+  ]
+}
+```
+
+Căile paginilor sunt locale, publice și fără query/fragment. URL-urile relative ale imaginilor v2 se rezolvă față de pagina declarată, la fel ca în HTML. Limitele sunt 40 de pagini, 800 de câmpuri, 6.000 de caractere pentru un text și 320 KiB de date pentru pagini. Un `value` gol pentru un câmp de imagine ascunde imaginea conectată, fără a șterge fișierul din repository. Înlocuirea prin încărcare folosește pipeline-ul WebP al masterului.
+
+### Grafice și previzualizare reală
+
+Adaptorul nu rescrie automat bibliotecile de grafice. Leagă datele de evenimentul `vllora:page-content` și actualizează graficul original; păstrezi astfel culorile, animația și interacțiunile. Valorile numerice vin ca șiruri, iar șirul gol înseamnă valoare ștearsă:
+
+```js
+document.addEventListener('vllora:page-content', ({ detail }) => {
+  const field = detail.fields.get('yearly.total');
+  if (field?.kind === 'number' && field.value !== '') {
+    chart.data.datasets[0].data[0] = Number(field.value);
+    chart.update();
+  }
+});
+```
+
+În master, **Previzualizează site-ul real** încarcă pagina originală de la domeniul clientului și rulează animațiile ei în cadrul de previzualizare. Navigarea între pagini și lățimea de telefon sunt disponibile. Adaptorul acceptă draftul numai din cadrul deschis de originea dashboardului configurat (`data-api` sau, dacă originile diferă, `data-preview-origin="https://dashboard.example.com"`). Site-ul trebuie să permită afișarea în iframe din originea masterului (CSP `frame-ancestors` pe rutele publice; păstrează protecțiile `/admin`). În lipsa adaptorului vezi doar site-ul publicat; dacă site-ul blochează iframe-ul, folosește **Deschide pagina publicată**. Cadrul nu acordă permisiune formularelor native, popup-urilor sau navigării părintelui; pentru aplicații cu rezervări, analytics sau alte efecte declanșate din JavaScript, dezactivează aceste acțiuni în modul încorporat la nivelul site-ului.

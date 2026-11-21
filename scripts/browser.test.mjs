@@ -402,6 +402,165 @@ test(
       `${masterOrigin}${masterImage.url}`,
     ]);
 
+    const originalPageImage = 'https://portfolio.example.com/assets/cover.webp';
+    await master.unroute('**/content/import');
+    const multipageImport = /\/content\/import(?:\?pages=1)?$/;
+    await master.route(multipageImport, (route) =>
+      route.fulfill({
+        json: {
+          source: 'manifest',
+          fields: {},
+          images: [],
+          services: [],
+          hours: [],
+          pages: [
+            {
+              path: '/',
+              title: 'Acasă',
+              fields: [
+                {
+                  id: 'welcome',
+                  label: 'Mesaj de bun venit',
+                  kind: 'text',
+                  value: 'Bun venit!',
+                },
+              ],
+            },
+            {
+              path: '/despre/',
+              title: 'Despre noi',
+              fields: [
+                {
+                  id: 'title',
+                  label: 'Titlu Despre',
+                  kind: 'text',
+                  value: 'Povestea noastră',
+                },
+                {
+                  id: 'photo',
+                  label: 'Copertă Despre',
+                  kind: 'image',
+                  value: originalPageImage,
+                },
+                {
+                  id: 'visits',
+                  label: 'Vizite (grafic)',
+                  kind: 'number',
+                  value: '15',
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+    const bridge = await readFile(
+      new URL('../integrations/static-cms/vllora-content.js', import.meta.url),
+      'utf8',
+    );
+    await master.route('https://portfolio.example.com/**', (route) => {
+      const pathname = new URL(route.request().url()).pathname;
+      if (pathname === '/bridge.js')
+        return route.fulfill({
+          contentType: 'application/javascript',
+          body: bridge,
+        });
+      if (pathname === '/api/content')
+        return route.fulfill({ json: { content: {} } });
+      if (pathname !== '/' && pathname !== '/despre/') return route.fallback();
+      return route.fulfill({
+        contentType: 'text/html',
+        body: `<!doctype html>
+        <style>@keyframes fade { to { opacity: .5 } } h1 { animation: fade 2s infinite }</style>
+        <h1 data-vllora-text="${pathname === '/' ? 'welcome' : 'title'}">Text original</h1>
+        <nav><a href="/despre/">Mergi la Despre</a></nav>
+        <img data-vllora-image="photo" src="/assets/cover.webp" alt="Coperta originală">
+        <output id="chart">15</output>
+        <script>document.addEventListener('vllora:page-content', ({detail}) => {
+          const field = detail.fields.get('visits');
+          if (field) document.getElementById('chart').textContent = field.value;
+        });</script>
+        <script defer src="/bridge.js" data-api="https://portfolio.example.com/api/content" data-preview-origin="${masterOrigin}"></script>`,
+      });
+    });
+    await master.reload();
+    await master.getByRole('button', { name: 'Toate paginile' }).click();
+    const choosePage = master.getByLabel('Pagina site-ului');
+    await choosePage.selectOption('/despre/');
+    assert.equal(
+      await master.getByLabel('Titlu Despre').inputValue(),
+      'Povestea noastră',
+    );
+    await master.getByLabel('Titlu Despre').fill('Titlu editat în master');
+    await master.getByLabel('Vizite (grafic)').fill('42');
+    await master
+      .getByRole('checkbox', { name: 'Toate imaginile conectate' })
+      .check();
+    assert.equal(
+      await master.getByLabel('Copertă Despre', { exact: true }).inputValue(),
+      originalPageImage,
+    );
+    await master.getByLabel('Încarcă: Copertă Despre').setInputFiles({
+      name: 'coperta.png',
+      mimeType: 'image/png',
+      buffer: png,
+    });
+    await master
+      .locator('img.cms-slot-image[src^="/media/"][src$=".webp"]')
+      .waitFor();
+    const replacement = master.locator('img.cms-slot-image[src^="/media/"]');
+    await replacement.evaluate((image) => image.decode());
+    await master.getByRole('button', { name: 'Elimină imaginea' }).click();
+    await master
+      .getByRole('button', { name: 'Previzualizează site-ul real' })
+      .click();
+    const frame = master.frameLocator(
+      'iframe[title="Site real — previzualizare"]',
+    );
+    await frame
+      .getByRole('heading', { name: 'Titlu editat în master' })
+      .waitFor();
+    assert.equal(await frame.locator('#chart').textContent(), '42');
+    assert.equal(
+      await frame
+        .getByRole('heading')
+        .evaluate((el) => getComputedStyle(el).animationName),
+      'fade',
+    );
+    await frame.locator('[data-vllora-image]').waitFor({ state: 'hidden' });
+    await master.getByLabel('Pagină de previzualizat').selectOption('/');
+    await frame.getByRole('heading', { name: 'Bun venit!' }).waitFor();
+    await frame.getByRole('link', { name: 'Mergi la Despre' }).click();
+    await frame
+      .getByRole('heading', { name: 'Titlu editat în master' })
+      .waitFor();
+    const publicBefore = await call(
+      env.mf,
+      masterOrigin,
+      '/api/content?site=portfolio.example.com',
+    );
+    assert.equal(publicBefore.json.content.pages, undefined);
+    await master.getByRole('button', { name: 'Înapoi la editare' }).click();
+    await master.getByRole('button', { name: 'Importă de pe site' }).click();
+    await master
+      .getByText('Nu există câmpuri goale', { exact: false })
+      .waitFor();
+    await master.getByRole('button', { name: 'Publică modificările' }).click();
+    await master
+      .getByRole('status')
+      .filter({ hasText: 'Conținut publicat' })
+      .waitFor();
+    const publicAfter = await call(
+      env.mf,
+      masterOrigin,
+      '/api/content?site=portfolio.example.com',
+    );
+    assert.deepEqual(
+      publicAfter.json.content.pages[1].fields.map((field) => field.value),
+      ['Titlu editat în master', '', '42'],
+    );
+    await master.unroute(multipageImport);
+
     await master.goto(`${masterOrigin}/portal-admin/`);
     await master.getByRole('heading', { name: 'Site-uri și acces' }).waitFor();
     await assertLogo('.master-shell .topbar .brand-lockup img');
@@ -418,7 +577,9 @@ test(
     }
     await master.setViewportSize({ width: 320, height: 640 });
     await staffCards.getByRole('button', { name: 'Editează site-ul' }).click();
-    await master.getByRole('button', { name: 'Previzualizează' }).waitFor();
+    await master
+      .getByRole('button', { name: 'Previzualizează', exact: true })
+      .waitFor();
     await noOverflow(master, 'editor administrare 320');
     await master.getByRole('button', { name: 'Înapoi la site-uri' }).click();
     await staffCards.waitFor();

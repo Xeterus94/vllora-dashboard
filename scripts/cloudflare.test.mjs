@@ -23,6 +23,7 @@ test(
     const routeList = [];
     let aeDown = false,
       siteId;
+    let useV2 = false;
     const env = await runtime({
       bindings: {
         ENVIRONMENT: 'production',
@@ -39,7 +40,37 @@ test(
           url.pathname === '/.well-known/vllora-content.json'
         )
           return Response.json({
-            version: 1,
+            version: useV2 ? 2 : 1,
+            pages: [
+              {
+                path: '/echipa/',
+                title: 'Echipă',
+                fields: [
+                  {
+                    id: 'bio',
+                    label: 'Prezentare',
+                    kind: 'text',
+                    value: 'Text cu  diacritice și\n două linii.',
+                  },
+                  {
+                    id: 'photo',
+                    label: 'Foto',
+                    kind: 'image',
+                    value: '../assets/foto.webp',
+                    media: { id: 'forged-media' },
+                  },
+                  { id: 'chart', label: 'Grafic', kind: 'number', value: 18.5 },
+                  {
+                    id: 'invalid',
+                    label: 'Invalid',
+                    kind: 'image',
+                    value: 'javascript:alert(1)',
+                  },
+                ],
+              },
+              { path: '/admin/', title: 'Privat', fields: [] },
+              { path: '//outside.example/', title: 'Extern', fields: [] },
+            ],
             content: {
               siteName: 'Nume comercial',
               primaryColor: '#abc',
@@ -492,6 +523,56 @@ test(
     });
     assert.equal(clientImport.status, 200, clientImport.contents);
     assert.deepEqual(clientImport.json, suggestion.json);
+    useV2 = true;
+    const multipage = await admin(importPath, 'POST');
+    assert.equal(multipage.status, 200, multipage.contents);
+    assert.deepEqual(multipage.json.pages, [
+      {
+        path: '/echipa/',
+        title: 'Echipă',
+        fields: [
+          {
+            id: 'bio',
+            label: 'Prezentare',
+            kind: 'text',
+            value: 'Text cu  diacritice și\n două linii.',
+          },
+          {
+            id: 'photo',
+            label: 'Foto',
+            kind: 'image',
+            value: `https://${brand}/assets/foto.webp`,
+          },
+          { id: 'chart', label: 'Grafic', kind: 'number', value: '18.5' },
+        ],
+      },
+    ]);
+    const publishPages = (pages) =>
+      admin(`/sites/${siteId}/content`, 'PUT', {
+        revision: before.revision,
+        content: { ...before.content, pages },
+      });
+    assert.equal(
+      (await publishPages([{ path: '/admin/', title: 'Privat', fields: [] }]))
+        .status,
+      400,
+    );
+    const forged = structuredClone(multipage.json.pages);
+    forged[0].fields[1].media = { id: 'm_1234567890abcdef12345678' };
+    assert.equal((await publishPages(forged)).status, 400);
+    const publishedPages = await publishPages(multipage.json.pages);
+    assert.equal(publishedPages.status, 200, publishedPages.contents);
+    const player = await customer('/admin/api/portal/content', {
+      cookie: changed.cookie,
+      method: 'PUT',
+      body: {
+        revision: publishedPages.json.revision,
+        content: { ...publishedPages.json.content, pages: [] },
+      },
+    });
+    assert.equal(player.status, 200, player.contents);
+    const persisted = await root(`/api/content?site=${brand}`);
+    assert.deepEqual(persisted.json.content.pages, multipage.json.pages);
     assert.equal(
       (
         await call(env.mf, `https://${fallback}`, tenantImportPath, {
@@ -515,7 +596,7 @@ test(
       `https://${fallback}/assets/work.webp`,
     ]);
     const publishedImport = await admin(`/sites/${siteId}/content`, 'PUT', {
-      revision: before.revision,
+      revision: player.json.revision,
       content: {
         ...suggestion.json.fields,
         images: suggestion.json.images,
