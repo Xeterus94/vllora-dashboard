@@ -34,6 +34,7 @@ import {
   Panel,
   useAction,
 } from './PortalUI';
+import { CompanyFields, readCompanyFields } from './CompanyFields';
 import { SiteEditor as ContentEditor } from './SiteEditor';
 import { MediaLibrary } from './MediaLibrary';
 import { MetricEditor, MetricsPanel, Period } from './MetricsPanel';
@@ -363,7 +364,10 @@ function SiteSettings({
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     setStatus('');
-    const payload: Record<string, unknown> = { metrics };
+    const payload: Record<string, unknown> = {
+      metrics,
+      company: readCompanyFields(form, detail.company),
+    };
     for (const key of [
       'name',
       'plan',
@@ -507,6 +511,15 @@ function SiteSettings({
                       </select>
                     </Field>
                   </div>
+                </Panel>
+                <Panel
+                  title="Datele firmei"
+                  description="Opționale. La salvare sunt disponibile pentru afișare în subsolul site-ului public."
+                >
+                  <CompanyFields
+                    key={JSON.stringify(detail.company)}
+                    values={detail.company}
+                  />
                 </Panel>
                 <Panel
                   title="Branding"
@@ -705,7 +718,14 @@ function SiteSettings({
             />
           )}
           {tab === 'content' && (
-            <ContentEditor site={site} staff onDirty={setDirty} />
+            <ContentEditor
+              site={site}
+              staff
+              onDirty={setDirty}
+              onPublished={() => {
+                void reload().catch((e) => action.setError(message(e)));
+              }}
+            />
           )}
           {tab === 'reports' && <SiteReports siteId={site.id} />}
         </>
@@ -731,6 +751,7 @@ function NewSite({ created }: { created: (id: string) => void }) {
               name: fields.get('name'),
               portal_host: fields.get('portal_host'),
               plan: fields.get('plan'),
+              company: readCompanyFields(fields),
               metrics,
             },
           );
@@ -771,6 +792,12 @@ function NewSite({ created }: { created: (id: string) => void }) {
             />
           </Field>
         </div>
+      </Panel>
+      <Panel
+        title="Datele firmei"
+        description="Opționale. Datele completate vor fi disponibile pentru subsolul site-ului public."
+      >
+        <CompanyFields />
       </Panel>
       <Panel title="Metrici și obiective">
         <MetricEditor value={metrics} change={setMetrics} />

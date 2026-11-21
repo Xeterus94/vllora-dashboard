@@ -1,5 +1,9 @@
 import {
   cmsTextFields,
+  companyFields,
+  companyFieldSpec,
+  type CompanyField,
+  type CompanyData,
   documentLimit,
   galleryLimit,
   hoursLimit,
@@ -49,6 +53,10 @@ const urlFields = new Set<CmsTextField>([
   'heroImageUrl',
 ]);
 export function fieldText(field: CmsTextField, value: unknown) {
+  if (isCompanyField(field)) {
+    const { label, max } = companyFieldSpec[field];
+    return text(value === undefined ? '' : value, max, label, true);
+  }
   if (urlFields.has(field)) return cmsUrl(value);
   if (
     field === 'primaryColor' ||
@@ -71,6 +79,33 @@ export function fieldText(field: CmsTextField, value: unknown) {
     true,
   );
 }
+const isCompanyField = (field: CmsTextField): field is CompanyField =>
+  Object.hasOwn(companyFieldSpec, field);
+
+export function companyPatch(input: unknown): Partial<CompanyData> {
+  if (input === undefined) return {};
+  const data = record(input);
+  return Object.fromEntries(
+    companyFields
+      .filter((key) => Object.hasOwn(data, key))
+      .map((key) => [key, fieldText(key, data[key])]),
+  );
+}
+
+export const putCompany = (
+  env: Env,
+  site: string,
+  patch: Partial<CompanyData>,
+) =>
+  stmt(
+    env,
+    `INSERT INTO portfolio_details(site_id,industry,billing,monthly_cents,annual_cents,next_renewal,contact_email,content)
+    SELECT id,'Unspecified','Monthly',0,0,'','',? FROM sites WHERE id=? AND status!='deleting'
+    ON CONFLICT(site_id) DO UPDATE SET content=json_patch(portfolio_details.content,excluded.content)`,
+    JSON.stringify(patch),
+    site,
+  );
+
 const items = (value: unknown, maximum: number, label: string) => {
   if (!Array.isArray(value) || value.length > maximum)
     return fail(400, `${label}: limita este de ${maximum}.`);
@@ -225,6 +260,17 @@ const current = (env: Env, id: string) =>
     'SELECT content FROM portfolio_details WHERE site_id=?',
     id,
   ).first<string>('content');
+export async function readCompany(
+  env: Env,
+  site: string,
+): Promise<CompanyData> {
+  const content = JSON.parse(
+    (await current(env, site)) ?? '{}',
+  ) as Partial<CompanyData>;
+  return Object.fromEntries(
+    companyFields.map((key) => [key, content[key] ?? '']),
+  ) as CompanyData;
+}
 export async function editorContent(c: Ctx, site: string) {
   const raw = await current(c.env, site);
   return c.json({
@@ -248,7 +294,13 @@ export async function publishContent(c: Ctx, site: string) {
       'Conținutul a fost schimbat în altă parte. Reîncarcă editorul înainte să publici.',
     );
   if (body.revision !== (await hash(previous ?? ''))) return conflict();
-  const next = JSON.stringify(normalizeInput(record(body.content)));
+  const input = record(body.content);
+  const old = JSON.parse(previous ?? '{}') as Partial<CompanyData>;
+  // Older editor clients did not send these fields. An explicit empty string still clears a value.
+  for (const key of companyFields)
+    if (!Object.hasOwn(input, key) && old[key] !== undefined)
+      input[key] = old[key];
+  const next = JSON.stringify(normalizeInput(input));
   const content = await resolveContent(
     c.env,
     site,

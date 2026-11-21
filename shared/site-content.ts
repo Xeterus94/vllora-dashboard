@@ -1,5 +1,21 @@
+export const companyFields = [
+  'companyName',
+  'companyCui',
+  'companyRegistry',
+  'companyAddress',
+] as const;
+export type CompanyField = (typeof companyFields)[number];
+export type CompanyData = Record<CompanyField, string>;
+export const companyFieldSpec = {
+  companyName: { label: 'Denumire firmă', max: 160 },
+  companyCui: { label: 'CUI / CIF', max: 24 },
+  companyRegistry: { label: 'Nr. Registrul Comerțului (J)', max: 48 },
+  companyAddress: { label: 'Adresa sediului social', max: 400 },
+} satisfies Record<CompanyField, { label: string; max: number }>;
+
 export const cmsTextFields = [
   'siteName',
+  ...companyFields,
   'primaryColor',
   'secondaryColor',
   'accentColor',

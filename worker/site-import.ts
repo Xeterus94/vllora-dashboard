@@ -1,5 +1,6 @@
 import {
   cmsTextFields,
+  companyFieldSpec,
   galleryLimit,
   servicesLimit,
   hoursLimit,
@@ -42,6 +43,7 @@ function normalize(
 ): SiteImport {
   const fields: SiteImport['fields'] = {};
   for (const key of cmsTextFields) {
+    if (Object.hasOwn(companyFieldSpec, key)) continue;
     const value = urls.has(key)
       ? absolute(raw[key], base)
       : colors.has(key)
