@@ -131,7 +131,10 @@ export async function uploadMedia(
   purpose: MediaPurpose,
 ) {
   const form = new FormData();
-  form.append('file', await webImage(file, purpose));
+  const pdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+  if (pdf && file.size > 8 * 1024 * 1024)
+    throw new Error('Documentele PDF pot avea cel mult 8 MB.');
+  form.append('file', pdf ? file : await webImage(file, purpose));
   return request<{ item: MediaItem }>(path, 'POST', form);
 }
 export const message = (error: unknown) =>

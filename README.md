@@ -12,7 +12,7 @@ Panoul master nu redirecționează spre vechiul proiect Pages și nu apelează W
 
 - **Worker + D1:** sesiuni în cookie `HttpOnly`, limitare persistentă, resetare cu link prin Resend și autorizare pe hostname și site. Portalul nu folosește ID-ul trimis de browser pentru a alege site-ul.
 - **Parole:** PBKDF2-SHA256 cu 210.000 de iterații, calculat într-un Durable Object privat și fără stare. Hash-urile deja salvate în D1 rămân compatibile.
-- **R2 + KV:** biblioteca fiecărui site, logo/favicon și branding detectat automat (opțional cache în KV); uploadurile UI se convertesc în WebP înainte de transfer. Metadatele și fișierele sunt separate.
+- **R2 + KV:** biblioteca fiecărui site, logo/favicon și branding detectat automat (opțional cache în KV); imaginile din UI sunt optimizate înainte de transfer. Metadatele și fișierele sunt separate.
 - **Analytics Engine + D1:** trafic prin `track.js`, istoric pe zile și fallback la rollup. Metricile de business folosesc un dataset separat și un registru D1 pentru deduplicare și valori financiare exacte.
 - **Surse:** `master/` pentru panoul complet și `src/` pentru interfața React; `worker/` pentru API și migrații.
 
@@ -112,7 +112,7 @@ Adaptorul este opțional și **nu se instalează pe proiectul Pages al masterulu
     "scheme": "light"
   }
   ```
-- Limite: 8 MiB/fișier, 200 MiB/site. SVG-urile cu funcționalități active nu sunt acceptate nici prin API; combinațiile de elemente/atribute suportate sunt în `worker/media.ts`. În UI, SVG-urile și imaginile animate se rasterizează într-un WebP static, ca toate uploadurile UI. Importul server-side păstrează formatul.
+- Limite: 8 MiB/fișier, 200 MiB/site. SVG-urile cu funcționalități active nu sunt acceptate nici prin API; combinațiile de elemente/atribute suportate sunt în `worker/media.ts`. La încărcarea de pe dispozitiv, imaginile sunt redimensionate după destinație și comprimate în WebP static. Când browserul nu poate exporta WebP nativ, se încarcă un encoder WebAssembly local; dacă se poate decoda, dar nu se poate converti, nu se încarcă originalul. API-ul multipart respinge formatele de imagine diferite de WebP; documentele PDF rămân PDF. Importul server-side de la URL, brandingul detectat automat și fișierele existente păstrează formatul original.
 - Pentru site-uri cu `logo_data` vechi, după migrațiile D1 apelează `POST /api/admin/maintenance/migrate-logos` cu sesiunea master. Este idempotent; rândurile neacceptate apar în `skipped` și nu sunt șterse.
 
 ### Tracking și metrici de business
@@ -145,8 +145,14 @@ curl -X POST https://portal.domeniu.ro/api/collect-event \
 | --- | --- |
 | `/api/auth/{login,me,logout,change-password,forgot-password,reset-password,sessions/revoke-all}` | `/admin/api/auth/...`, cu aceleași operații |
 | `PATCH /api/auth/recovery-email` | — |
-| `/api/admin/{overview,sites,audit}`, `/api/admin/sites/:id/{users,stats,metrics,metrics-key,media,refresh-branding,sync-route}` | `/admin/api/portal/{me,stats,metrics,media}`, `PATCH /admin/api/portal/site` |
+| `/api/admin/{overview,sites,audit}`, `/api/admin/sites/:id/{users,stats,metrics,metrics-key,media,refresh-branding,sync-route}` | `/admin/api/portal/{me,stats,metrics,media}`, `GET/PUT /admin/api/portal/content`, `PATCH /admin/api/portal/site` |
 | `/api/admin/users/:id` (PATCH/DELETE), `/api/admin/users/:id/reset-password` (POST) | — |
 | `/track.js`, `POST /api/{collect,collect-event}`, `GET /media/<key>` | `GET /admin/media/<key>` |
 
 Rapoartele acceptă `days=7`, `30`, `90` sau `365`, inclusiv ziua UTC curentă. Actualizarea automată și cronul la **02:15 UTC** nu înlocuiesc verificarea cu trafic real după deploy.
+
+### Editorul de conținut (master și client)
+
+În `/admin/` → **Editează site-ul**, clientul poate edita prima pagină, secțiunea „Despre”, lista de servicii și prețuri, programul, contactul și galeria. Butoanele cu agrafă aleg imagini sau PDF-uri de pe dispozitiv, iar fișierele din bibliotecă pot fi refolosite. Previzualizarea din portal reprezintă conținutul, nu designul exact al site-ului public. Schimbările de text și referințele de media intră în conținutul public la **Publică modificările**; fișierele încărcate în bibliotecă sunt publice prin link chiar înainte de publicare. Un PDF este servit ca descărcare, nu redat în portal.
+
+În panoul master, alege clientul → **Conținut site (CMS)** → **Deschide editorul vizual**, sau din `/portal-admin/` → client → **Editează site-ul**. Ambele panouri folosesc aceeași înregistrare CMS și verifică versiunea la publicare; modificarea facturării nu rescrie conținutul. Nu este necesară o migrare nouă. `GET /api/content?site=domeniu-client.ro` furnizează și `heroMedia`, `gallery`, `documents`, `services` și `hours`; `images` rămâne disponibil pentru site-urile care folosesc câmpul de galerie vechi. Un site static trebuie să citească aceste date ca să reflecte schimbările: vezi [adaptorul pentru pagina publică](integrations/static-cms/README.md). Site-ul nu este modificat automat, iar editorul nu rescrie codul HTML/CSS sau logica de programare.

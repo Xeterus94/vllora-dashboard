@@ -39,6 +39,7 @@ import {
   type PortfolioDetails,
 } from './portfolio';
 import { removeRoute, syncRoute } from './routes';
+import { editorContent, publishContent } from './site-content';
 
 export const admin = new Hono<Bindings>();
 admin.use('*', async (c, next) => {
@@ -244,6 +245,19 @@ async function updateSite(
       b.portal_host === null || b.portal_host === ''
         ? null
         : domain(c, b.portal_host);
+  for (const field of ['logo_media_id', 'favicon_media_id']) {
+    const id = update[field];
+    if (
+      id &&
+      !(await stmt(
+        c.env,
+        "SELECT id FROM media WHERE id=? AND site_id=? AND ready=1 AND content_type LIKE 'image/%'",
+        id,
+        site.id,
+      ).first())
+    )
+      return fail(400, 'Selectează o imagine din biblioteca acestui site.');
+  }
   for (const [key, value] of Object.entries(update)) {
     sets.push(`${key}=?`);
     values.push(value);
@@ -527,6 +541,12 @@ admin.get('/audit', async (c) =>
       `SELECT a.id,a.action,a.site_id,a.at,u.username FROM audit_log a LEFT JOIN users u ON u.id=a.actor_id ORDER BY a.id DESC LIMIT 100`,
     ),
   }),
+);
+admin.get('/sites/:id/content', async (c) =>
+  editorContent(c, (await editable(c)).id),
+);
+admin.put('/sites/:id/content', async (c) =>
+  publishContent(c, (await editable(c)).id),
 );
 admin.get('/sites/:id/media', async (c) => listMedia(c, (await target(c)).id));
 admin.post('/sites/:id/media', async (c) => upload(c, (await editable(c)).id));

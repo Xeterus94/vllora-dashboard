@@ -17,7 +17,13 @@ export async function webImage(
   const canvas = document.createElement('canvas');
   try {
     image.src = url;
-    await image.decode();
+    try {
+      await image.decode();
+    } catch {
+      throw new Error(
+        'Telefonul sau browserul nu poate deschide această imagine. Încearcă un JPG, PNG sau WebP.',
+      );
+    }
     const width = image.naturalWidth,
       height = image.naturalHeight;
     if (!width || !height || width * height > 40_000_000)
@@ -29,20 +35,39 @@ export async function webImage(
     const context = canvas.getContext('2d');
     if (!context) throw new Error('Browserul nu poate pregăti imaginea.');
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, 'image/webp', quality),
-    );
-    if (
-      !blob ||
-      blob.type !== 'image/webp' ||
-      !blob.size ||
-      blob.size > maxOutput
-    )
-      throw new Error('Imaginea nu a putut fi pregătită pentru încărcare.');
+    let blob = await new Promise<Blob | null>((resolve) => {
+      try {
+        canvas.toBlob(resolve, 'image/webp', quality);
+      } catch {
+        resolve(null);
+      }
+    });
+    if (blob?.type !== 'image/webp' || !blob.size || blob.size > maxOutput) {
+      try {
+        const { default: encode } = await import('@jsquash/webp/encode.js');
+        const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+        blob = new Blob(
+          [await encode(pixels, { quality: Math.round(quality * 100) })],
+          {
+            type: 'image/webp',
+          },
+        );
+      } catch {
+        throw new Error(
+          'Conversia în WebP nu a reușit. Încearcă alt browser sau o imagine mai mică.',
+        );
+      }
+    }
+    if (!blob.size || blob.size > maxOutput)
+      throw new Error(
+        'Imaginea WebP depășește 8 MB. Alege o imagine mai mică.',
+      );
     return new File(
       [blob],
       `${file.name.replace(/\.[^.]*$/, '') || 'imagine'}.webp`,
-      { type: 'image/webp' },
+      {
+        type: 'image/webp',
+      },
     );
   } finally {
     URL.revokeObjectURL(url);

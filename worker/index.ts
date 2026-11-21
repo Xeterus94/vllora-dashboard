@@ -36,6 +36,7 @@ import {
 import { listMedia, removeImage, serveMedia, upload } from './media';
 import { businessReport, collectEvent } from './metrics';
 import { publicContent } from './portfolio';
+import { editorContent, publishContent } from './site-content';
 
 export { PasswordKdf } from './password';
 
@@ -140,6 +141,8 @@ portal.patch('/site', async (c) => {
   ]);
   return c.json({ notes });
 });
+portal.get('/content', (c) => editorContent(c, tenantId(c)));
+portal.put('/content', (c) => publishContent(c, tenantId(c)));
 portal.get('/media', (c) => listMedia(c, tenantId(c), '/admin'));
 portal.post('/media', (c) => upload(c, tenantId(c), '/admin'));
 portal.delete('/media/:id', (c) =>
@@ -171,7 +174,7 @@ async function shell(c: Ctx, path = '/index.html') {
   response.headers.set('Cache-Control', 'no-store');
   response.headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'" +
+    `default-src 'self'; script-src 'self'${path === '/index.html' ? " 'wasm-unsafe-eval'" : ''}; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'` +
       (dev(c.env) ? '' : "; frame-ancestors 'none'"),
   );
   const tenant = c.get('tenant');

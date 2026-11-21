@@ -73,6 +73,9 @@
     'Monitoring not configured': 'Monitorizarea nu este configurată',
     'No request feed configured': 'Nu este configurată o sursă de cereri',
     'Unknown': 'Necunoscut',
+    'Billing contact email': 'Email de facturare',
+    'Open visual editor': 'Deschide editorul vizual',
+    'Edit text, services, opening hours and photos in the visual editor. Review the preview before publishing.': 'Editează textele, serviciile, programul și pozele în editorul vizual. Verifică previzualizarea înainte de publicare.',
     'CMS fields below are public on active sites through the content API.': 'Câmpurile de mai jos sunt publice prin API-ul CMS pentru site-urile active.',
     'Deleting also removes this site’s portal access, media and analytics records held in the dashboard.': 'Ștergerea elimină și accesul la portal, fișierele media și statisticile salvate în panou.',
     ') and accept': ') și să accepte', 'Vllora Studio Master Dashboard · Client portfolio & CMS': 'Vllora Studio Master Dashboard · Portofoliu clienți și CMS',
@@ -554,7 +557,7 @@
     return {
       id: id, slug: asStr(pick(raw, null, ['slug']), slugOf(domain)), name: name, domain: domain, state: st, health: health,
       plan: plan, billing: billing, monthly: monthly, annual: annual, mrr: mrr,
-      renewal: renewal, email: email || content.email || '',
+      renewal: renewal, email: email || content.email || '', contactEmail: typeof raw.contactEmail === 'string' ? raw.contactEmail : email,
       industry: asStr(pick(raw, nested, ['industry', 'segment', 'category', 'vertical']), 'Unspecified'),
       content: content, createdAt: created, suspendedAt: suspendedAt,
       liveVisitors: readLiveVisitors(raw), raw: raw
@@ -1792,14 +1795,14 @@
     var def = c ? planDefaults(c.plan) : { m: firstPlan.monthly, a: firstPlan.annual };
     state.form = c ? {
       name: c.name, domain: c.domain, state: c.state, plan: c.plan, billing: c.billing, industry: c.industry || 'Unspecified',
-      monthly: String(c.monthly), annual: String(c.annual), renewal: c.renewal || '',
+      monthly: String(c.monthly), annual: String(c.annual), renewal: c.renewal || '', contactEmail: c.contactEmail,
       announcement: c.content.announcement, heroTitle: c.content.heroTitle, heroSubtitle: c.content.heroSubtitle,
       phone: c.content.phone, whatsapp: c.content.whatsapp, email: c.content.email, address: c.content.address,
       mapsUrl: c.content.mapsUrl, facebook: c.content.facebook, instagram: c.content.instagram,
       images: (c.content.images || []).join('\n')
     } : {
       name: '', domain: '', state: 'active', plan: firstPlan.name, billing: 'Monthly', industry: state.settings.segments[0],
-      monthly: String(def.m), annual: String(def.a), renewal: '',
+      monthly: String(def.m), annual: String(def.a), renewal: '', contactEmail: '',
       announcement: '', heroTitle: '', heroSubtitle: '', phone: '', whatsapp: '', email: '',
       address: '', mapsUrl: '', facebook: '', instagram: '', images: ''
     };
@@ -1811,7 +1814,11 @@
     $('#deleteBtn').classList.remove('inline-flex');
     $('#deleteBtn').innerHTML = '<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg> Delete';
     fillEditor();
-    $('#edDomain').readOnly = Boolean(state.auth && c);
+    var liveCms = Boolean(state.auth && c);
+    $('#edDomain').readOnly = liveCms;
+    $('#liveCms').classList.toggle('hidden', !liveCms);
+    $('#legacyCms').classList.toggle('hidden', liveCms);
+    if (liveCms) $('#liveCmsLink').href = '/portal-admin/?editSite=' + encodeURIComponent(c.id);
     setTab('billing');
     $('#editor').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
@@ -1824,6 +1831,7 @@
   function setTab(tab) {
     $('#tab-billing').classList.toggle('hidden', tab !== 'billing');
     $('#tab-cms').classList.toggle('hidden', tab !== 'cms');
+    $('#saveBtn').classList.toggle('invisible', tab === 'cms' && state.auth && !!state.editing);
     $$('.editor-tab').forEach(function (b) {
       var on = b.dataset.tab === tab;
       b.className = 'editor-tab flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all ' +
@@ -1851,6 +1859,7 @@
     $('#edMonthly').value = f.monthly;
     $('#edAnnual').value = f.annual;
     $('#edRenewal').value = f.renewal;
+    $('#edContactEmail').value = f.contactEmail;
     $('#edAnnouncement').value = f.announcement;
     $('#edHeroTitle').value = f.heroTitle;
     $('#edHeroSubtitle').value = f.heroSubtitle;
@@ -1910,6 +1919,7 @@
     f.monthly = $('#edMonthly').value;
     f.annual = $('#edAnnual').value;
     f.renewal = $('#edRenewal').value;
+    f.contactEmail = $('#edContactEmail').value;
     f.announcement = $('#edAnnouncement').value;
     f.heroTitle = $('#edHeroTitle').value;
     f.heroSubtitle = $('#edHeroSubtitle').value;
@@ -1940,9 +1950,9 @@
       monthlyPrice: Number(f.monthly) || 0,
       annualPrice: Number(f.annual) || 0,
       nextRenewal: f.renewal,
-      contactEmail: (f.email || '').trim(),
+      contactEmail: (f.contactEmail || '').trim(),
       updatedAt: new Date().toISOString(),
-      content: {
+      content: state.auth && id ? undefined : {
         heroTitle: f.heroTitle, heroSubtitle: f.heroSubtitle, announcement: f.announcement,
         phone: f.phone, whatsapp: f.whatsapp, email: f.email, address: f.address,
         mapsUrl: f.mapsUrl, facebook: f.facebook, instagram: f.instagram,

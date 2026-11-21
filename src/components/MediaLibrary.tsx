@@ -1,5 +1,5 @@
 import { useEffect, useState, type DragEvent } from 'react';
-import { Cloud, HardDrive, Upload } from 'lucide-react';
+import { Cloud, FileText, HardDrive } from 'lucide-react';
 import {
   collection,
   message,
@@ -7,6 +7,7 @@ import {
   uploadMedia,
   type MediaList,
 } from '../lib/api';
+import { FilePicker } from './FilePicker';
 import type { MediaPurpose } from '../lib/web-image';
 import { Alert, CopyButton, Empty, Field, Panel, useAction } from './PortalUI';
 
@@ -74,8 +75,8 @@ export function MediaLibrary({
   };
   return (
     <Panel
-      title="Biblioteca de imagini"
-      description="Imaginile încărcate pot fi accesate public prin link. Nu încărca fișiere confidențiale."
+      title="Biblioteca de fișiere"
+      description="Fișierele încărcate pot fi accesate public prin link. Nu încărca fișiere confidențiale."
     >
       {loadError && <Alert>{loadError}</Alert>}
       {action.error && <Alert>{action.error}</Alert>}
@@ -114,7 +115,7 @@ export function MediaLibrary({
           </select>
         </Field>
       )}
-      <label
+      <div
         className={`drop-zone ${drag ? 'drag' : ''}`}
         onDragOver={(e) => {
           e.preventDefault();
@@ -123,22 +124,18 @@ export function MediaLibrary({
         onDragLeave={() => setDrag(false)}
         onDrop={drop}
       >
-        <Upload size={20} />
-        <span>
-          {action.busy ? 'Se încarcă…' : 'Alege imagini sau trage-le aici'}
-        </span>
-        <input
-          type="file"
-          aria-label="Alege imagini"
-          accept="image/*,.ico"
+        <FilePicker
+          label={action.busy ? 'Se încarcă…' : 'Atașează fișiere'}
+          inputLabel="Alege imagini"
+          accept="image/*,.ico,.pdf,application/pdf"
           multiple
           disabled={action.busy}
-          onChange={(e) => {
-            upload(Array.from(e.target.files || []));
-            e.target.value = '';
-          }}
+          onFiles={upload}
         />
-      </label>
+        <span className="muted">
+          Poze comprimate în WebP și documente PDF · poți și să le tragi aici
+        </span>
+      </div>
       {siteId && (
         <form
           className="inline-form"
@@ -152,7 +149,7 @@ export function MediaLibrary({
             });
           }}
         >
-          <Field label="Importă de la un URL HTTPS">
+          <Field label="Importă de la un URL HTTPS (păstrează formatul original)">
             <input
               type="url"
               value={url}
@@ -168,13 +165,19 @@ export function MediaLibrary({
       )}
       {data &&
         (!data.items.length ? (
-          <Empty>Biblioteca nu conține încă imagini.</Empty>
+          <Empty>Biblioteca nu conține încă fișiere.</Empty>
         ) : (
           <div className="media-grid">
             {data.items.map((item) => (
               <article key={item.id} className="media-card">
                 <a href={item.url} target="_blank" rel="noreferrer">
-                  <img src={item.url} alt={item.name} loading="lazy" />
+                  {item.content_type.startsWith('image/') ? (
+                    <img src={item.url} alt={item.name} loading="lazy" />
+                  ) : (
+                    <span className="media-pdf">
+                      <FileText size={28} /> PDF
+                    </span>
+                  )}
                 </a>
                 <div className="media-info">
                   <strong title={item.name}>{item.name}</strong>
@@ -208,7 +211,7 @@ export function MediaLibrary({
                       Șterge
                     </button>
                   </div>
-                  {onPick && (
+                  {onPick && item.content_type.startsWith('image/') && (
                     <div className="controls">
                       <button
                         type="button"

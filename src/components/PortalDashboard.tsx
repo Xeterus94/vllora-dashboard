@@ -14,6 +14,7 @@ import { brandStyle } from '../lib/brand';
 import { Alert, Field, Panel, TenantBrand, useAction } from './PortalUI';
 import { MetricsPanel, Period } from './MetricsPanel';
 import { MediaLibrary } from './MediaLibrary';
+import { SiteEditor } from './SiteEditor';
 
 export function PortalDashboard({
   identity,
@@ -31,7 +32,12 @@ export function PortalDashboard({
     }>(),
     [error, setError] = useState(''),
     [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'overview' | 'media' | 'account'>('overview');
+  const [tab, setTab] = useState<'overview' | 'editor' | 'media' | 'account'>(
+    'overview',
+  );
+  const [editorDirty, setEditorDirty] = useState(false);
+  const canLeaveEditor = () =>
+    !editorDirty || confirm('Renunți la modificările nepublicate?');
   const [notes, setNotes] = useState(site.notes),
     [saved, setSaved] = useState(false);
   const action = useAction();
@@ -92,7 +98,9 @@ export function PortalDashboard({
           <button
             className="button secondary"
             disabled={action.busy}
-            onClick={() => logout()}
+            onClick={() => {
+              if (canLeaveEditor()) logout();
+            }}
           >
             <LogOut size={16} /> Deconectare
           </button>
@@ -115,6 +123,7 @@ export function PortalDashboard({
           {(
             [
               ['overview', 'Prezentare'],
+              ['editor', 'Editează site-ul'],
               ['media', 'Bibliotecă media'],
               ['account', 'Cont și notițe'],
             ] as const
@@ -122,7 +131,9 @@ export function PortalDashboard({
             <button
               key={id}
               aria-current={tab === id ? 'page' : undefined}
-              onClick={() => setTab(id)}
+              onClick={() => {
+                if (id !== tab && canLeaveEditor()) setTab(id);
+              }}
             >
               {label}
             </button>
@@ -157,6 +168,9 @@ export function PortalDashboard({
             )}
             {report && <MetricsPanel {...report} />}
           </>
+        )}
+        {tab === 'editor' && (
+          <SiteEditor site={site} onDirty={setEditorDirty} />
         )}
         {tab === 'media' && (
           <MediaLibrary onChange={() => setRefresh((v) => v + 1)} />
