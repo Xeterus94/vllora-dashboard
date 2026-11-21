@@ -44,9 +44,16 @@ test(
           return new Response(png);
         if (url.hostname === fallback && url.pathname === '/')
           return new Response(
-            `<html><head><title>Titlu alternativ</title><meta property="og:site_name" content="Brand din HTML"><style>:root { --brand-primary: #524079; --brand-accent: #fa8 }</style><script type="application/ld+json">{"logo":{"url":"https://${brand}/logo.png"}}</script></head></html>`,
+            `<html><head><title>Titlu alternativ</title><meta property="og:site_name" content="Brand din HTML"><link rel="stylesheet" href="/assets/theme.css"><link rel="stylesheet" href="https://styles-outside.example.org/theme.css"><link rel="icon" href="/favicon.ico"></head><body><img class="site-logo" src="/brand-mark.png" alt="Brand"></body></html>`,
             { headers: { 'Content-Type': 'text/html' } },
           );
+        if (url.hostname === fallback && url.pathname === '/assets/theme.css')
+          return new Response(
+            ':root { --color-primary: #524079; --brand-secondary: #345; --accent: #fa8 }',
+          );
+        if (url.hostname === fallback && url.pathname === '/brand-mark.png')
+          return new Response(png);
+        assert.notEqual(url.hostname, 'styles-outside.example.org');
         if (url.hostname !== 'api.cloudflare.com')
           return new Response(null, { status: 404 });
         if (url.pathname.endsWith('/analytics_engine/sql')) {
@@ -337,6 +344,29 @@ test(
     );
     const tenant = await call(env.mf, `https://${brand}`, '/admin/');
     assert.equal(tenant.status, 200);
+    assert.match(
+      tenant.contents,
+      /<title>Contractul de brand · Admin Dashboard<\/title>/,
+    );
+    const publicBrand = JSON.parse(
+      decodeURIComponent(
+        tenant.contents.match(/data-portal-brand="([^"]+)"/)[1],
+      ),
+    );
+    assert.deepEqual(publicBrand, {
+      name: 'Contractul de brand',
+      primary_color: '#123456',
+      secondary_color: '#abcdef',
+      accent_color: '#f6e6bc',
+      scheme: 'dark',
+      logo_url: site.logo_url,
+    });
+    assert.match(tenant.headers.get('cache-control'), /no-store/);
+    assert.doesNotMatch(tools.contents, /data-portal-brand/);
+    assert.equal(
+      (await call(env.mf, `https://${brand}`, '/admin/api/portal/me')).status,
+      401,
+    );
     for (const path of [
       '/portal-admin/',
       '/admin/portal-admin/',
@@ -353,6 +383,8 @@ test(
     assert.equal(other.json.site.brand_source, 'html');
     assert.equal(other.json.site.name, 'Brand din HTML');
     assert.equal(other.json.site.accent_color, '#ffaa88');
+    assert.equal(other.json.site.primary_color, '#524079');
+    assert.equal(other.json.site.secondary_color, '#334455');
     assert.ok(other.json.site.logo_url);
     assert.equal(
       (

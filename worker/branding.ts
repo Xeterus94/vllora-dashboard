@@ -25,7 +25,7 @@ const normalizeName = (v: unknown) =>
     : undefined;
 const absolute = (v: unknown, base: string) => {
   try {
-    return typeof v === 'string'
+    return typeof v === 'string' && v.trim()
       ? safeUrl(new URL(v, base).href)?.href
       : undefined;
   } catch {
@@ -147,11 +147,14 @@ export async function discovery(
         html = new TextDecoder().decode(file.bytes);
       let title = '',
         og = '',
+        appName = '',
+        markedLogo = '',
         ld = '',
         icon = '',
         theme = '',
         styles = '',
         inTitle = false;
+      const stylesheets = new Set<string>();
       const rewrite = new HTMLRewriter()
         .on('title', {
           element(e) {
@@ -168,14 +171,43 @@ export async function discovery(
           element(e) {
             if (e.getAttribute('property') === 'og:site_name')
               og = e.getAttribute('content') || '';
+            if (e.getAttribute('name') === 'application-name')
+              appName = e.getAttribute('content') || '';
             if (e.getAttribute('name') === 'theme-color' && !theme)
               theme = e.getAttribute('content') || '';
           },
         })
         .on('link', {
           element(e) {
-            if (e.getAttribute('rel')?.startsWith('apple-touch-icon'))
-              icon = e.getAttribute('href') || icon;
+            const rel = e.getAttribute('rel')?.toLowerCase().split(/\s+/) ?? [];
+            const href = absolute(e.getAttribute('href'), file.url);
+            if (!href) return;
+            if (
+              rel.includes('apple-touch-icon') ||
+              (!icon && rel.includes('icon') && !/\.ico(?:[?#]|$)/i.test(href))
+            )
+              icon = href;
+            if (
+              rel.includes('stylesheet') &&
+              stylesheets.size < 2 &&
+              hosts.has(new URL(href).hostname)
+            )
+              stylesheets.add(href);
+          },
+        })
+        .on('img', {
+          element(e) {
+            if (markedLogo) return;
+            const classes = (e.getAttribute('class') || '').split(/\s+/);
+            const label = e.getAttribute('alt') || '';
+            if (
+              e.hasAttribute('data-brand-logo') ||
+              /^logo(?:\s|$)/i.test(label) ||
+              [e.getAttribute('id'), ...classes].some(
+                (value) => value && /^(?:brand-|site-)?logo$/i.test(value),
+              )
+            )
+              markedLogo = absolute(e.getAttribute('src'), file.url) || '';
           },
         })
         .on('script[type="application/ld+json"]', {
@@ -211,8 +243,23 @@ export async function discovery(
           }),
         )
         .arrayBuffer();
-      const css = (pattern: RegExp) =>
-        discoveredColor(styles.match(pattern)?.[1]);
+      const linkedCSS = await Promise.all(
+        [...stylesheets].map(async (url) => {
+          try {
+            const result = await external(url, 128 * 1024, 'text/css', hosts);
+            return new TextDecoder().decode(result.bytes);
+          } catch {
+            return '';
+          }
+        }),
+      );
+      const palette = [styles, ...linkedCSS];
+      const css = (pattern: RegExp) => {
+        for (const source of palette) {
+          const found = discoveredColor(source.match(pattern)?.[1]);
+          if (found) return found;
+        }
+      };
       const counts = new Map<string, number>();
       for (const token of styles.match(/#[a-f0-9]{3}(?:[a-f0-9]{3})?\b/gi) ||
         []) {
@@ -222,14 +269,20 @@ export async function discovery(
       }
       const frequent = [...counts].sort((a, b) => b[1] - a[1]).map(([k]) => k);
       brand = {
-        name: normalizeName(og || title),
-        logo: absolute(linked || icon, file.url),
+        name: normalizeName(og || appName || title),
+        logo: absolute(linked, file.url) || markedLogo || icon || undefined,
         primary:
           discoveredColor(theme) ||
-          css(/--brand(?:-primary)?:\s*(#[0-9a-f]+)\b/i) ||
+          css(
+            /(?:^|[;{\s])--(?:brand|(?:brand-|color-)?primary):\s*(#[0-9a-f]+)\b/i,
+          ) ||
           frequent[0],
-        secondary: css(/--brand-secondary:\s*(#[0-9a-f]+)\b/i) || frequent[1],
-        accent: css(/--brand-accent:\s*(#[0-9a-f]+)\b/i),
+        secondary:
+          css(/(?:^|[;{\s])--(?:brand-|color-)?secondary:\s*(#[0-9a-f]+)\b/i) ||
+          frequent[1],
+        accent: css(
+          /(?:^|[;{\s])--(?:brand-|color-)?accent:\s*(#[0-9a-f]+)\b/i,
+        ),
         source: 'html',
       };
     } catch {

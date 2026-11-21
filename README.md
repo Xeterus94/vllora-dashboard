@@ -100,7 +100,18 @@ Adaptorul este opțional și **nu se instalează pe proiectul Pages al masterulu
 ### Media și branding
 
 - `MEDIA_PUBLIC_BASE` gol: fișierele sunt publice prin Worker, cu ETag și CSP `sandbox`. Dacă ai nevoie de livrare directă, configurează **R2 → Public access → Custom domain** pe un **domeniu dedicat imaginilor** și setează `MEDIA_PUBLIC_BASE=https://cdn.domeniu.ro`. URL-urile vechi ale Worker-ului rămân funcționale. Nu încărca documente private; cache-urile deja populate nu expiră instantaneu la ștergere.
-- La creare și rescan, Worker-ul încearcă `/.well-known/vllora-brand.json`; altfel caută metadate și culori în HTML. Contractul acceptă `name`, `logo`, `colors: {primary, secondary, accent}` și `scheme: "light" | "dark"`. Logoul detectat este copiat în R2 (nu hotlink/base64). Schimbările manuale se păstrează la rescan dacă nu alegi **Forțează rescan**.
+- `/admin/` afișează **numele site-ului · Admin Dashboard**, logoul și paleta site-ului inclusiv înainte de autentificare și în ecranele de parolă. Shellul este specific hostname-ului și nu include notițe, date de cont sau tokenuri. Dacă nu există logo, afișează inițialele numelui site-ului.
+- La creare și **Configurare → Branding → Rescan**, Worker-ul caută mai întâi `/.well-known/vllora-brand.json`. Fără manifest, încearcă numele din metadatele HTML, logo din JSON-LD, o imagine marcată cu `data-brand-logo` / `class="site-logo"` sau o iconiță acceptată, și culori din HTML sau din variabile declarate în până la două foi CSS de pe hostname-ul site-ului. Logoul detectat este copiat în R2. Setările manuale se păstrează la rescan dacă nu alegi **Forțează rescan**.
+- Pentru un branding exact atunci când site-ul nu îl declară detectabil, setează în master numele, culorile, tema și logoul din biblioteca media, sau adaugă pe site manifestul de mai jos (cu valorile reale și un URL către un logo existent), apoi folosește **Forțează rescan**. Nu este necesară o migrare D1 sau înlocuirea adaptorului Pages pentru afișarea brandingului.
+
+  ```json
+  {
+    "name": "Numele site-ului",
+    "logo": "/assets/logo.webp",
+    "colors": { "primary": "#6b1c2e", "secondary": "#895c29", "accent": "#f6e6bc" },
+    "scheme": "light"
+  }
+  ```
 - Limite: 8 MiB/fișier, 200 MiB/site. SVG-urile cu funcționalități active nu sunt acceptate nici prin API; combinațiile de elemente/atribute suportate sunt în `worker/media.ts`. În UI, SVG-urile și imaginile animate se rasterizează într-un WebP static, ca toate uploadurile UI. Importul server-side păstrează formatul.
 - Pentru site-uri cu `logo_data` vechi, după migrațiile D1 apelează `POST /api/admin/maintenance/migrate-logos` cu sesiunea master. Este idempotent; rândurile neacceptate apar în `skipped` și nu sunt șterse.
 

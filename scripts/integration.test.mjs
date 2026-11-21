@@ -129,7 +129,10 @@ test(
         other = must(
           await adminCall(
             '/sites',
-            send({ domain: 'other-client.com', name: 'Al doilea site' }),
+            send({
+              domain: 'other-client.com',
+              name: 'Al doilea site & <Nord> "RO"',
+            }),
           ),
           201,
         ).json.site;
@@ -139,7 +142,31 @@ test(
         );
         must(await adminCall('/sites', send({ domain: 'localhost' })), 400);
         must(await adminCall(`/sites/${site.id}/sync-route`, send()), 200);
+        await db
+          .prepare('UPDATE sites SET notes=? WHERE id=?')
+          .bind('Private tenant note', site.id)
+          .run();
         const shell = must(await a('/admin/'), 200);
+        const branding = (html) =>
+          JSON.parse(
+            decodeURIComponent(html.match(/data-portal-brand="([^"]+)"/)[1]),
+          );
+        assert.match(
+          shell.contents,
+          /<title>Primul site · Admin Dashboard<\/title>/,
+        );
+        assert.equal(branding(shell.contents).name, 'Primul site');
+        assert.ok(
+          !shell.contents.includes(site.id) &&
+            !shell.contents.includes(site.tracking_token),
+        );
+        assert.doesNotMatch(shell.contents, /Private tenant note/);
+        const secondShell = must(await b('/admin/'), 200);
+        assert.equal(
+          branding(secondShell.contents).name,
+          'Al doilea site & <Nord> "RO"',
+        );
+        assert.doesNotMatch(secondShell.contents, /<Nord>|Primul site/);
         assert.match(shell.headers.get('referrer-policy'), /no-referrer/);
         const asset = shell.contents.match(/src="\.\/assets\/([^"]+)/)?.[1];
         assert.ok(asset);

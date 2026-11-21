@@ -189,10 +189,42 @@ test(
       .getByRole('button', { name: 'Logo actual', exact: true })
       .waitFor();
 
+    await env.db
+      .prepare(
+        'UPDATE sites SET primary_color=?, secondary_color=?, accent_color=?, scheme=? WHERE domain=?',
+      )
+      .bind('#8674a8', '#76abcc', '#ffb401', 'dark', 'siteclient.com')
+      .run();
+    const assertClientBrand = async (shell) => {
+      const header = client.locator(`${shell} .brand-lockup`);
+      await header.getByText('Bluebird Studio', { exact: true }).waitFor();
+      await header.getByText('Admin Dashboard', { exact: true }).waitFor();
+      assert.doesNotMatch(
+        await header.innerText(),
+        /Vllora Studio|Portal client/i,
+      );
+      const image = header.locator('img');
+      assert.match(await image.getAttribute('src'), /^\/admin\/media\/sites\//);
+      await image.evaluate((img) => img.decode());
+      assert.equal(await client.title(), 'Bluebird Studio · Admin Dashboard');
+      const style = await client.locator(shell).evaluate((el) => {
+        const css = getComputedStyle(el);
+        return [
+          '--brand-primary',
+          '--brand-secondary',
+          '--brand-accent',
+          'color-scheme',
+        ].map((name) => css.getPropertyValue(name).trim());
+      });
+      // The primary shade is adjusted slightly to remain readable on the dark surface.
+      assert.deepEqual(style, ['#8c7bac', '#76abcc', '#ffb401', 'dark']);
+    };
     await client.goto(`${tenantOrigin}/admin`);
     assert.equal(new URL(client.url()).pathname, '/admin/');
+    await assertClientBrand('.auth-shell');
     await login(client, 'client.ui', tmp);
     await client.getByRole('heading', { name: 'Setează-ți parola' }).waitFor();
+    await assertClientBrand('.auth-shell');
     await client.getByLabel('Parola temporară', { exact: true }).fill(tmp);
     await client
       .getByLabel('Parolă nouă', { exact: false })
@@ -204,6 +236,7 @@ test(
     await client
       .getByRole('heading', { name: 'Bluebird Studio', exact: true })
       .waitFor();
+    await assertClientBrand('.portal-shell');
     const revenue = client.locator('.featured');
     await revenue.waitFor();
     assert.match(
@@ -288,6 +321,7 @@ test(
     await client
       .getByRole('heading', { name: 'Setează o parolă nouă' })
       .waitFor();
+    await assertClientBrand('.auth-shell');
     assert.equal(new URL(client.url()).hash, '');
     await client
       .getByLabel('Parolă nouă', { exact: false })

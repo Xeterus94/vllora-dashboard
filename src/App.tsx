@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { AuthScreens } from './components/AuthScreens';
 import { MasterDashboard } from './components/MasterDashboard';
 import { PortalDashboard } from './components/PortalDashboard';
-import { Alert } from './components/PortalUI';
+import { Alert, TenantBrand } from './components/PortalUI';
+import { brandStyle, readPortalBrand } from './lib/brand';
 import { ApiError, message, mount, request, type Identity } from './lib/api';
 
 function takeResetToken() {
@@ -12,6 +13,7 @@ function takeResetToken() {
   return token;
 }
 const resetToken = takeResetToken();
+const portalBrand = mount ? readPortalBrand() : null;
 export default function App() {
   const [identity, setIdentity] = useState<Identity | null>(null),
     [loading, setLoading] = useState(!resetToken),
@@ -56,14 +58,21 @@ export default function App() {
   }, []);
   if (loading)
     return (
-      <main className="auth-shell">
+      <main
+        className={`auth-shell ${portalBrand?.scheme === 'dark' ? 'dark-portal' : ''}`}
+        style={brandStyle(portalBrand)}
+      >
         <p role="status">Se încarcă portalul…</p>
       </main>
     );
   if (error)
     return (
-      <main className="auth-shell">
+      <main
+        className={`auth-shell ${portalBrand?.scheme === 'dark' ? 'dark-portal' : ''}`}
+        style={brandStyle(portalBrand)}
+      >
         <div className="auth-card">
+          {mount && <TenantBrand site={portalBrand} />}
           <Alert>{error}</Alert>
           <button
             className="button primary"
@@ -82,6 +91,7 @@ export default function App() {
     return (
       <AuthScreens
         identity={identity}
+        portalBrand={portalBrand}
         resetToken={reset}
         onLogin={(v) => {
           setIdentity(v);

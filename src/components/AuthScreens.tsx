@@ -1,19 +1,22 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import type { PortalBrand } from '../../shared/portal-brand';
 import { ArrowLeft, ArrowRight, KeyRound, LockKeyhole } from 'lucide-react';
 import { mount, request, type Identity } from '../lib/api';
 import { brandStyle } from '../lib/brand';
-import { Alert, Field, Logo, useAction } from './PortalUI';
+import { Alert, Field, Logo, TenantBrand, useAction } from './PortalUI';
 
 const passwordHint =
   'Minimum 10 caractere, cu majusculă, minusculă, cifră și simbol.';
 export function AuthScreens({
   identity,
+  portalBrand,
   resetToken,
   onLogin,
   onLogout,
   onDismissReset,
 }: {
   identity: Identity | null;
+  portalBrand: PortalBrand | null;
   resetToken: string;
   onLogin: (v: Identity) => void;
   onLogout: () => void;
@@ -30,6 +33,7 @@ export function AuthScreens({
       setNotice('');
     }
   }, [resetToken]);
+  const brand = identity?.site ?? portalBrand;
   const changing = !!identity?.must_change_password && mode !== 'reset';
   const title = changing
     ? 'Setează-ți parola'
@@ -91,19 +95,21 @@ export function AuthScreens({
   };
   return (
     <main
-      className={`auth-shell ${identity?.site?.scheme === 'dark' ? 'dark-portal' : ''}`}
-      style={brandStyle(identity?.site)}
+      className={`auth-shell ${brand?.scheme === 'dark' ? 'dark-portal' : ''}`}
+      style={brandStyle(brand)}
     >
       <div className="auth-card">
-        <div className="brand-lockup">
-          <Logo site={identity?.site} />
-          <div>
-            <span className="eyebrow">
-              {identity?.site?.name || 'Vllora Studio'}
-            </span>
-            <p>{mount ? 'Portal client' : 'Administrare portaluri client'}</p>
+        {mount ? (
+          <TenantBrand site={brand} />
+        ) : (
+          <div className="brand-lockup">
+            <Logo />
+            <div>
+              <span className="eyebrow">Vllora Studio</span>
+              <p>Administrare portaluri client</p>
+            </div>
           </div>
-        </div>
+        )}
         <div className="auth-intro">
           <span className="auth-icon">
             {changing || mode === 'reset' ? (

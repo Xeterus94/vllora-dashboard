@@ -6,10 +6,17 @@ import {
   type ReactNode,
 } from 'react';
 import { Check, Copy, ImageOff } from 'lucide-react';
-import { type Site, message } from '../lib/api';
+import { portalLabel, type PortalBrand } from '../../shared/portal-brand';
+import { message } from '../lib/api';
 import { initials } from '../lib/brand';
 
-export function Logo({ site }: { site?: Site | null }) {
+export function Logo({
+  site,
+  fallback = 'Vllora Studio',
+}: {
+  site?: Pick<PortalBrand, 'logo_url' | 'name'> | null;
+  fallback?: string;
+}) {
   const [failed, setFailed] = useState('');
   return (
     <span className="site-logo">
@@ -20,9 +27,21 @@ export function Logo({ site }: { site?: Site | null }) {
           alt=""
         />
       ) : (
-        initials(site?.name || 'Vllora Studio')
+        initials(site?.name || fallback)
       )}
     </span>
+  );
+}
+export function TenantBrand({ site }: { site?: PortalBrand | null }) {
+  const name = site?.name || location.hostname;
+  return (
+    <div className="brand-lockup">
+      <Logo site={site} fallback={name} />
+      <div>
+        <p>{name}</p>
+        <span className="eyebrow tenant-label">{portalLabel}</span>
+      </div>
+    </div>
   );
 }
 export function CopyButton({
