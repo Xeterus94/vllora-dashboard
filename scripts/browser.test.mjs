@@ -81,7 +81,26 @@ test(
     };
     const requests = [];
     master.on('request', (request) => requests.push(request.url()));
+    const logoFile = 'vllora-logo.svg';
+    const assertLogo = async (selector) => {
+      const logo = master.locator(selector);
+      await logo.waitFor();
+      assert.ok((await logo.getAttribute('src')).endsWith(logoFile));
+      await logo.evaluate((img) => img.decode());
+    };
+    const favicon = (page) => page.locator('head link[rel="icon"]');
+    await master.goto(`${masterOrigin}/portal-admin/`);
+    await assertLogo('.auth-card .brand-lockup img');
+    assert.equal(
+      await favicon(master).getAttribute('href'),
+      `./assets/${logoFile}`,
+    );
     await master.goto(masterOrigin);
+    await assertLogo('#login img');
+    assert.equal(
+      await favicon(master).getAttribute('href'),
+      `/master/assets/${logoFile}`,
+    );
     assert.equal(new URL(master.url()).pathname, '/');
     for (const id of ['username', 'password']) {
       const gaps = await master.locator(`#${id}`).evaluate((input) => {
@@ -114,6 +133,7 @@ test(
     await master.locator('#demoBtn').click();
     await master.locator('#app').waitFor();
     await master.locator('#chartPerf').waitFor();
+    await assertLogo('#app > aside img');
     assert.ok(await master.evaluate(() => window.Chart.getChart('chartPerf')));
     assert.equal(
       await master
@@ -151,6 +171,7 @@ test(
     await master.setViewportSize({ width: 320, height: 640 });
     await master.locator('#navOpen').click();
     await nav.waitFor();
+    await assertLogo('#mobileNav img');
     await master.keyboard.press('Escape');
     await nav.waitFor({ state: 'hidden' });
     assert.equal(
@@ -383,6 +404,7 @@ test(
 
     await master.goto(`${masterOrigin}/portal-admin/`);
     await master.getByRole('heading', { name: 'Site-uri și acces' }).waitFor();
+    await assertLogo('.master-shell .topbar .brand-lockup img');
     const staffCards = master.locator('.staff-site-cards');
     await master.locator('.staff-site-table').waitFor();
     for (const [width, height] of [
@@ -463,6 +485,25 @@ test(
       .getByRole('button', { name: 'Logo actual', exact: true })
       .waitFor();
 
+    const defaultPortal = await call(env.mf, tenantOrigin, '/admin/');
+    assert.match(
+      defaultPortal.contents,
+      /rel="icon" href="\.\/assets\/vllora-logo\.svg"/,
+    );
+    const defaultIcon = await call(
+      env.mf,
+      tenantOrigin,
+      `/admin/assets/${logoFile}`,
+    );
+    assert.equal(defaultIcon.status, 200);
+    assert.equal(defaultIcon.headers.get('content-type'), 'image/svg+xml');
+    await master
+      .getByRole('button', { name: 'Setează ca favicon', exact: true })
+      .click();
+    await master
+      .getByRole('button', { name: 'Favicon actual', exact: true })
+      .waitFor();
+
     await env.db
       .prepare(
         'UPDATE sites SET primary_color=?, secondary_color=?, accent_color=?, scheme=? WHERE domain=?',
@@ -478,6 +519,12 @@ test(
         /Vllora Studio|Portal client/i,
       );
       const image = header.locator('img');
+      assert.equal(await favicon(client).count(), 1);
+      assert.equal(
+        await favicon(client).getAttribute('href'),
+        await image.getAttribute('src'),
+      );
+
       assert.match(await image.getAttribute('src'), /^\/admin\/media\/sites\//);
       await image.evaluate((img) => img.decode());
       assert.equal(await client.title(), 'Bluebird Studio · Admin Dashboard');

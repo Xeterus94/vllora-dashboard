@@ -75,7 +75,7 @@
   #editorFooter { padding-inline: .75rem; }
   #editorFooter button { padding-inline: .55rem; }
   #masterHeader > div:first-child { padding-inline: .55rem; gap: .3rem; }
-  #masterHeader > div:first-child > div[aria-hidden='true'] { display: none; }
+  #masterHeader .master-header-logo { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .slide-in, .fade-up, .ping { animation: none; }

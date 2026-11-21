@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6B1C2E"/>
+      <stop offset="100%" stop-color="#320913"/>
+    </linearGradient>
+    <linearGradient id="bm-gold" x1="12" y1="8" x2="106" y2="88" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F6E6BC"/><stop offset="28%" stop-color="#D6B46C"/><stop offset="52%" stop-color="#F3E0B3"/><stop offset="78%" stop-color="#B38B42"/><stop offset="100%" stop-color="#DFC07D"/>
+    </linearGradient>
+    <linearGradient id="bm-shade" x1="42" y1="34" x2="95" y2="88" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#E8CB8A"/><stop offset="55%" stop-color="#BA9348"/><stop offset="100%" stop-color="#F0DCAC"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="26" fill="url(#background)"/>
+  <g transform="translate(12 22) scale(.8)">
+    <path d="M12 10 L23.6 10 C31.2 10 36.8 13.6 40.9 21 L58.11 55.32 L53.82 63.04 L32.8 25.2 C29.8 19.8 26.8 17.4 24.47 17 L52.25 67.01 A1.8 1.8 0 0 0 55.39 67.01 L72.4 36.4 C76.6 28.8 82.8 26 91.2 24.8 C94.8 24.3 97.4 22 99.6 17.2 C92.6 16.8 86.2 19.4 81.2 25.4 L71.8 28 C76.4 16.8 84.4 10 95.8 10 L108 10 L96.3 31.06 C93.8 33 90.2 33.6 86.2 34.4 C82.4 35.2 79.8 37.8 77.4 42.16 L61.86 70.6 A9.2 9.2 0 0 1 45.78 70.6 L12 10 Z" fill="url(#bm-gold)"/>
+    <path d="M94.3 34.66 L71.22 75.8 A19.9 19.9 0 0 1 41.8 81.9 C44.8 81.4 47.4 79.8 49.4 77.8 A12.5 12.5 0 0 0 64.75 72.2 L84.7 36.29 C87.8 35.6 91.2 35.2 94.3 34.66 Z" fill="url(#bm-shade)"/>
+  </g>
+</svg>

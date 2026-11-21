@@ -8,11 +8,15 @@ import {
 import { Check, Copy, ImageOff } from 'lucide-react';
 import { portalLabel, type PortalBrand } from '../../shared/portal-brand';
 import { message } from '../lib/api';
-import { initials } from '../lib/brand';
+import { initials, vlloraLogoUrl } from '../lib/brand';
+
+export function VlloraLogo() {
+  return <img className="site-logo" src={vlloraLogoUrl} alt="" />;
+}
 
 export function Logo({
   site,
-  fallback = 'Vllora Studio',
+  fallback,
 }: {
   site?: Pick<PortalBrand, 'logo_url' | 'name'> | null;
   fallback?: string;
@@ -27,7 +31,7 @@ export function Logo({
           alt=""
         />
       ) : (
-        initials(site?.name || fallback)
+        initials(site?.name || fallback || '')
       )}
     </span>
   );

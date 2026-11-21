@@ -201,6 +201,15 @@ async function shell(c: Ctx, path = '/index.html') {
         element.setInnerContent(portalTitle(brand.name));
       },
     })
+    .on('link[rel=icon]', {
+      element: (element) => {
+        if (tenant.favicon_key)
+          element.setAttribute(
+            'href',
+            publicMediaUrl(c.env, tenant.favicon_key, '/admin'),
+          );
+      },
+    })
     .on('#root', {
       element: (element) => {
         element.setAttribute(

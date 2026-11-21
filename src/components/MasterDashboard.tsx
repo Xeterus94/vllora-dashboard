@@ -31,6 +31,7 @@ import {
   Empty,
   Field,
   Logo,
+  VlloraLogo,
   Panel,
   useAction,
 } from './PortalUI';
@@ -1036,7 +1037,7 @@ export function MasterDashboard({
       <header className="topbar">
         <div className="wrap head-inner">
           <div className="brand-lockup">
-            <Logo />
+            <VlloraLogo />
             <div>
               <span className="eyebrow">Vllora Studio</span>
               <p>Administrare portaluri client</p>

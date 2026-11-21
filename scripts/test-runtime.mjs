@@ -90,7 +90,9 @@ export async function runtime({ bindings = {}, outbound } = {}) {
                   ? 'font/woff2'
                   : path.endsWith('.wasm')
                     ? 'application/wasm'
-                    : 'text/html';
+                    : path.endsWith('.svg')
+                      ? 'image/svg+xml'
+                      : 'text/html';
             return new Response(
               request.method === 'HEAD' ? null : await readFile(path),
               { headers: { 'Content-Type': type } },

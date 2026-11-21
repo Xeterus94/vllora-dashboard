@@ -28,6 +28,14 @@ test('Worker-ul livrează master și React separat, cu CSS și JS locale', async
   assert.match(portalHtml, /src="\.\/assets\//);
 });
 
+test('Master și portal folosesc aceeași siglă Vllora din build', async () => {
+  const logo = await read('public/assets/vllora-logo.svg');
+  assert.ok(logo.startsWith('<svg '));
+  for (const prefix of ['dist-portal', 'dist-portal/master']) {
+    assert.equal(await read(`${prefix}/assets/vllora-logo.svg`), logo);
+  }
+});
+
 test('adaptorul Pages păstrează site-ul normal și trimite doar /admin la Worker-ul portalului', async () => {
   const routes = JSON.parse(
     await read('integrations/pages-client/_routes.json'),
