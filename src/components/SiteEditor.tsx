@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import {
   documentLimit,
+  companyFields,
+  companyFieldSpec,
   fillFromSite,
   galleryLimit,
   hoursLimit,
@@ -37,6 +39,7 @@ import {
 } from '../lib/api';
 import { brandStyle } from '../lib/brand';
 import { Alert, Field, Panel, useAction } from './PortalUI';
+import { CompanyFields } from './CompanyFields';
 import { FilePicker } from './FilePicker';
 
 const sections = [
@@ -122,8 +125,10 @@ export function SiteEditor({
   site,
   onDirty,
   staff = false,
+  onPublished,
 }: {
   site: Site;
+  onPublished?: (data: SiteContent) => void;
   staff?: boolean;
   onDirty: (dirty: boolean) => void;
 }) {
@@ -408,6 +413,7 @@ export function SiteEditor({
         });
         setData(result);
         setDraft(result.content);
+        onPublished?.(result.content);
         setNotice(
           'Conținut publicat. Se afișează pe site în secțiunile conectate la CMS.',
         );
@@ -522,6 +528,20 @@ export function SiteEditor({
                 description="Aceste setări sunt pentru pagina publică. Nu schimbă sigla sau culorile panoului de autentificare."
               >
                 {field('siteName', 'Numele public al site-ului')}
+                <fieldset
+                  className="stack cms-company"
+                  aria-label="Datele firmei"
+                >
+                  <legend>Datele firmei</legend>
+                  <p className="muted">
+                    Opționale. Vor apărea în subsolul site-ului, dacă acesta
+                    este conectat la CMS.
+                  </p>
+                  <CompanyFields
+                    values={draft}
+                    onChange={(key, value) => edit({ [key]: value })}
+                  />
+                </fieldset>
                 {picker('logoMedia', 'Atașează sigla site-ului')}
                 {field('logoUrl', 'Siglă din link (rezervă)', { url: true })}
                 <div className="form-grid">
@@ -910,6 +930,24 @@ function ContentPreview({
               </p>
             ))}
           </div>
+        )}
+        {companyFields.some((key) => content[key]) && (
+          <footer
+            className="cms-preview-copy cms-company-footer"
+            aria-label="Subsol · Datele firmei"
+          >
+            <strong>{content.siteName || site.name}</strong>
+            {companyFields.map(
+              (key) =>
+                content[key] && (
+                  <p key={key}>
+                    {key === 'companyName' || key === 'companyAddress'
+                      ? content[key]
+                      : `${companyFieldSpec[key].label}: ${content[key]}`}
+                  </p>
+                ),
+            )}
+          </footer>
         )}
       </div>
     </aside>

@@ -78,3 +78,23 @@ Folosește în manifest numai date publice, pe care ai verificat că vrei să le
 ```
 
 În CSS folosește variabilele `--vllora-primary`, `--vllora-secondary` și `--vllora-accent` cu fallback la culorile existente (ex. `color: var(--vllora-primary, #694432)`). Pentru temă folosește selectorul `[data-vllora-scheme="dark"]` pe elementul marcat. Aceste setări țin de site-ul public; nu schimbă brandingul de autentificare al portalului. Manifestul este pentru import, iar scriptul adaptor este pentru afișarea datelor publicate; unul nu îl înlocuiește pe celălalt.
+
+## Datele firmei în subsol
+
+În fișa clientului sau în **Editează site-ul → Nume și culori → Datele firmei** poți completa denumirea legală, CUI / CIF, numărul Registrului Comerțului și adresa sediului social. Sunt câmpuri **publice** prin CMS: salvează doar datele pe care firma le afișează public. Acestea sunt separate de numele comercial, adresa de contact și setările de facturare.
+
+Adaugă atributele în **subsolul site-ului**, imediat după elementul care afișează numele. Păstrează clasele necesare designului local. Exemplu:
+
+```html
+<footer>
+  <strong data-vllora-field="siteName">Numele site-ului</strong>
+  <div class="company-details">
+    <div data-vllora-field="companyName" data-vllora-empty="replace"></div>
+    <div data-vllora-field="companyCui" data-vllora-empty="replace"></div>
+    <div data-vllora-field="companyRegistry" data-vllora-empty="replace"></div>
+    <div data-vllora-field="companyAddress" data-vllora-empty="replace"></div>
+  </div>
+</footer>
+```
+
+Site-urile cu adaptor propriu trebuie să citească aceste patru chei noi din `content`. Câmpurile goale trebuie omise, nu confundate cu datele de facturare din master. Textele se afișează ca text simplu (`textContent`), nu ca HTML.

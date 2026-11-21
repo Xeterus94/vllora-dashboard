@@ -126,6 +126,10 @@ test(
     );
     await master.locator('#addClient').click();
     await master.locator('#edName').fill('Master UI Portfolio Site');
+    await master.locator('#edCompanyName').fill('Compania Master SRL');
+    await master.locator('#edCompanyCui').fill('RO00056789');
+    await master.locator('#edCompanyRegistry').fill('J23/100/2019');
+    await master.locator('#edCompanyAddress').fill('Sediu master nr. 3');
     await master.locator('#edDomain').fill('portfolio.example.com');
     await master.locator('[data-tab="cms"]').click();
     await master.locator('#edHeroTitle').fill('A D1-backed title');
@@ -188,6 +192,15 @@ test(
     );
     assert.equal(untouched.json.content.siteName, '');
     await master.getByRole('button', { name: 'Nume și culori' }).click();
+    assert.equal(
+      await master.getByLabel('Denumire firmă', { exact: true }).inputValue(),
+      'Compania Master SRL',
+    );
+    assert.equal(
+      await master.getByLabel('CUI / CIF', { exact: true }).inputValue(),
+      'RO00056789',
+    );
+
     assert.equal(
       await master.getByLabel('Numele public al site-ului').inputValue(),
       'Nume detectat',
@@ -260,6 +273,7 @@ test(
     );
     assert.equal(fromMaster.json.content.heroTitle, 'Publicat de master');
     assert.equal(fromMaster.json.businessName, 'Nume detectat');
+    assert.equal(fromMaster.json.content.companyRegistry, 'J23/100/2019');
     assert.equal(fromMaster.json.content.gallery[0].id, masterImage.id);
     assert.deepEqual(fromMaster.json.content.images, [
       'https://portfolio.example.com/assets/veche.webp',
@@ -277,6 +291,10 @@ test(
       .first()
       .fill('siteclient.com');
     await master.getByLabel('Nume afișat (opțional)').fill('Bluebird Studio');
+    await master
+      .getByLabel('Denumire firmă', { exact: true })
+      .fill('Bluebird SRL');
+    await master.getByLabel('CUI / CIF', { exact: true }).fill('RO12345678');
     await master
       .getByLabel('Profilul site-ului', { exact: false })
       .selectOption('ecommerce');
@@ -405,6 +423,16 @@ test(
     await client
       .getByLabel('Titlu principal', { exact: true })
       .fill('Un titlu din editorul mobil');
+    await client.getByRole('button', { name: 'Nume și culori' }).click();
+    assert.equal(
+      await client.getByLabel('Denumire firmă', { exact: true }).inputValue(),
+      'Bluebird SRL',
+    );
+    await client
+      .getByLabel('Adresa sediului social')
+      .fill('Adresă editată din mobil');
+    await client.getByRole('button', { name: 'Prima pagină' }).click();
+
     // Simulate a browser returning PNG; the fallback must still encode and upload WebP.
     const restoreCanvas = await client.evaluateHandle(() => {
       const original = HTMLCanvasElement.prototype.toBlob;
@@ -466,6 +494,14 @@ test(
       .getByRole('img', { name: 'Imagine principală' })
       .evaluate((img) => img.decode());
     await preview.getByText('program.pdf', { exact: true }).waitFor();
+    await preview
+      .locator('footer')
+      .getByText('Bluebird SRL', { exact: true })
+      .waitFor();
+    await preview
+      .locator('footer')
+      .getByText('Adresă editată din mobil', { exact: true })
+      .waitFor();
     assert.equal(
       await client.evaluate(
         () => document.documentElement.scrollWidth > innerWidth,
@@ -485,6 +521,10 @@ test(
     );
     assert.equal(publicEditor.json.content.services[0].name, 'Tuns din portal');
     assert.equal(publicEditor.json.content.documents[0].name, 'program.pdf');
+    assert.equal(
+      publicEditor.json.content.companyAddress,
+      'Adresă editată din mobil',
+    );
     assert.ok(
       publicEditor.json.content.heroMedia.url.startsWith(
         masterOrigin + '/media/',
@@ -583,6 +623,7 @@ test(
       <a data-vllora-link="bookingUrl" href="https://example.org/booking">Rezervă</a>
       <div data-vllora-list="services" data-vllora-template="service"><p>Rezervă existentă</p></div>
       <template id="service"><p data-vllora-item="name"></p></template>
+      <footer><div data-vllora-field="companyName"></div><div data-vllora-field="companyCui"></div></footer>
       </main><script defer src="/vllora-content.js" data-api="https://cms.example.org/api/content"></script>`;
     const adapter = await readFile(
       'integrations/static-cms/vllora-content.js',
@@ -604,6 +645,8 @@ test(
             primaryColor: '#224466',
             siteScheme: 'dark',
             siteName: 'Nume nou',
+            companyName: '<b>Exemplu SRL</b>',
+            companyCui: 'RO12345678',
             logoUrl: 'https://img.example.org/logo.webp',
             services: [{ name: 'Tuns actualizat' }],
             bookingUrl: 'javascript:void(0)',
@@ -619,6 +662,11 @@ test(
     await publicSite.getByText('Tuns actualizat', { exact: true }).waitFor();
     assert.equal(await publicSite.locator('h1 em').count(), 0);
     await publicSite.getByText('Nume nou', { exact: true }).waitFor();
+    await publicSite
+      .locator('footer')
+      .getByText('<b>Exemplu SRL</b>', { exact: true })
+      .waitFor();
+    assert.equal(await publicSite.locator('footer b').count(), 0);
     assert.equal(
       await publicSite.getByRole('img', { name: 'Siglă' }).getAttribute('src'),
       'https://img.example.org/logo.webp',

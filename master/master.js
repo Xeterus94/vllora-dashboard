@@ -7,6 +7,7 @@
 
   /* ---------------------------------------------------------- constants */
   var PORTFOLIO_API = '/api/admin/portfolio';
+  var COMPANY_INPUTS = {companyName: '#edCompanyName', companyCui: '#edCompanyCui', companyRegistry: '#edCompanyRegistry', companyAddress: '#edCompanyAddress'};
   var LIVE_POLL_MS = 30000;
   var LIVE_STALE_MS = 90000;
   var DAYS = 730;
@@ -73,6 +74,9 @@
     'Monitoring not configured': 'Monitorizarea nu este configurată',
     'No request feed configured': 'Nu este configurată o sursă de cereri',
     'Unknown': 'Necunoscut',
+    'Company details': 'Datele firmei', 'Legal company name': 'Denumire firmă', 'Tax ID (CUI / CIF)': 'CUI / CIF',
+    'Trade Register number (J)': 'Nr. Registrul Comerțului (J)', 'Registered office address': 'Adresa sediului social',
+    'Optional. These details are available for the public website footer.': 'Opționale. Datele sunt disponibile pentru afișare în subsolul site-ului public.',
     'Billing contact email': 'Email de facturare',
     'Open visual editor': 'Deschide editorul vizual',
     'Edit text, services, opening hours and photos in the visual editor. Review the preview before publishing.': 'Editează textele, serviciile, programul și pozele în editorul vizual. Verifică previzualizarea înainte de publicare.',
@@ -550,6 +554,10 @@
     var suspendedAt = st === 'suspended'
       ? dayIndexFromISO(typeof suspendISO === 'string' ? suspendISO : null, null)
       : null;
+    var company = {};
+    Object.keys(COMPANY_INPUTS).forEach(function (key) {
+      company[key] = asStr(pick(raw.company || {}, nested, [key]));
+    });
     var health = asStr(pick(raw, nested, ['health', 'siteStatus', 'uptimeState']), 'Unknown');
     if (st === 'suspended') health = 'Suspended';
     if (['Online', 'Degraded', 'Down', 'Suspended'].indexOf(health) === -1) health = 'Unknown';
@@ -559,7 +567,7 @@
       plan: plan, billing: billing, monthly: monthly, annual: annual, mrr: mrr,
       renewal: renewal, email: email || content.email || '', contactEmail: typeof raw.contactEmail === 'string' ? raw.contactEmail : email,
       industry: asStr(pick(raw, nested, ['industry', 'segment', 'category', 'vertical']), 'Unspecified'),
-      content: content, createdAt: created, suspendedAt: suspendedAt,
+      content: content, company: company, createdAt: created, suspendedAt: suspendedAt,
       liveVisitors: readLiveVisitors(raw), raw: raw
     };
   }
@@ -1806,6 +1814,8 @@
       announcement: '', heroTitle: '', heroSubtitle: '', phone: '', whatsapp: '', email: '',
       address: '', mapsUrl: '', facebook: '', instagram: '', images: ''
     };
+    state.form.company = Object.assign({}, c && c.company);
+    state.form.initialCompany = Object.assign({}, state.form.company);
     $('#editorTitle').textContent = c ? 'Edit ' + c.name : 'Add new client';
     $('#editorSub').textContent = !state.auth
       ? (c ? c.domain + ' · demo mode, changes stay in this tab.' : 'Demo mode — the new client stays in this tab.')
@@ -1852,6 +1862,7 @@
     var f = state.form;
     $('#edName').value = f.name;
     $('#edDomain').value = f.domain;
+    Object.keys(COMPANY_INPUTS).forEach(function (key) { $(COMPANY_INPUTS[key]).value = f.company[key] || ''; });
     renderSegmentSelect();
     $('#edSegmentNewWrap').classList.add('hidden');
     $('#edSegmentNewWrap').classList.remove('grid');
@@ -1915,6 +1926,7 @@
     var f = state.form;
     f.name = $('#edName').value;
     f.domain = $('#edDomain').value;
+    Object.keys(COMPANY_INPUTS).forEach(function (key) { f.company[key] = $(COMPANY_INPUTS[key]).value; });
     f.industry = $('#edSegment').value || f.industry;
     f.monthly = $('#edMonthly').value;
     f.annual = $('#edAnnual').value;
@@ -1937,8 +1949,14 @@
   function buildSavePayload(f, id) {
     var domain = (f.domain || '').trim();
     var existing = id ? state.clients.filter(function (x) { return x.id === id; })[0] : null;
+    var company = {};
+    Object.keys(COMPANY_INPUTS).forEach(function (key) {
+      var value = (f.company[key] || '').trim();
+      if (!state.auth || value !== (f.initialCompany[key] || '')) company[key] = value;
+    });
     return {
       action: id ? 'update' : 'create',
+      company: company,
       id: id || undefined,
       slug: existing && existing.slug ? existing.slug : slugOf(domain),
       businessName: (f.name || '').trim(),

@@ -1,3 +1,4 @@
+import type { CompanyData } from '../../shared/site-content';
 import type { PortalBrand } from '../../shared/portal-brand';
 import type { MetricId, MetricSettings } from '../../shared/metrics';
 import { webImage, type MediaPurpose } from './web-image';
@@ -59,6 +60,7 @@ export type BusinessReport = {
 };
 export type SiteDetail = {
   site: Site;
+  company: CompanyData;
   users: User[];
   settings: MetricSettings;
   server_key_configured: boolean;

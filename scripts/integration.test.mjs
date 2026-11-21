@@ -122,6 +122,12 @@ test(
               domain: 'siteclient.com',
               portal_host: 'admin.siteclient.com',
               name: 'Primul site',
+              company: {
+                companyName: 'Prima Firmă SRL',
+                companyCui: 'RO01234567',
+                companyRegistry: 'J23/12/2020',
+                companyAddress: 'Strada Sediului 10',
+              },
               metrics: settings,
             }),
           ),
@@ -439,6 +445,24 @@ test(
         must(await a(path), 401);
         must(await b(path, { cookie: client }), 401);
         const load = must(await a(path, { cookie: client }), 200).json;
+        assert.equal(load.content.companyCui, 'RO01234567');
+        const initialCompany = must(await adminCall(`/sites/${site.id}`), 200)
+          .json.company;
+        assert.equal(initialCompany.companyName, 'Prima Firmă SRL');
+        assert.equal(initialCompany.companyRegistry, 'J23/12/2020');
+        assert.equal(
+          must(await adminCall(`/sites/${other.id}`), 200).json.company
+            .companyName,
+          '',
+        );
+        must(
+          await adminCall(`/sites/${site.id}`, {
+            method: 'PATCH',
+            body: { company: { companyCui: '1'.repeat(25) } },
+          }),
+          400,
+        );
+
         const doc = must(
           await a(
             `${portal}/media`,
@@ -486,6 +510,7 @@ test(
         const edited = {
           ...load.content,
           heroTitle: 'Frizeria de test',
+          companyAddress: 'Sediul nou 3',
           heroMedia: {
             id: logo.id,
             url: 'https://other-client.com/forged.jpg',
@@ -503,6 +528,8 @@ test(
         must(await publish({ heroTitle: 'Date vechi' }), 409);
         const published = (await p('/api/content?site=siteclient.com')).json;
         assert.equal(published.content.heroTitle, edited.heroTitle);
+        assert.equal(published.content.companyCui, 'RO01234567');
+        assert.equal(published.content.companyAddress, 'Sediul nou 3');
         assert.equal(
           published.content.heroImageUrl,
           published.content.heroMedia.url,
@@ -579,11 +606,24 @@ test(
         assert.equal(shared.content.heroTitle, 'Editat din master');
         assert.equal(shared.revision, savedByStaff.revision);
         assert.equal(shared.content.services[0].name, 'Tuns');
+        assert.equal(shared.content.companyAddress, 'Sediul nou 3');
+        must(
+          await adminCall(`/sites/${site.id}`, {
+            method: 'PATCH',
+            body: { company: { companyRegistry: '' } },
+          }),
+          200,
+        );
+        must(await publish(shared.content, shared.revision), 409);
+        const revised = must(await a(path, { cookie: client }), 200).json;
+        assert.equal(revised.content.companyRegistry, '');
+        assert.equal(revised.content.heroTitle, shared.content.heroTitle);
+        assert.equal(revised.content.companyCui, shared.content.companyCui);
         assert.equal(shared.content.documents[0].name, 'preturi.pdf');
         must(
           await publish(
-            { ...shared.content, heroTitle: 'Editat din nou' },
-            shared.revision,
+            { ...revised.content, heroTitle: 'Editat din nou' },
+            revised.revision,
           ),
           200,
         );

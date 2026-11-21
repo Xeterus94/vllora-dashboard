@@ -39,7 +39,13 @@ import {
   type PortfolioDetails,
 } from './portfolio';
 import { removeRoute, syncRoute } from './routes';
-import { editorContent, publishContent } from './site-content';
+import {
+  companyPatch,
+  editorContent,
+  publishContent,
+  putCompany,
+  readCompany,
+} from './site-content';
 import { inspectSite } from './site-import';
 
 export const admin = new Hono<Bindings>();
@@ -131,6 +137,7 @@ async function createSite(
     body.plan === undefined ? 'Standard' : text(body.plan, 60, 'Plan');
   const changes = brandFields(body),
     manual = Object.keys(changes).length > 0;
+  const company = companyPatch(body.company);
   if (changes.logo_media_id || changes.favicon_media_id)
     return fail(400, 'Încarcă imaginile după crearea site-ului.');
   const status = body.status ?? 'active';
@@ -161,6 +168,9 @@ async function createSite(
       ),
       ...(config ? [settingsInsert(c.env, id, config)] : []),
       ...(portfolio ? [putPortfolio(c.env, id, portfolio)] : []),
+      ...(Object.values(company).some(Boolean)
+        ? [putCompany(c.env, id, company)]
+        : []),
       audit(c.env, 'site_created', actor(c), id),
     ]);
   } catch (err) {
@@ -186,17 +196,19 @@ async function createSite(
 admin.post('/sites', async (c) => createSite(c, await json(c)));
 admin.get('/sites/:id', async (c) => {
   const site = await target(c);
-  const [users, metrics] = await Promise.all([
+  const [users, metrics, company] = await Promise.all([
     all<User>(
       c.env,
       'SELECT * FROM users WHERE client_id=? ORDER BY created_at',
       site.id,
     ),
     configView(c.env, site.id),
+    readCompany(c.env, site.id),
   ]);
   return c.json({
     site: siteView(c.env, site, true),
     users: users.map(userView),
+    company,
     ...metrics,
   });
 });
@@ -226,6 +238,7 @@ async function updateSite(
   const update = brandFields(b),
     sets: string[] = [],
     values: (string | null | number)[] = [];
+  const company = companyPatch(b.company);
   const config = b.metrics === undefined ? null : validateMetrics(b.metrics);
   if (b.domain !== undefined && b.domain !== site.domain)
     return fail(
@@ -323,6 +336,9 @@ async function updateSite(
         : []),
       ...(config ? [settingsUpsert(c.env, site.id, config)] : []),
       ...(portfolio ? [putPortfolio(c.env, site.id, portfolio)] : []),
+      ...(Object.keys(company).length
+        ? [putCompany(c.env, site.id, company)]
+        : []),
       audit(
         c.env,
         update.status === 'suspended' ? 'site_suspended' : 'site_updated',
@@ -432,6 +448,7 @@ admin.post('/portfolio', async (c) => {
     domain: domain(c, b.domain),
     plan: text(b.tier, 60, 'Plan'),
     status: b.state,
+    company: b.company,
   };
   if (b.state !== 'active' && b.state !== 'suspended')
     return fail(400, 'Stare site invalidă.');

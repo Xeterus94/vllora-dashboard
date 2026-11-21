@@ -753,3 +753,6 @@ th {
 .cms-preview-brand img { width: 38px; height: 38px; object-fit: contain; }
 .cms-preview-light { --surface: #fff; --subtle: #f5f5f7; --line: #dddde4; --muted: #565664; color: #22222b; }
 .cms-preview-dark { --surface: #1c1b22; --subtle: #292731; --line: #454352; --muted: #b5b1c1; color: #f9f8fa; }
+.cms-company { margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.cms-company legend { padding: 0 5px; font-weight: 600; }
+.cms-company-footer { background: var(--subtle); }
