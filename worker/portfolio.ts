@@ -176,6 +176,9 @@ export async function publicContent(c: Ctx) {
       domain: row.domain,
       content: {
         ...content,
+        // The public link fields are the effective images. Editors still receive the original fallbacks.
+        heroImageUrl: content.heroMedia?.url || content.heroImageUrl,
+        logoUrl: content.logoMedia?.url || content.logoUrl,
         images: [
           ...new Set([
             ...content.images,

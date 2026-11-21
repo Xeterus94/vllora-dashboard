@@ -58,21 +58,51 @@ export type SiteImport = {
   hours: CmsHours[];
 };
 
-// Imports populate only empty fields/lists; a gallery with uploaded photos is already filled.
+// Only repair an old manifest link if the fresh scan confirms its exact counterpart.
+function manifestAddress(value: string) {
+  try {
+    const url = new URL(value);
+    const prefix = '/.well-known/';
+    if (url.protocol === 'https:' && url.pathname.startsWith(prefix)) {
+      url.pathname = '/' + url.pathname.slice(prefix.length);
+      return url.href;
+    }
+  } catch {
+    /* Not an absolute imported URL. */
+  }
+  return value;
+}
+
 export function fillFromSite(draft: SiteContent, source: SiteImport) {
   const next = { ...draft };
   for (const key of cmsTextFields) {
     const value = source.fields[key];
     if (
-      !next[key].trim() &&
-      value &&
-      !(key === 'heroImageUrl' && draft.heroMedia) &&
-      !(key === 'logoUrl' && draft.logoMedia)
+      !value ||
+      (key === 'heroImageUrl' && draft.heroMedia) ||
+      (key === 'logoUrl' && draft.logoMedia)
+    )
+      continue;
+    if (
+      !next[key].trim() ||
+      (source.source === 'manifest' &&
+        (key === 'logoUrl' || key === 'heroImageUrl') &&
+        value === manifestAddress(next[key]))
     )
       next[key] = value;
   }
-  if (!draft.images.length && !draft.gallery.length)
-    next.images = source.images;
+  if (!draft.images.length) next.images = source.images;
+  else if (source.source === 'manifest') {
+    const confirmed = new Set(source.images);
+    next.images = [
+      ...new Set(
+        draft.images.map((url) => {
+          const corrected = manifestAddress(url);
+          return confirmed.has(corrected) ? corrected : url;
+        }),
+      ),
+    ];
+  }
   if (!draft.services.length) next.services = source.services;
   if (!draft.hours.length) next.hours = source.hours;
   return next;

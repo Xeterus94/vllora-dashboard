@@ -41,7 +41,7 @@ Publică întregul folder al site-ului (inclusiv adaptorul `/admin` deja funcți
 
 ## Importă conținutul inițial în ambele panouri
 
-În editor, apasă **Importă de pe site**. Worker-ul verifică numai pagina publică de la domeniul configurat și manifestul de mai jos; nu execută scripturile site-ului. Importul oferă sugestii, nu salvează și nu înlocuiește câmpurile sau listele deja completate. Imaginile descoperite se păstrează ca URL-uri HTTPS, nu se copiază în R2. Pentru a le stoca drept WebP, descarcă-le și atașează-le din editor. O siglă sau imagine principală încărcată are prioritate față de URL-ul de rezervă.
+În editor, apasă **Importă de pe site**. Worker-ul verifică numai pagina publică de la domeniul configurat și manifestul de mai jos; nu execută scripturile site-ului. Importul oferă sugestii, nu salvează și nu înlocuiește câmpurile sau listele deja completate. O nouă scanare poate corecta linkurile importate anterior sub `/.well-known/` numai când manifestul confirmă aceeași cale la rădăcina site-ului. Imaginile descoperite se păstrează ca URL-uri HTTPS, nu se copiază în R2. Pentru a le stoca drept WebP, descarcă-le și atașează-le din editor. O siglă sau imagine principală încărcată are prioritate față de URL-ul de rezervă.
 
 Pe paginile fără manifest, scanarea încearcă să detecteze din HTML numele, logo-ul, paleta, titlul principal, marcajele `data-vllora-field` / `data-cms`, unele linkuri de contact, imaginea principală (`data-vllora-hero-image` sau `og:image`), și galeria (`data-vllora-gallery`, `#gallery` / `#galerie` sau imagini individuale `data-vllora-gallery-image`). Fără un manifest, serviciile și programul generate din JavaScript nu sunt ghicite.
 
@@ -65,6 +65,8 @@ Pentru o preluare exactă, publică **`/.well-known/vllora-content.json`** în o
   }
 }
 ```
+
+Linkurile din manifest se rezolvă de la rădăcina site-ului: atât `assets/poza.webp`, cât și `/assets/poza.webp` înseamnă `/assets/poza.webp`, nu `/.well-known/assets/poza.webp`. Pentru consumatorii API personalizați, `content.images` include galeria completă (URL-uri importate și fișiere încărcate); `content.gallery` conține doar metadatele fișierelor încărcate. Câmpurile `heroImageUrl` și `logoUrl` din API-ul public sunt URL-urile efective, cu prioritate pentru fișierul încărcat.
 
 Folosește în manifest numai date publice, pe care ai verificat că vrei să le imporți. Nu include parole, chei, date despre clienți, sau adrese interne. Culorile publicate în CMS se aplică numai dacă site-ul optează pentru ele, de exemplu:
 

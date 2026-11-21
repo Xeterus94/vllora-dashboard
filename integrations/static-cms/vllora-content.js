@@ -54,6 +54,10 @@
     ]) {
       if (!url) continue;
       for (const image of document.querySelectorAll(selector)) {
+        for (const source of image
+          .closest('picture')
+          ?.querySelectorAll('source') ?? [])
+          source.removeAttribute('srcset');
         image.removeAttribute('srcset');
         image.src = url;
       }
