@@ -1,3 +1,4 @@
+import { portalTitle } from '../../shared/portal-brand';
 import { useEffect, useState } from 'react';
 import { ExternalLink, LogOut, RefreshCw } from 'lucide-react';
 import {
@@ -10,7 +11,7 @@ import {
   type Stats,
 } from '../lib/api';
 import { brandStyle } from '../lib/brand';
-import { Alert, Field, Logo, Panel, useAction } from './PortalUI';
+import { Alert, Field, Panel, TenantBrand, useAction } from './PortalUI';
 import { MetricsPanel, Period } from './MetricsPanel';
 import { MediaLibrary } from './MediaLibrary';
 
@@ -65,6 +66,9 @@ export function PortalDashboard({
     };
   }, [days, refresh, onLogout]);
   useEffect(() => {
+    document.title = portalTitle(site.name);
+  }, [site.name]);
+  useEffect(() => {
     if (!site.favicon_url) return;
     const link = document.createElement('link');
     link.rel = 'icon';
@@ -84,13 +88,7 @@ export function PortalDashboard({
     >
       <header className="topbar">
         <div className="wrap head-inner">
-          <div className="brand-lockup">
-            <Logo site={site} />
-            <div>
-              <span className="eyebrow">Portal client</span>
-              <p>{site.name}</p>
-            </div>
-          </div>
+          <TenantBrand site={site} />
           <button
             className="button secondary"
             disabled={action.busy}

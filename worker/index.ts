@@ -1,5 +1,10 @@
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
+import {
+  portalBrandAttribute,
+  portalTitle,
+  type PortalBrand,
+} from '../shared/portal-brand';
 import { PORTAL_ADMIN_PATH } from '../shared/portal-paths';
 import { admin } from './admin';
 import { auth, bootstrap, requireRole } from './auth';
@@ -17,6 +22,7 @@ import {
   fail,
   json,
   platformHost,
+  publicMediaUrl,
   siteSelect,
   siteView,
   stmt,
@@ -168,7 +174,37 @@ async function shell(c: Ctx, path = '/index.html') {
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'" +
       (dev(c.env) ? '' : "; frame-ancestors 'none'"),
   );
-  return response;
+  const tenant = c.get('tenant');
+  if (!tenant || !asset.ok) return response;
+  const brand: PortalBrand = {
+    name: tenant.name,
+    primary_color: tenant.primary_color,
+    secondary_color: tenant.secondary_color,
+    accent_color: tenant.accent_color,
+    scheme: tenant.scheme,
+    logo_url: tenant.object_key
+      ? publicMediaUrl(c.env, tenant.object_key, '/admin')
+      : null,
+  };
+  // The source asset is shared, but the HTML representation is specific to the host.
+  response.headers.delete('ETag');
+  response.headers.delete('Content-Length');
+  if (c.req.method === 'HEAD') return response;
+  return new HTMLRewriter()
+    .on('title', {
+      element: (element) => {
+        element.setInnerContent(portalTitle(brand.name));
+      },
+    })
+    .on('#root', {
+      element: (element) => {
+        element.setAttribute(
+          portalBrandAttribute,
+          encodeURIComponent(JSON.stringify(brand)),
+        );
+      },
+    })
+    .transform(response);
 }
 function portalAsset(c: Ctx, prefix: string) {
   const url = new URL(c.req.url);

@@ -1,5 +1,8 @@
 import type { CSSProperties } from 'react';
-import type { Site } from './api';
+import {
+  portalBrandAttribute,
+  type PortalBrand,
+} from '../../shared/portal-brand';
 
 const channels = (hex: string) =>
   [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
@@ -12,6 +15,18 @@ const contrast = (a: string, b: string) => {
   const colors = [luminance(a), luminance(b)].sort((m, n) => n - m);
   return (colors[0] + 0.05) / (colors[1] + 0.05);
 };
+export function readPortalBrand(): PortalBrand | null {
+  const value = document
+    .getElementById('root')
+    ?.getAttribute(portalBrandAttribute);
+  if (!value) return null;
+  try {
+    return JSON.parse(decodeURIComponent(value)) as PortalBrand;
+  } catch {
+    return null;
+  }
+}
+
 const shift = (color: string, target: string, p: number) =>
   '#' +
   channels(color)
@@ -32,7 +47,9 @@ function readable(color: string, background: string) {
   }
   return luminance(background) > 0.5 ? '#000000' : '#ffffff';
 }
-export function brandStyle(site?: Site | null): CSSProperties | undefined {
+export function brandStyle(
+  site?: PortalBrand | null,
+): CSSProperties | undefined {
   if (!site) return;
   const dark = site.scheme === 'dark',
     surface = dark ? '#1c1b22' : '#ffffff';
@@ -42,7 +59,7 @@ export function brandStyle(site?: Site | null): CSSProperties | undefined {
     '--brand-primary': primary,
     '--brand-secondary': secondary,
     '--brand-accent': site.accent_color,
-    '--brand-ink': contrast(primary, '#ffffff') >= 4.5 ? '#ffffff' : '#14141a',
+    '--brand-ink': contrast(primary, '#ffffff') >= 4.5 ? '#ffffff' : '#000000',
     colorScheme: site.scheme,
   } as CSSProperties;
 }

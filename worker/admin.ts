@@ -167,7 +167,13 @@ async function createSite(
   }
   const site = required(await findSite(c.env, id));
   await Promise.all([
-    brandUpdate(c, site, false, 'default', Boolean(portfolio)),
+    brandUpdate(
+      c,
+      site,
+      false,
+      'default',
+      body.name !== undefined && body.name !== '',
+    ),
     syncRoute(c.env, site, actor(c)),
   ]);
   return c.json(
@@ -330,7 +336,13 @@ admin.patch('/sites/:id', async (c) =>
 admin.post('/sites/:id/refresh-branding', async (c) => {
   const site = await editable(c),
     force = c.req.query('force') === '1';
-  const result = await brandUpdate(c, site, force, site.brand_source);
+  const result = await brandUpdate(
+    c,
+    site,
+    force,
+    site.brand_source,
+    !force && site.name !== site.domain,
+  );
   return c.json({
     ...result,
     site: siteView(c.env, required(await findSite(c.env, site.id)), true),

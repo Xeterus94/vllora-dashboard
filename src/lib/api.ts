@@ -1,19 +1,14 @@
+import type { PortalBrand } from '../../shared/portal-brand';
 import type { MetricId, MetricSettings } from '../../shared/metrics';
 import { webImage, type MediaPurpose } from './web-image';
 
-export type Site = {
+export type Site = PortalBrand & {
   id: string;
   domain: string;
   portal_host: string | null;
-  name: string;
   plan: string;
   status: 'active' | 'suspended' | 'deleting';
-  primary_color: string;
-  secondary_color: string;
-  accent_color: string;
-  scheme: 'light' | 'dark';
   logo_media_id: string | null;
-  logo_url: string | null;
   favicon_media_id: string | null;
   favicon_url: string | null;
   notes: string;
