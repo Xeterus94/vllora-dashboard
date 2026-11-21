@@ -4,6 +4,9 @@ import {
   type PortalBrand,
 } from '../../shared/portal-brand';
 
+// The Worker serves the same asset below /portal-admin/ and /admin/.
+export const vlloraLogoUrl = './assets/vllora-logo.svg';
+
 const channels = (hex: string) =>
   [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 const luminance = (hex: string) =>

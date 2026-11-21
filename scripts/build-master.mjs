@@ -23,6 +23,7 @@ execFileSync(
 );
 await Promise.all([
   copyFile('master/index.html', `${dest}/index.html`),
+  copyFile('public/assets/vllora-logo.svg', `${dest}/assets/vllora-logo.svg`),
   copyFile('master/master.js', `${dest}/assets/master.js`),
   copyFile(
     'node_modules/chart.js/dist/chart.umd.js',

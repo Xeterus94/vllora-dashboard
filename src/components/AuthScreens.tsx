@@ -3,7 +3,7 @@ import type { PortalBrand } from '../../shared/portal-brand';
 import { ArrowLeft, ArrowRight, KeyRound, LockKeyhole } from 'lucide-react';
 import { mount, request, type Identity } from '../lib/api';
 import { brandStyle } from '../lib/brand';
-import { Alert, Field, Logo, TenantBrand, useAction } from './PortalUI';
+import { Alert, Field, TenantBrand, VlloraLogo, useAction } from './PortalUI';
 
 const passwordHint =
   'Minimum 10 caractere, cu majusculă, minusculă, cifră și simbol.';
@@ -103,7 +103,7 @@ export function AuthScreens({
           <TenantBrand site={brand} />
         ) : (
           <div className="brand-lockup">
-            <Logo />
+            <VlloraLogo />
             <div>
               <span className="eyebrow">Vllora Studio</span>
               <p>Administrare portaluri client</p>
