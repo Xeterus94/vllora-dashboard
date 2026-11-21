@@ -373,6 +373,18 @@ export async function removeImage(c: Ctx, site: string, id: string) {
       id,
     ).first<{ object_key: string }>(),
   );
+  const pageReference = await stmt(
+    c.env,
+    `SELECT 1 FROM portfolio_details p, json_each(p.content, '$.pages') as page, json_each(page.value, '$.fields') as field
+     WHERE p.site_id=? AND json_extract(field.value, '$.media')=? LIMIT 1`,
+    site,
+    id,
+  ).first();
+  if (pageReference)
+    return fail(
+      409,
+      'Imaginea este publicată într-o pagină. Elimin-o din editor și publică înainte de a o șterge din bibliotecă.',
+    );
   await c.env.MEDIA.delete(row.object_key);
   await c.env.DB.batch([
     stmt(c.env, 'DELETE FROM media WHERE id=? AND site_id=?', id, site),

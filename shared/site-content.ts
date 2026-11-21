@@ -1,3 +1,5 @@
+import { mergePages, type ContentPage } from './site-pages';
+
 export const companyFields = [
   'companyName',
   'companyCui',
@@ -59,6 +61,7 @@ export type SiteContent = Record<CmsTextField, string> & {
   documents: CmsFile[];
   services: CmsService[];
   hours: CmsHours[];
+  pages?: ContentPage[];
 };
 export type EditorData = { content: SiteContent; revision: string };
 export const galleryLimit = 20;
@@ -72,6 +75,7 @@ export type SiteImport = {
   images: string[];
   services: CmsService[];
   hours: CmsHours[];
+  pages?: ContentPage[];
 };
 
 // Only repair an old manifest link if the fresh scan confirms its exact counterpart.
@@ -121,5 +125,6 @@ export function fillFromSite(draft: SiteContent, source: SiteImport) {
   }
   if (!draft.services.length) next.services = source.services;
   if (!draft.hours.length) next.hours = source.hours;
+  if (source.pages?.length) next.pages = mergePages(draft.pages ?? [], source.pages);
   return next;
 }

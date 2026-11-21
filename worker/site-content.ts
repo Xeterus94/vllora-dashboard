@@ -25,6 +25,11 @@ import {
 } from './core';
 
 import { color } from './branding';
+import {
+  normalizePages,
+  pagePayloadLimit,
+  type StoredPages,
+} from './site-pages';
 
 type Body = Record<string, unknown>;
 const record = (value: unknown) => {
@@ -119,12 +124,13 @@ const mediaId = (value: unknown) => {
 };
 type Stored = Omit<
   SiteContent,
-  'heroMedia' | 'logoMedia' | 'gallery' | 'documents'
+  'heroMedia' | 'logoMedia' | 'gallery' | 'documents' | 'pages'
 > & {
   heroMedia: string | null;
   logoMedia: string | null;
   gallery: string[];
   documents: string[];
+  pages?: StoredPages;
 };
 function normalizeInput(body: Body): Stored {
   const fields = Object.fromEntries(
@@ -191,22 +197,31 @@ async function resolveContent(
         ...(data.documents ?? []),
         data.heroMedia,
         data.logoMedia,
+        ...(data.pages ?? []).flatMap((page) =>
+          page.fields.map((field) => field.media),
+        ),
       ].filter((id): id is string => Boolean(id)),
     ),
   ];
-  const rows = ids.length
-    ? await all<{
-        id: string;
-        name: string;
-        object_key: string;
-        content_type: string;
-      }>(
-        env,
-        `SELECT id,name,object_key,content_type FROM media WHERE site_id=? AND ready=1 AND id IN (${ids.map(() => '?').join(',')})`,
-        site,
-        ...ids,
-      )
-    : [];
+  // D1 permits at most 100 bound parameters per statement.
+  const rows = (
+    await Promise.all(
+      Array.from({ length: Math.ceil(ids.length / 90) }, (_, index) => {
+        const batch = ids.slice(index * 90, (index + 1) * 90);
+        return all<{
+          id: string;
+          name: string;
+          object_key: string;
+          content_type: string;
+        }>(
+          env,
+          `SELECT id,name,object_key,content_type FROM media WHERE site_id=? AND ready=1 AND id IN (${batch.map(() => '?').join(',')})`,
+          site,
+          ...batch,
+        );
+      }),
+    )
+  ).flat();
   const files = new Map(
     rows.map((row) => [
       row.id,
@@ -252,6 +267,17 @@ async function resolveContent(
       .filter((file): file is CmsFile => file !== null),
     services: data.services ?? [],
     hours: data.hours ?? [],
+    ...(data.pages
+      ? {
+          pages: data.pages.map((page) => ({
+            ...page,
+            fields: page.fields.map(({ media, ...field }) => {
+              const file = media ? find(media, 'image') : null;
+              return file ? { ...field, media: file } : field;
+            }),
+          })),
+        }
+      : {}),
   };
 }
 const current = (env: Env, id: string) =>
@@ -286,7 +312,7 @@ export async function editorContent(c: Ctx, site: string) {
   });
 }
 export async function publishContent(c: Ctx, site: string) {
-  const body = await json(c, 96 * 1024);
+  const body = await json(c, pagePayloadLimit + 128 * 1024);
   const previous = await current(c.env, site);
   const conflict = () =>
     fail(
@@ -295,12 +321,19 @@ export async function publishContent(c: Ctx, site: string) {
     );
   if (body.revision !== (await hash(previous ?? ''))) return conflict();
   const input = record(body.content);
-  const old = JSON.parse(previous ?? '{}') as Partial<CompanyData>;
+  const old = JSON.parse(previous ?? '{}') as Partial<Stored>;
   // Older editor clients did not send these fields. An explicit empty string still clears a value.
   for (const key of companyFields)
     if (!Object.hasOwn(input, key) && old[key] !== undefined)
       input[key] = old[key];
-  const next = JSON.stringify(normalizeInput(input));
+  const next = JSON.stringify({
+    ...normalizeInput(input),
+    // Only the master editor manages page inventory; other editors preserve it.
+    pages:
+      c.get('user').role === 'super_admin' && Object.hasOwn(input, 'pages')
+        ? normalizePages(input.pages)
+        : old.pages,
+  });
   const content = await resolveContent(
     c.env,
     site,

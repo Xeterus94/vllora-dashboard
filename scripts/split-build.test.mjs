@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { test } from 'node:test';
 import pages from '../integrations/pages-client/_worker.js';
 
@@ -34,6 +37,62 @@ test('Master și portal folosesc aceeași siglă Vllora din build', async () => 
   for (const prefix of ['dist-portal', 'dist-portal/master']) {
     assert.equal(await read(`${prefix}/assets/vllora-logo.svg`), logo);
   }
+});
+
+test('Generatorul CMS v2 citește valorile originalelor publice fără a rescrie paginile', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'vllora-manifest-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  for (const subdir of ['echipa', 'admin', '.well-known'])
+    await mkdir(join(root, subdir));
+  const html = `<!doctype html><title>Echipă &amp; valori</title>
+    <h1 class="animate"><span data-vllora-text="title" data-vllora-label="Titlu">Ani &amp; povești</span></h1>
+    <img data-vllora-image="cover" src="../assets/foto.webp">
+    <canvas data-vllora-number="graph.total" data-vllora-value="4.2"></canvas>`;
+  await writeFile(join(root, 'index.html'), '<title>Acasă</title>');
+  await writeFile(join(root, 'echipa', 'index.html'), html);
+  await writeFile(join(root, 'admin', 'index.html'), '<title>Privat</title>');
+  const target = join(root, '.well-known', 'vllora-content.json');
+  await writeFile(
+    target,
+    JSON.stringify({ version: 1, content: { siteName: 'Vechi' } }),
+  );
+  execFileSync(process.execPath, [
+    'integrations/static-cms/build-manifest.mjs',
+    root,
+  ]);
+  assert.equal(
+    await readFile(join(root, 'echipa', 'index.html'), 'utf8'),
+    html,
+  );
+  const manifest = JSON.parse(await readFile(target, 'utf8'));
+  assert.equal(manifest.version, 2);
+  assert.equal(manifest.content.siteName, 'Vechi');
+  assert.deepEqual(manifest.pages.map(({ path }) => path).sort(), [
+    '/',
+    '/echipa/',
+  ]);
+  assert.deepEqual(
+    manifest.pages.find(({ path }) => path === '/echipa/'),
+    {
+      path: '/echipa/',
+      title: 'Echipă & valori',
+      fields: [
+        { id: 'title', label: 'Titlu', kind: 'text', value: 'Ani & povești' },
+        {
+          id: 'cover',
+          label: 'cover',
+          kind: 'image',
+          value: '../assets/foto.webp',
+        },
+        {
+          id: 'graph.total',
+          label: 'graph.total',
+          kind: 'number',
+          value: '4.2',
+        },
+      ],
+    },
+  );
 });
 
 test('adaptorul Pages păstrează site-ul normal și trimite doar /admin la Worker-ul portalului', async () => {

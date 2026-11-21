@@ -784,3 +784,9 @@ th {
   .page { padding-bottom: max(28px, calc(16px + env(safe-area-inset-bottom))); }
 }
 @media (pointer: coarse) { .media-drag-hint { display: none; } }
+
+/* The site renders its own responsive layout inside its original origin. */
+.cms-grid[hidden] { display: none; }
+.cms-live-frame { display: block; width: 100%; min-width: 0; height: clamp(360px, 75vh, 960px); border: 1px solid var(--line); border-radius: 10px; background: var(--surface); margin-inline: auto; }
+.cms-live-narrow { max-width: 390px; }
+.cms-slot-image { display: block; width: min(100%, 280px); max-height: 180px; object-fit: contain; object-position: left center; }

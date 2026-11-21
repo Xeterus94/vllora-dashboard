@@ -10,6 +10,8 @@ import {
 import { absolute, discoveredColor, discovery, external } from './branding';
 import { fail, rate, type Ctx } from './core';
 import { fieldText } from './site-content';
+import { normalizePages, pagePayloadLimit } from './site-pages';
+import type { ContentPage } from '../shared/site-pages';
 
 const clean = (value: unknown, limit = 1200) =>
   typeof value === 'string'
@@ -250,24 +252,36 @@ export async function inspectSite(
       : `www.${site.domain}`,
   ]);
   // Fixed paths, no client-supplied target, no cookies and no cross-site redirects.
+  const manifestRequest = external(
+    `${origin}/.well-known/vllora-content.json`,
+    pagePayloadLimit + 64 * 1024,
+    'application/json',
+    hosts,
+  )
+    .then((file) => {
+      const parsed = object(JSON.parse(new TextDecoder().decode(file.bytes)));
+      if (parsed.version !== 1 && parsed.version !== 2) return null;
+      const base = new URL('/', file.url).href;
+      const result = normalize(object(parsed.content), base, 'manifest');
+      // Import never accepts media IDs from a public website.
+      if (parsed.version === 2)
+        result.pages = normalizePages(parsed.pages, base).map(
+          (page): ContentPage => ({
+            ...page,
+            fields: page.fields.map(({ media: _media, ...field }) => field),
+          }),
+        );
+      return result;
+    })
+    .catch(() => null);
+  if (c.req.query('pages') === '1') {
+    const manifest = await manifestRequest;
+    return c.json(
+      manifest?.pages ? manifest : normalize({}, origin, 'manifest'),
+    );
+  }
   const [manifest, html, brand] = await Promise.all([
-    external(
-      `${origin}/.well-known/vllora-content.json`,
-      64 * 1024,
-      'application/json',
-      hosts,
-    )
-      .then((file) => {
-        const parsed = object(JSON.parse(new TextDecoder().decode(file.bytes)));
-        return parsed.version === 1
-          ? normalize(
-              object(parsed.content),
-              new URL('/', file.url).href,
-              'manifest',
-            )
-          : null;
-      })
-      .catch(() => null),
+    manifestRequest,
     external(origin, 512 * 1024, 'text/html', hosts)
       .then(async (file) => ({
         ...(await readHtml(file.bytes)),
@@ -302,7 +316,8 @@ export async function inspectSite(
     !Object.keys(result.fields).length &&
     !result.images.length &&
     !result.hours.length &&
-    !result.services.length
+    !result.services.length &&
+    !result.pages?.length
   )
     return fail(
       422,
