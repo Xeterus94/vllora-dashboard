@@ -221,7 +221,7 @@ export function SiteEditor({
       setNotice(
         JSON.stringify(next) === JSON.stringify(draft)
           ? 'Nu există câmpuri goale de completat cu datele detectate. Nu am înlocuit nimic.'
-          : `Date ${source.source === 'manifest' ? 'preluate din manifestul site-ului' : 'detectate pe pagina publică'} adăugate în editor. Verifică și publică atunci când sunt corecte.`,
+          : `Date ${source.source === 'manifest' ? 'preluate din manifestul site-ului' : 'detectate pe pagina publică'} adăugate în editor. Verifică secțiunea „Galerie și fișiere”, apoi apasă „Publică modificările” ca să apară pe site.`,
       );
     });
   };
@@ -463,8 +463,9 @@ export function SiteEditor({
         Previzualizarea arată conținutul, nu designul exact al site-ului.
         Modificările apar public doar în secțiunile conectate la CMS. Fișierele
         încărcate nu sunt private. Pozele noi se comprimă automat în WebP.
-        Importul completează doar câmpurile goale și păstrează imaginile ca
-        linkuri către site-ul sursă.
+        Importul completează câmpurile goale, corectează linkurile vechi
+        confirmate de manifest și păstrează imaginile ca linkuri către site-ul
+        sursă.
       </p>
       {staff && site.status === 'suspended' && (
         <p className="muted">

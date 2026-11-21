@@ -44,9 +44,19 @@ test(
               siteName: 'Nume comercial',
               primaryColor: '#abc',
               heroTitle: 'Titlu din manifest',
-              services: [{ name: 'Tuns', price: '85 lei' }],
+              services: [{ name: 'Tuns', price: 85, duration: 45 }],
               hours: [{ day: 'Luni', time: '9–18' }],
-              images: ['/photo.webp', 'javascript:void(0)', '/photo.webp'],
+              logoUrl: 'assets/logo/logo.svg',
+              heroImageUrl: 'assets/photos/hero.webp',
+              images: [
+                'assets/photos/photo.webp',
+                'javascript:void(0)',
+                '/assets/photos/photo.webp',
+              ],
+              gallery: [
+                { url: 'assets/photos/detail.webp' },
+                '/assets/photos/photo.webp',
+              ],
               bookingUrl: 'https://127.0.0.1/contact',
               unknown: 'private-config',
             },
@@ -419,10 +429,21 @@ test(
     assert.equal(suggestion.json.fields.siteName, 'Nume comercial');
     assert.equal(suggestion.json.fields.primaryColor, '#aabbcc');
     assert.equal(suggestion.json.fields.secondaryColor, '#abcdef');
-    assert.equal(suggestion.json.fields.logoUrl, `https://${brand}/logo.png`);
-    assert.deepEqual(suggestion.json.images, [`https://${brand}/photo.webp`]);
+    assert.equal(
+      suggestion.json.fields.logoUrl,
+      `https://${brand}/assets/logo/logo.svg`,
+    );
+    assert.equal(
+      suggestion.json.fields.heroImageUrl,
+      `https://${brand}/assets/photos/hero.webp`,
+    );
+    assert.deepEqual(suggestion.json.images, [
+      `https://${brand}/assets/photos/photo.webp`,
+      `https://${brand}/assets/photos/detail.webp`,
+    ]);
     assert.equal(suggestion.json.hours[0].time, '9–18');
-    assert.equal(suggestion.json.services[0].price, '85 lei');
+    assert.equal(suggestion.json.services[0].price, '85');
+    assert.equal(suggestion.json.services[0].duration, '45');
     assert.doesNotMatch(
       suggestion.contents,
       /private-config|127.0.0.1|javascript:/,

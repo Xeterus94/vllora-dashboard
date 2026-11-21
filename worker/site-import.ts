@@ -54,12 +54,13 @@ function normalize(
       /* Invalid source field; leave it out. */
     }
   }
+  // Some manifests use the public `gallery` shape rather than legacy `images`.
   const images = [
     ...new Set(
-      array(raw.images)
-        .slice(0, galleryLimit * 2)
-        .flatMap((value) => {
-          const url = absolute(value, base);
+      [array(raw.images), array(raw.gallery)].flatMap((list) =>
+        list.slice(0, galleryLimit * 2).flatMap((value) => {
+          const item = typeof value === 'string' ? value : object(value).url;
+          const url = absolute(item, base);
           return url &&
             url.length <= 2048 &&
             url !== fields.logoUrl &&
@@ -67,8 +68,16 @@ function normalize(
             ? [url]
             : [];
         }),
+      ),
     ),
   ].slice(0, galleryLimit);
+  const scalar = (value: unknown) =>
+    clean(
+      typeof value === 'number' && Number.isFinite(value)
+        ? String(value)
+        : value,
+      80,
+    );
   const services = array(raw.services)
     .slice(0, servicesLimit)
     .map(object)
@@ -79,8 +88,8 @@ function normalize(
             {
               name,
               description: clean(row.description, 600),
-              price: clean(row.price, 80),
-              duration: clean(row.duration, 80),
+              price: scalar(row.price),
+              duration: scalar(row.duration),
             },
           ]
         : [];
@@ -249,7 +258,11 @@ export async function inspectSite(
       .then((file) => {
         const parsed = object(JSON.parse(new TextDecoder().decode(file.bytes)));
         return parsed.version === 1
-          ? normalize(object(parsed.content), file.url, 'manifest')
+          ? normalize(
+              object(parsed.content),
+              new URL('/', file.url).href,
+              'manifest',
+            )
           : null;
       })
       .catch(() => null),

@@ -117,18 +117,29 @@ test(
     await master.getByLabel('Password', { exact: true }).fill(masterPassword);
     await master.locator('#loginBtn').click();
     await master.locator('#app').waitFor();
+    assert.ok(requests.every((url) => url.startsWith(masterOrigin + '/')));
+    await master.route('https://portfolio.example.com/**', (route) =>
+      route.fulfill({ body: png, contentType: 'image/png' }),
+    );
+    await master.route('https://cdn.example.com/keep.webp', (route) =>
+      route.fulfill({ body: png, contentType: 'image/png' }),
+    );
     await master.locator('#addClient').click();
     await master.locator('#edName').fill('Master UI Portfolio Site');
     await master.locator('#edDomain').fill('portfolio.example.com');
     await master.locator('[data-tab="cms"]').click();
     await master.locator('#edHeroTitle').fill('A D1-backed title');
+    await master
+      .locator('#edImages')
+      .fill(
+        'https://portfolio.example.com/.well-known/assets/veche.webp\nhttps://cdn.example.com/keep.webp',
+      );
     await master.locator('#saveBtn').click();
     await master.locator('#editor').waitFor({ state: 'hidden' });
     await master.reload();
     await master
       .getByText('Master UI Portfolio Site', { exact: true })
       .waitFor();
-    assert.ok(requests.every((url) => url.startsWith(masterOrigin + '/')));
     await master
       .getByRole('row')
       .filter({ hasText: 'Master UI Portfolio Site' })
@@ -155,7 +166,7 @@ test(
             primaryColor: '#224466',
             heroTitle: 'Nu suprascrie',
           },
-          images: [],
+          images: ['https://portfolio.example.com/assets/veche.webp'],
           services: [],
           hours: [],
         },
@@ -193,6 +204,10 @@ test(
     await master
       .getByRole('button', { name: 'Galerie și fișiere', exact: true })
       .click();
+    await master
+      .locator('img[src="https://portfolio.example.com/assets/veche.webp"]')
+      .first()
+      .evaluate((img) => img.decode());
     const jpg = Buffer.from(
       await master.evaluate(() => {
         const canvas = document.createElement('canvas');
@@ -246,6 +261,11 @@ test(
     assert.equal(fromMaster.json.content.heroTitle, 'Publicat de master');
     assert.equal(fromMaster.json.businessName, 'Nume detectat');
     assert.equal(fromMaster.json.content.gallery[0].id, masterImage.id);
+    assert.deepEqual(fromMaster.json.content.images, [
+      'https://portfolio.example.com/assets/veche.webp',
+      'https://cdn.example.com/keep.webp',
+      `${masterOrigin}${masterImage.url}`,
+    ]);
 
     await master.goto(`${masterOrigin}/portal-admin/`);
     await master.getByRole('heading', { name: 'Site-uri și acces' }).waitFor();
@@ -559,7 +579,7 @@ test(
     const publicSite = await browser.newPage();
     t.after(() => publicSite.close());
     const html = `<main data-vllora-theme><h1 data-vllora-field="heroTitle">Original</h1>
-      <span data-vllora-field="siteName">Nume vechi</span><img data-vllora-logo src="/old.svg" alt="Siglă">
+      <span data-vllora-field="siteName">Nume vechi</span><picture><source media="(min-width: 1px)" srcset="/old-wide.svg"><img data-vllora-logo src="/old.svg" alt="Siglă"></picture>
       <a data-vllora-link="bookingUrl" href="https://example.org/booking">Rezervă</a>
       <div data-vllora-list="services" data-vllora-template="service"><p>Rezervă existentă</p></div>
       <template id="service"><p data-vllora-item="name"></p></template>
@@ -602,6 +622,10 @@ test(
     assert.equal(
       await publicSite.getByRole('img', { name: 'Siglă' }).getAttribute('src'),
       'https://img.example.org/logo.webp',
+    );
+    assert.equal(
+      await publicSite.locator('picture source').getAttribute('srcset'),
+      null,
     );
     assert.deepEqual(
       await publicSite

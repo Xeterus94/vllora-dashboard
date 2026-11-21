@@ -491,16 +491,23 @@ test(
             url: 'https://other-client.com/forged.jpg',
           },
           gallery: [logo],
+          heroImageUrl: 'https://siteclient.com/assets/original.webp',
           documents: [doc],
           services: [{ name: 'Tuns', price: '80 lei' }],
           hours: [{ day: 'Luni', time: '10:00—18:00' }],
         };
         const config = must(await publish(edited), 200).json;
         assert.equal(config.content.heroMedia.url, logo.url);
+        assert.equal(config.content.heroImageUrl, edited.heroImageUrl);
         assert.notEqual(config.revision, load.revision);
         must(await publish({ heroTitle: 'Date vechi' }), 409);
         const published = (await p('/api/content?site=siteclient.com')).json;
         assert.equal(published.content.heroTitle, edited.heroTitle);
+        assert.equal(
+          published.content.heroImageUrl,
+          published.content.heroMedia.url,
+        );
+        assert.match(published.content.heroImageUrl, /\.webp$/);
         assert.equal(published.content.services[0].price, '80 lei');
         assert.equal(published.content.hours[0].day, 'Luni');
         assert.match(
