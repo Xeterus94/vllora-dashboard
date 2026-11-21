@@ -447,7 +447,7 @@ function SiteSettings({
         </Panel>
       ) : (
         <>
-          <nav className="tabs" aria-label="Setări site">
+          <nav className="tabs site-settings-tabs" aria-label="Setări site">
             {(
               [
                 ['setup', 'Configurare'],
@@ -1000,12 +1000,13 @@ export function MasterDashboard({
       active = false;
     };
   }, [tab, id, listVersion, onLogout, action.setError]);
-  const open = (target: string) => {
-    setStartInContent(false);
+  const open = (target: string, editContent = false) => {
+    setStartInContent(editContent);
     setId(target);
     setDetail(undefined);
     action.setError('');
     setTab('details');
+    window.scrollTo(0, 0);
   };
   const go = (target: typeof tab) => {
     if (!leaveContent(dirty)) return;
@@ -1016,6 +1017,7 @@ export function MasterDashboard({
       history.replaceState(null, '', location.pathname);
     action.setError('');
     setTab(target);
+    if (target !== tab) window.scrollTo(0, 0);
   };
   const filtered = sites?.filter((s) =>
     `${s.name} ${s.domain}`.toLowerCase().includes(search.trim().toLowerCase()),
@@ -1143,52 +1145,97 @@ export function MasterDashboard({
               </div>
               {filtered ? (
                 filtered.length ? (
-                  <div className="table-scroll">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Site</th>
-                          <th>Plan</th>
-                          <th>Stare</th>
-                          <th>Acțiuni</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filtered.map((site) => (
-                          <tr key={site.id}>
-                            <td>
-                              <div
-                                className="brand-lockup"
-                                style={brandStyle(site)}
-                              >
-                                <Logo site={site} />
-                                <div>
-                                  <strong>{site.name}</strong>
-                                  <p className="muted">{site.domain}</p>
-                                </div>
-                              </div>
-                            </td>
-                            <td>{site.plan}</td>
-                            <td>
-                              <span
-                                className={`badge ${site.status === 'active' ? 'good' : ''}`}
-                              >
-                                {states[site.status]}
-                              </span>
-                            </td>
-                            <td>
+                  <>
+                    <ul
+                      className="staff-site-cards"
+                      aria-label="Portale client"
+                    >
+                      {filtered.map((site) => (
+                        <li key={site.id} className="staff-site-card">
+                          <div
+                            className="brand-lockup"
+                            style={brandStyle(site)}
+                          >
+                            <Logo site={site} />
+                            <div>
+                              <strong>{site.name}</strong>
+                              <p className="muted">{site.domain}</p>
+                            </div>
+                          </div>
+                          <div className="staff-site-meta">
+                            <span className="muted">Plan: {site.plan}</span>
+                            <span
+                              className={`badge ${site.status === 'active' ? 'good' : ''}`}
+                            >
+                              {states[site.status]}
+                            </span>
+                          </div>
+                          <div className="staff-site-actions">
+                            <button
+                              className="button secondary"
+                              onClick={() => open(site.id)}
+                            >
+                              Deschide
+                            </button>
+                            {site.status !== 'deleting' && (
                               <button
-                                className="button secondary small"
-                                onClick={() => open(site.id)}
+                                className="button primary"
+                                onClick={() => open(site.id, true)}
                               >
-                                Deschide
+                                Editează site-ul
                               </button>
-                            </td>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="table-scroll staff-site-table">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Site</th>
+                            <th>Plan</th>
+                            <th>Stare</th>
+                            <th>Acțiuni</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {filtered.map((site) => (
+                            <tr key={site.id}>
+                              <td>
+                                <div
+                                  className="brand-lockup"
+                                  style={brandStyle(site)}
+                                >
+                                  <Logo site={site} />
+                                  <div>
+                                    <strong>{site.name}</strong>
+                                    <p className="muted">{site.domain}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td>{site.plan}</td>
+                              <td>
+                                <span
+                                  className={`badge ${site.status === 'active' ? 'good' : ''}`}
+                                >
+                                  {states[site.status]}
+                                </span>
+                              </td>
+                              <td>
+                                <button
+                                  className="button secondary small"
+                                  onClick={() => open(site.id)}
+                                >
+                                  Deschide
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 ) : (
                   <Empty>
                     {search

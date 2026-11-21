@@ -35,7 +35,7 @@ test(
     const masterOrigin = `http://localhost:${env.port}`,
       tenantOrigin = `http://siteclient.com:${env.port}`;
     const master = await browser.newPage({
-      viewport: { width: 1240, height: 900 },
+      viewport: { width: 1440, height: 900 },
     });
     const client = await browser.newPage({
       viewport: { width: 390, height: 844 },
@@ -69,6 +69,16 @@ test(
       ).status,
       201,
     );
+    const noOverflow = async (page, context) => {
+      const sizes = await page.evaluate(() => ({
+        viewport: document.documentElement.clientWidth,
+        page: document.documentElement.scrollWidth,
+      }));
+      assert.ok(
+        sizes.page <= sizes.viewport,
+        `${context}: ${JSON.stringify(sizes)}`,
+      );
+    };
     const requests = [];
     master.on('request', (request) => requests.push(request.url()));
     await master.goto(masterOrigin);
@@ -111,6 +121,92 @@ test(
         .evaluate((el) => getComputedStyle(el).minHeight),
       '900px',
     );
+    const cards = master.locator('#clientCards .client-summary');
+    const cardGrid = master.locator('#clientCards');
+    const nav = master.locator('#mobileNav');
+    for (const [width, height, columns] of [
+      [320, 640, 1],
+      [768, 1024, 2],
+      [1024, 768, 2],
+      [1440, 900, 0],
+    ]) {
+      await master.setViewportSize({ width, height });
+      await noOverflow(master, `master ${width}`);
+      if (!columns) {
+        await cardGrid.waitFor({ state: 'hidden' });
+        await master.locator('#clientDesktopTable').waitFor();
+      } else {
+        await cardGrid.waitFor();
+        await master
+          .locator('#clientDesktopTable')
+          .waitFor({ state: 'hidden' });
+        assert.equal(
+          await cardGrid.evaluate(
+            (el) => getComputedStyle(el).gridTemplateColumns.split(' ').length,
+          ),
+          columns,
+        );
+      }
+    }
+    await master.setViewportSize({ width: 320, height: 640 });
+    await master.locator('#navOpen').click();
+    await nav.waitFor();
+    await master.keyboard.press('Escape');
+    await nav.waitFor({ state: 'hidden' });
+    assert.equal(
+      await master.locator('#navOpen').getAttribute('aria-expanded'),
+      'false',
+    );
+    await master.locator('#navOpen').click();
+    await master.setViewportSize({ width: 1440, height: 900 });
+    await nav.waitFor({ state: 'hidden' });
+    assert.equal(await master.evaluate(() => document.body.style.overflow), '');
+    await master.setViewportSize({ width: 320, height: 640 });
+    await master.locator('#customRangeBtn').click();
+    const range = master.locator('#customRangePanel');
+    await range.waitFor();
+    const bounds = await range.boundingBox();
+    assert.ok(
+      bounds.x >= 0 && bounds.x + bounds.width <= 320,
+      JSON.stringify(bounds),
+    );
+    await master.keyboard.press('Escape');
+    await range.waitFor({ state: 'hidden' });
+    await master.locator('#customRangeBtn').click();
+    await master.locator('#customStart').fill('');
+    await master.locator('#customRangeApply').click();
+    await master.locator('#customRangeError').waitFor();
+    const today = await master.locator('#customEnd').inputValue();
+    await master.locator('#customStart').fill(today);
+    await master.locator('#customRangeApply').click();
+    await range.waitFor({ state: 'hidden' });
+    await master.locator('#navOpen').click();
+    await nav.locator('a[href="#sec-clients"]').click();
+    await nav.waitFor({ state: 'hidden' });
+    await master.locator('#clientCardSort').selectOption('client');
+    const firstName = await cards.first().locator('h4').innerText();
+    await master.locator('#clientCardOrder').click();
+    assert.notEqual(await cards.first().locator('h4').innerText(), firstName);
+    await master.locator('#clientCardOrder').click();
+    await master.locator('#nextPage').click();
+    assert.notEqual(await cards.first().locator('h4').innerText(), firstName);
+    await master.locator('#tableSearch').fill(firstName);
+    await cards.first().filter({ hasText: firstName }).waitFor();
+    assert.equal(await cards.count(), 1);
+    await cards.first().locator('[data-edit]').click();
+    await master.locator('#editorPanel').waitFor();
+    assert.equal(await master.locator('#edName').inputValue(), firstName);
+    await noOverflow(master, 'editor master 320');
+    await master.keyboard.press('Escape');
+    await master.locator('#editorPanel').waitFor({ state: 'hidden' });
+    assert.ok(
+      await cards
+        .first()
+        .locator('[data-edit]')
+        .evaluate((el) => document.activeElement === el),
+    );
+    await master.locator('#tableSearch').fill('');
+    await master.setViewportSize({ width: 1440, height: 900 });
     await master.locator('#logoutBtn').click();
     await master.locator('#login').waitFor();
     await master.getByLabel('Username', { exact: true }).fill('master.ui');
@@ -118,6 +214,7 @@ test(
     await master.locator('#loginBtn').click();
     await master.locator('#app').waitFor();
     assert.ok(requests.every((url) => url.startsWith(masterOrigin + '/')));
+    await master.setViewportSize({ width: 320, height: 640 });
     await master.route('https://portfolio.example.com/**', (route) =>
       route.fulfill({ body: png, contentType: 'image/png' }),
     );
@@ -141,7 +238,10 @@ test(
     await master.locator('#saveBtn').click();
     await master.locator('#editor').waitFor({ state: 'hidden' });
     await master.reload();
+    await cardGrid.getByRole('link', { name: 'Edit website' }).waitFor();
+    await master.setViewportSize({ width: 1440, height: 900 });
     await master
+      .locator('#clientDesktopTable')
       .getByText('Master UI Portfolio Site', { exact: true })
       .waitFor();
     await master
@@ -283,6 +383,23 @@ test(
 
     await master.goto(`${masterOrigin}/portal-admin/`);
     await master.getByRole('heading', { name: 'Site-uri și acces' }).waitFor();
+    const staffCards = master.locator('.staff-site-cards');
+    await master.locator('.staff-site-table').waitFor();
+    for (const [width, height] of [
+      [320, 640],
+      [768, 1024],
+      [1024, 768],
+    ]) {
+      await master.setViewportSize({ width, height });
+      await staffCards.waitFor();
+      await noOverflow(master, `administrare portale ${width}`);
+    }
+    await master.setViewportSize({ width: 320, height: 640 });
+    await staffCards.getByRole('button', { name: 'Editează site-ul' }).click();
+    await master.getByRole('button', { name: 'Previzualizează' }).waitFor();
+    await noOverflow(master, 'editor administrare 320');
+    await master.getByRole('button', { name: 'Înapoi la site-uri' }).click();
+    await staffCards.waitFor();
     await master
       .getByRole('button', { name: 'Adaugă site', exact: true })
       .click();
@@ -394,6 +511,15 @@ test(
       .getByRole('heading', { name: 'Bluebird Studio', exact: true })
       .waitFor();
     await assertClientBrand('.portal-shell');
+    for (const [width, height] of [
+      [320, 640],
+      [768, 1024],
+      [1024, 768],
+      [390, 844],
+    ]) {
+      await client.setViewportSize({ width, height });
+      await noOverflow(client, `portal ${width}`);
+    }
     const revenue = client.locator('.featured');
     await revenue.waitFor();
     assert.match(
@@ -463,6 +589,7 @@ test(
       .getByRole('status')
       .filter({ hasText: 'Fișiere atașate în editor' })
       .waitFor();
+    await client.setViewportSize({ width: 320, height: 640 });
     await client
       .getByRole('button', { name: 'Servicii și prețuri', exact: true })
       .click();
@@ -509,6 +636,8 @@ test(
       false,
     );
     await client.getByRole('button', { name: 'Înapoi la editor' }).click();
+    await noOverflow(client, 'editor portal 320');
+    await client.setViewportSize({ width: 390, height: 844 });
     await client.getByRole('button', { name: 'Publică modificările' }).click();
     await client
       .getByRole('status')

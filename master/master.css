@@ -28,3 +28,62 @@
   .btn-primary { background-image: linear-gradient(90deg,#6B1C2E,#4A1120); color: #F8EAC8; border: 1px solid rgba(214,180,108,.35); box-shadow: 0 10px 15px -8px rgba(79,19,33,.4); }
   .btn-primary:hover { filter: brightness(1.12); }
   .btn-primary:disabled { opacity: .6; cursor: not-allowed; filter: none; }
+
+/* Compact client list and controls for phones and tablets. */
+#mobileNav { position: fixed; inset: 0; margin: 0; width: 100%; max-width: none; height: 100%; max-height: none; padding: 0; background: transparent; }
+#mobileNav::backdrop { background: rgb(15 23 42 / .48); }
+#mobileNav :is(a, button), #navOpen { min-height: 44px; }
+#navOpen { min-width: 44px; }
+#customRangePanel { inset-block-start: calc(100% + 4px); inset-inline-end: 12px; max-width: calc(100% - 24px); max-height: max(9rem, calc(100dvh - 10rem)); overflow-y: auto; overscroll-behavior: contain; }
+#customRangePanel input { min-width: 0; }
+#mobileNav button[data-close-nav] { min-width: 44px; display: grid; place-items: center; }
+#sec-clients { scroll-margin-top: 9rem; }
+#clientDesktopTable { display: none; }
+#clientCards { display: grid; grid-template-columns: minmax(0, 1fr); gap: .75rem; }
+.client-summary { min-width: 0; padding: .9rem; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: .85rem; overflow-wrap: anywhere; }
+.dark .client-summary { border-color: #334155; background: #1e293b; }
+.client-summary-title { display: flex; align-items: start; justify-content: space-between; gap: .5rem; }
+.client-summary-title h4 { font-weight: 700; min-width: 0; }
+.client-summary-domain, .client-summary dt { color: #475569; font-size: .75rem; }
+.dark :is(.client-summary-domain, .client-summary dt) { color: #cbd5e1; }
+.client-summary dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; margin-block: .75rem; font-size: .8rem; }
+.client-summary dd { font-weight: 600; }
+.client-summary-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.client-card-action { min-height: 44px; flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; padding: .45rem .65rem; border: 1px solid #cbd5e1; border-radius: .55rem; background: #fff; color: #5d1829; font-size: .8rem; font-weight: 650; }
+.dark .client-card-action { border-color: #475569; background: #0f172a; color: #f6e6bc; }
+.client-card-action-primary, .dark .client-card-action-primary { background: #6b1c2e; border-color: #6b1c2e; color: #fff; }
+#masterFilters { scroll-padding-inline: 1rem; }
+#editorFooter { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+#editorPanel header :is(button, a) { min-height: 44px; }
+#editorPanel header button[data-close-editor] { min-width: 44px; display: grid; place-items: center; }
+@media (min-width: 640px) and (max-width: 1279px) {
+  #clientCards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1280px) {
+  #clientCards, #clientCardTools { display: none; }
+  #clientDesktopTable { display: block; }
+}
+@media (max-width: 767px), (pointer: coarse) {
+  #masterHeader :is(button, select), #sec-clients :is(button, input, select), #customRangePanel input { min-height: 44px; }
+  :is(#prevPage, #nextPage, #clientCardOrder) { min-width: 44px; }
+  :is(#login, #editor, #settings, #customRangePanel) .field, #sec-clients :is(input, select) { font-size: 16px; }
+  #editorFooter button, #customRangePanel button { min-height: 44px; }
+  #statusChips { flex-wrap: wrap; }
+}
+@media (max-width: 390px) {
+  #customRangePanel > div:first-child { grid-template-columns: minmax(0, 1fr); }
+  #editorFooter { padding-inline: .75rem; }
+  #editorFooter button { padding-inline: .55rem; }
+  #masterHeader > div:first-child { padding-inline: .55rem; gap: .3rem; }
+  #masterHeader > div:first-child > div[aria-hidden='true'] { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .slide-in, .fade-up, .ping { animation: none; }
+}
+
+/* Chart canvases must shrink with their grid tracks after rotating a device. */
+main .card { min-width: 0; }
+main canvas { max-width: 100%; }
+@media (max-width: 390px) {
+  #planLegend { grid-template-columns: minmax(0, 1fr); }
+}

@@ -133,7 +133,8 @@ export function MediaLibrary({
           onFiles={upload}
         />
         <span className="muted">
-          Poze comprimate în WebP și documente PDF · poți și să le tragi aici
+          Poze comprimate în WebP și documente PDF
+          <span className="media-drag-hint"> · poți și să le tragi aici</span>
         </span>
       </div>
       {siteId && (
