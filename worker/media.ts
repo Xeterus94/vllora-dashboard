@@ -15,7 +15,7 @@ import {
 export const MAX_FILE = 8 * 1024 * 1024,
   QUOTA = 200 * 1024 * 1024;
 export const KEY =
-  /^sites\/site_[0-9a-f]{24}\/m_[0-9a-f]{24}\.(png|jpg|webp|gif|svg|avif|ico)$/;
+  /^sites\/site_[0-9a-f]{24}\/m_[0-9a-f]{24}\.(png|jpg|webp|gif|svg|avif|ico|pdf)$/;
 interface MediaRow {
   id: string;
   site_id: string;
@@ -235,10 +235,35 @@ export async function saveImage(
   bytes: Uint8Array,
   limit = MAX_FILE,
 ) {
+  return saveAsset(env, site, name, bytes, limit, false);
+}
+async function saveAsset(
+  env: Env,
+  site: string,
+  name: string,
+  bytes: Uint8Array,
+  limit: number,
+  allowPDF: boolean,
+) {
   if (!bytes.length || bytes.length > limit)
-    return fail(413, 'Imaginea depășește limita admisă.');
-  const image = imageType(bytes);
-  if (!image) return fail(415, 'Format de imagine invalid sau SVG nesigur.');
+    return fail(413, 'Fișierul depășește limita admisă.');
+  const pdf =
+    allowPDF &&
+    /^%PDF-(?:1\.[0-7]|2\.0)(?:[\r\n])/.test(
+      new TextDecoder().decode(bytes.subarray(0, 12)),
+    );
+  const image: Image | null = pdf
+    ? { ext: 'pdf', type: 'application/pdf' }
+    : imageType(bytes);
+  if (!image)
+    return fail(
+      415,
+      allowPDF
+        ? 'Fișier invalid. Alege o imagine acceptată sau un PDF.'
+        : 'Format de imagine invalid sau SVG nesigur.',
+    );
+  if (image.width && image.height && image.width * image.height > 40_000_000)
+    return fail(400, 'Imaginea poate avea cel mult 40 megapixeli.');
   const id = `m_${random(12)}`,
     key = `sites/${site}/${id}.${image.ext}`,
     now = Date.now();
@@ -267,6 +292,9 @@ export async function saveImage(
       httpMetadata: {
         contentType: image.type,
         cacheControl: 'public, max-age=31536000, immutable',
+        ...(pdf
+          ? { contentDisposition: 'attachment; filename="document.pdf"' }
+          : {}),
       },
     });
     await stmt(env, 'UPDATE media SET ready=1 WHERE id=?', id).run();
@@ -320,12 +348,14 @@ export async function upload(c: Ctx, site: string, prefix = '') {
     .formData()
     .catch(() => fail(400, 'Upload invalid.'));
   const file = form.get('file');
-  if (!file || typeof file === 'string') return fail(400, 'Alege o imagine.');
-  const item = await saveImage(
+  if (!file || typeof file === 'string') return fail(400, 'Alege un fișier.');
+  const item = await saveAsset(
     c.env,
     site,
     file.name,
     new Uint8Array(await file.arrayBuffer()),
+    MAX_FILE,
+    true,
   );
   await audit(c.env, 'media_uploaded', c.get('user').id, site).run();
   return c.json({ item: view(c.env, item, prefix) }, 201);

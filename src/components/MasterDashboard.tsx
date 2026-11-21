@@ -67,6 +67,7 @@ const auditLabels: Record<string, string> = {
   client_password_reset: 'Parolă temporară regenerată',
   client_deleted: 'Cont client șters',
   portal_notes_changed: 'Notițe actualizate',
+  site_content_published: 'Conținutul site-ului publicat',
   metrics_key_rotated: 'Cheie server rotită',
   media_uploaded: 'Imagine încărcată',
   media_deleted: 'Imagine ștearsă',

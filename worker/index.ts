@@ -36,6 +36,7 @@ import {
 import { listMedia, removeImage, serveMedia, upload } from './media';
 import { businessReport, collectEvent } from './metrics';
 import { publicContent } from './portfolio';
+import { editorContent, publishContent } from './site-content';
 
 export { PasswordKdf } from './password';
 
@@ -140,6 +141,8 @@ portal.patch('/site', async (c) => {
   ]);
   return c.json({ notes });
 });
+portal.get('/content', (c) => editorContent(c, tenantId(c)));
+portal.put('/content', (c) => publishContent(c, tenantId(c)));
 portal.get('/media', (c) => listMedia(c, tenantId(c), '/admin'));
 portal.post('/media', (c) => upload(c, tenantId(c), '/admin'));
 portal.delete('/media/:id', (c) =>

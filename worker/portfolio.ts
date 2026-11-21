@@ -1,5 +1,6 @@
 import { ae, aeConfigured, dataset } from './analytics';
 import { email } from './auth';
+import { cmsUrl, siteContentView } from './site-content';
 import { all, fail, stmt, text, validHost, type Ctx, type Env } from './core';
 
 type Body = Record<string, unknown>;
@@ -34,18 +35,6 @@ const money = (value: unknown) => {
     return fail(400, 'Preț invalid.');
   return Math.round(value * 100);
 };
-const publicUrl = (value: unknown) => {
-  const candidate = text(value, 2048, 'Adresă URL', true);
-  if (!candidate) return '';
-  try {
-    const url = new URL(candidate);
-    if (url.protocol === 'https:' && !url.username && !url.password)
-      return url.href;
-  } catch {
-    /* Invalid URL */
-  }
-  return fail(400, 'Adresele și imaginile CMS trebuie să folosească HTTPS.');
-};
 export function portfolioDetails(b: Body): PortfolioDetails {
   const billing = b.billing;
   if (billing !== 'Monthly' && billing !== 'Annual')
@@ -69,7 +58,7 @@ export function portfolioDetails(b: Body): PortfolioDetails {
     cmsFields.map((field) => [
       field,
       ['mapsUrl', 'facebook', 'instagram'].includes(field)
-        ? publicUrl(data[field] ?? '')
+        ? cmsUrl(data[field] ?? '')
         : text(data[field] ?? '', 1200, field, true),
     ]),
   );
@@ -82,7 +71,7 @@ export function portfolioDetails(b: Body): PortfolioDetails {
     contact_email: email(b.contactEmail ?? '') ?? '',
     content: JSON.stringify({
       ...content,
-      images: images.map(publicUrl).filter(Boolean),
+      images: images.map(cmsUrl).filter(Boolean),
     }),
   };
 }
@@ -97,7 +86,7 @@ export const putPortfolio = (
    SELECT id,?,?,?,?,?,?,? FROM sites WHERE id=? AND status!='deleting'
    ON CONFLICT(site_id) DO UPDATE SET industry=excluded.industry,billing=excluded.billing,
    monthly_cents=excluded.monthly_cents,annual_cents=excluded.annual_cents,next_renewal=excluded.next_renewal,
-   contact_email=excluded.contact_email,content=excluded.content`,
+   contact_email=excluded.contact_email,content=json_patch(portfolio_details.content,excluded.content)`,
     detail.industry,
     detail.billing,
     detail.monthly_cents,
@@ -168,16 +157,31 @@ export async function publicContent(c: Ctx) {
   if (!host || c.get('tenant')) return fail(404, 'Site necunoscut.');
   const row = await stmt(
     c.env,
-    `SELECT s.name,s.domain,p.content FROM sites s JOIN portfolio_details p ON p.site_id=s.id
+    `SELECT s.id,s.name,s.domain,p.content FROM sites s JOIN portfolio_details p ON p.site_id=s.id
     WHERE s.domain=? AND s.status='active'`,
     host,
-  ).first<{ name: string; domain: string; content: string }>();
+  ).first<{ id: string; name: string; domain: string; content: string }>();
   if (!row) return fail(404, 'Site necunoscut.');
+  const content = await siteContentView(
+    c.env,
+    row.id,
+    row.content,
+    false,
+    new URL(c.req.url).origin,
+  );
   return c.json(
     {
       businessName: row.name,
       domain: row.domain,
-      content: JSON.parse(row.content),
+      content: {
+        ...content,
+        images: [
+          ...new Set([
+            ...content.images,
+            ...content.gallery.map((file) => file.url),
+          ]),
+        ],
+      },
     },
     200,
     { 'Access-Control-Allow-Origin': '*' },

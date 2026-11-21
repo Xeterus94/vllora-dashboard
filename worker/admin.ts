@@ -244,6 +244,19 @@ async function updateSite(
       b.portal_host === null || b.portal_host === ''
         ? null
         : domain(c, b.portal_host);
+  for (const field of ['logo_media_id', 'favicon_media_id']) {
+    const id = update[field];
+    if (
+      id &&
+      !(await stmt(
+        c.env,
+        "SELECT id FROM media WHERE id=? AND site_id=? AND ready=1 AND content_type LIKE 'image/%'",
+        id,
+        site.id,
+      ).first())
+    )
+      return fail(400, 'Selectează o imagine din biblioteca acestui site.');
+  }
   for (const [key, value] of Object.entries(update)) {
     sets.push(`${key}=?`);
     values.push(value);

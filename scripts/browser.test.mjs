@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { chromium } from 'playwright';
@@ -261,6 +262,106 @@ test(
       .waitFor();
 
     await client
+      .getByRole('button', { name: 'Editează site-ul', exact: true })
+      .click();
+    await client
+      .getByLabel('Titlu principal', { exact: true })
+      .fill('Un titlu din editorul mobil');
+    // Simulate a mobile browser that falls back to PNG when WebP encoding is requested.
+    const restoreCanvas = await client.evaluateHandle(() => {
+      const original = HTMLCanvasElement.prototype.toBlob;
+      HTMLCanvasElement.prototype.toBlob = function (callback) {
+        original.call(this, callback, 'image/png');
+      };
+      return () => {
+        HTMLCanvasElement.prototype.toBlob = original;
+      };
+    });
+    const fallbackUpload = client.waitForResponse(
+      (r) =>
+        r.url().includes('/portal/media') && r.request().method() === 'POST',
+    );
+    const chooser = client.waitForEvent('filechooser');
+    await client
+      .getByRole('button', { name: 'Atașează imagine principală' })
+      .click();
+    await (
+      await chooser
+    ).setFiles({ name: 'hero.png', mimeType: 'image/png', buffer: png });
+    const fallbackResult = await (await fallbackUpload).json();
+    assert.equal(fallbackResult.item.content_type, 'image/png');
+    assert.match(fallbackResult.item.name, /\.png$/);
+    await restoreCanvas.evaluate((restore) => restore());
+    await restoreCanvas.dispose();
+    await client
+      .getByRole('status')
+      .filter({ hasText: 'Fișiere atașate în editor' })
+      .waitFor();
+    await client
+      .getByRole('button', { name: 'Servicii și prețuri', exact: true })
+      .click();
+    await client.getByRole('button', { name: 'Adaugă serviciu' }).click();
+    await client.getByLabel('Nume serviciu 1').fill('Tuns din portal');
+    await client.getByLabel('Preț 1').fill('90 lei');
+    await client
+      .getByRole('button', { name: 'Galerie și fișiere', exact: true })
+      .click();
+    await client.getByLabel('Atașează PDF', { exact: true }).setInputFiles({
+      name: 'program.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.7\n%%EOF'),
+    });
+    await client
+      .getByRole('status')
+      .filter({ hasText: 'Fișiere atașate în editor' })
+      .waitFor();
+    await client
+      .getByRole('button', { name: 'Previzualizează', exact: true })
+      .click();
+    await client
+      .getByRole('heading', { name: 'Un titlu din editorul mobil' })
+      .waitFor();
+    const preview = client.getByRole('complementary', {
+      name: 'Previzualizare conținut',
+    });
+    await preview
+      .getByRole('img', { name: 'Imagine principală' })
+      .evaluate((img) => img.decode());
+    await preview.getByText('program.pdf', { exact: true }).waitFor();
+    assert.equal(
+      await client.evaluate(
+        () => document.documentElement.scrollWidth > innerWidth,
+      ),
+      false,
+    );
+    await client.getByRole('button', { name: 'Înapoi la editor' }).click();
+    await client.getByRole('button', { name: 'Publică modificările' }).click();
+    await client
+      .getByRole('status')
+      .filter({ hasText: 'Conținut publicat' })
+      .waitFor();
+    const publicEditor = await call(
+      env.mf,
+      masterOrigin,
+      '/api/content?site=siteclient.com',
+    );
+    assert.equal(publicEditor.json.content.services[0].name, 'Tuns din portal');
+    assert.equal(publicEditor.json.content.documents[0].name, 'program.pdf');
+    assert.ok(
+      publicEditor.json.content.heroMedia.url.startsWith(
+        masterOrigin + '/media/',
+      ),
+    );
+    await client.reload();
+    await client
+      .getByRole('button', { name: 'Editează site-ul', exact: true })
+      .click();
+    assert.equal(
+      await client.getByLabel('Titlu principal', { exact: true }).inputValue(),
+      'Un titlu din editorul mobil',
+    );
+
+    await client
       .getByRole('button', { name: 'Bibliotecă media', exact: true })
       .click();
     const svg =
@@ -301,7 +402,7 @@ test(
     await client.getByRole('alert').filter({ hasText: 'fake.png' }).waitFor();
     assert.equal(
       (await env.db.prepare('SELECT COUNT(*) AS n FROM media').first()).n,
-      2,
+      4,
     );
 
     await client
@@ -336,6 +437,47 @@ test(
       .waitFor();
     await login(client, 'client.ui', 'NewClientUi1!');
     await client.getByRole('heading', { name: 'Bluebird Studio' }).waitFor();
+    // Exercise the public-site adapter separately; it must not inject markup or unsafe links.
+    const publicSite = await browser.newPage();
+    t.after(() => publicSite.close());
+    const html = `<h1 data-vllora-field="heroTitle">Original</h1>
+      <a data-vllora-link="bookingUrl" href="https://example.org/booking">Rezervă</a>
+      <div data-vllora-list="services" data-vllora-template="service"><p>Rezervă existentă</p></div>
+      <template id="service"><p data-vllora-item="name"></p></template>
+      <script defer src="/vllora-content.js" data-api="https://cms.example.org/api/content"></script>`;
+    const adapter = await readFile(
+      'integrations/static-cms/vllora-content.js',
+      'utf8',
+    );
+    await publicSite.route('https://frizeria.example.org/**', (route) =>
+      route.request().url().endsWith('.js')
+        ? route.fulfill({ body: adapter, contentType: 'text/javascript' })
+        : route.fulfill({ body: html, contentType: 'text/html; charset=utf-8' }),
+    );
+    await publicSite.route('https://cms.example.org/**', (route) =>
+      route.fulfill({
+        json: {
+          content: {
+            heroTitle: '<em>Text literal</em>',
+            services: [{ name: 'Tuns actualizat' }],
+            bookingUrl: 'javascript:void(0)',
+          },
+        },
+        headers: { 'Access-Control-Allow-Origin': '*' },
+      }),
+    );
+    await publicSite.goto('https://frizeria.example.org/');
+    await publicSite
+      .getByRole('heading', { name: '<em>Text literal</em>' })
+      .waitFor();
+    await publicSite.getByText('Tuns actualizat', { exact: true }).waitFor();
+    assert.equal(await publicSite.locator('h1 em').count(), 0);
+    assert.equal(
+      await publicSite
+        .getByRole('link', { name: 'Rezervă' })
+        .getAttribute('href'),
+      'https://example.org/booking',
+    );
     assert.deepEqual(pageErrors, []);
   },
 );

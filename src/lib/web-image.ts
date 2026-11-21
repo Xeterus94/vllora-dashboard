@@ -12,12 +12,23 @@ export async function webImage(
 ): Promise<File> {
   if (!file.size || file.size > maxInput)
     throw new Error('Alege o imagine mai mică de 32 MB.');
+  const safeOriginal =
+    file.size <= maxOutput &&
+    /\.(?:jpe?g|png|webp|gif|avif|ico)$/i.test(file.name);
   const url = URL.createObjectURL(file);
   const image = new Image();
   const canvas = document.createElement('canvas');
   try {
     image.src = url;
-    await image.decode();
+    try {
+      await image.decode();
+    } catch {
+      // Some mobile browsers cannot decode formats that the Worker can safely validate.
+      if (safeOriginal) return file;
+      throw new Error(
+        'Telefonul sau browserul nu poate deschide această imagine. Încearcă un JPG, PNG sau WebP.',
+      );
+    }
     const width = image.naturalWidth,
       height = image.naturalHeight;
     if (!width || !height || width * height > 40_000_000)
@@ -29,20 +40,29 @@ export async function webImage(
     const context = canvas.getContext('2d');
     if (!context) throw new Error('Browserul nu poate pregăti imaginea.');
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, 'image/webp', quality),
-    );
+    const blob = await new Promise<Blob | null>((resolve) => {
+      try {
+        canvas.toBlob(resolve, 'image/webp', quality);
+      } catch {
+        resolve(null);
+      }
+    });
     if (
       !blob ||
-      blob.type !== 'image/webp' ||
+      !['image/webp', 'image/png'].includes(blob.type) ||
       !blob.size ||
       blob.size > maxOutput
-    )
-      throw new Error('Imaginea nu a putut fi pregătită pentru încărcare.');
+    ) {
+      if (safeOriginal) return file;
+      throw new Error(
+        'Imaginea nu a putut fi pregătită. Încearcă un JPG sau PNG mai mic.',
+      );
+    }
+    const ext = blob.type === 'image/webp' ? 'webp' : 'png';
     return new File(
       [blob],
-      `${file.name.replace(/\.[^.]*$/, '') || 'imagine'}.webp`,
-      { type: 'image/webp' },
+      `${file.name.replace(/\.[^.]*$/, '') || 'imagine'}.${ext}`,
+      { type: blob.type },
     );
   } finally {
     URL.revokeObjectURL(url);
