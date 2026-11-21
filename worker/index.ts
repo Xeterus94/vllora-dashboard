@@ -29,6 +29,7 @@ import {
 } from './core';
 import { listMedia, removeImage, serveMedia, upload } from './media';
 import { businessReport, collectEvent } from './metrics';
+import { publicContent } from './portfolio';
 
 export { PasswordKdf } from './password';
 
@@ -92,6 +93,7 @@ worker.use('*', async (c, next) => {
 api.route('/auth', auth);
 api.post('/bootstrap', bootstrap);
 api.route('/admin', admin);
+api.get('/content', publicContent);
 api.options('/collect', (c) =>
   c.get('tenant') ? fail(404, 'Ruta nu există.') : c.body(null, 204),
 );
@@ -155,15 +157,15 @@ worker.on(['GET', 'HEAD'], '/media/*', (c) => {
     return fail(404, 'Imaginea nu există.');
   return serveMedia(c, key);
 });
-async function portalShell(c: Ctx) {
+async function shell(c: Ctx, path = '/index.html') {
   const asset = await c.env.ASSETS.fetch(
-    new Request(new URL('/', c.req.url), { method: c.req.method }),
+    new Request(new URL(path, c.req.url), { method: c.req.method }),
   );
   const response = new Response(asset.body, asset);
   response.headers.set('Cache-Control', 'no-store');
   response.headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self'; base-uri 'none'; form-action 'self'" +
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'" +
       (dev(c.env) ? '' : "; frame-ancestors 'none'"),
   );
   return response;
@@ -178,34 +180,23 @@ worker.on(['GET', 'HEAD'], '/', (c) => {
   if (c.get('tenant')) {
     if (url.pathname === '/admin')
       return c.redirect('/admin/' + url.search, 308);
-    return portalShell(c);
+    return shell(c);
   }
-  if (c.env.MASTER_DASHBOARD_URL) {
-    const master = new URL(c.env.MASTER_DASHBOARD_URL);
-    if (
-      master.protocol === 'https:' &&
-      !master.username &&
-      !master.password &&
-      master.hostname !== url.hostname
-    ) {
-      master.hash = '';
-      // The explicit empty fragment prevents browsers from forwarding an old
-      // password-reset token from this origin to the portfolio destination.
-      return c.redirect(`${master.href}#`, 302);
-    }
-  }
-  return c.redirect(PORTAL_ADMIN_PATH, 302);
+  return shell(c, '/master/index.html');
 });
 const portalAdminPrefix = PORTAL_ADMIN_PATH.slice(0, -1);
 const staffOnly = (c: Ctx, handler: () => Response | Promise<Response>) =>
   c.get('tenant') ? fail(404, 'Ruta nu există.') : handler();
+worker.on(['GET', 'HEAD'], '/master/assets/*', (c) =>
+  staffOnly(c, () => c.env.ASSETS.fetch(c.req.raw)),
+);
 worker.on(['GET', 'HEAD'], portalAdminPrefix, (c) =>
   staffOnly(c, () =>
     c.redirect(PORTAL_ADMIN_PATH + new URL(c.req.url).search, 308),
   ),
 );
 worker.on(['GET', 'HEAD'], PORTAL_ADMIN_PATH, (c) =>
-  staffOnly(c, () => portalShell(c)),
+  staffOnly(c, () => shell(c)),
 );
 worker.on(['GET', 'HEAD'], `${PORTAL_ADMIN_PATH}assets/*`, (c) =>
   staffOnly(c, () => portalAsset(c, portalAdminPrefix)),

@@ -1,26 +1,30 @@
 import assert from 'node:assert/strict';
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import pages from '../integrations/pages-client/_worker.js';
 
 const read = (name) => readFile(new URL(`../${name}`, import.meta.url), 'utf8');
 
-test('Pages livrează doar masterul original; Worker-ul primește separat aplicația React', async () => {
-  const [legacy, pagesHtml, portalHtml] = await Promise.all([
-    read('legacy/standalone-dashboard.html'),
-    read('dist/index.html'),
-    read('dist-portal/index.html'),
-  ]);
-  assert.equal(pagesHtml, legacy);
-  assert.deepEqual(await readdir(new URL('../dist/', import.meta.url)), [
-    'index.html',
-  ]);
-  assert.match(pagesHtml, /dashboard-master\.ionstefan0904\.workers\.dev/);
-  assert.match(pagesHtml, /Portfolio overview/);
+test('Worker-ul livrează master și React separat, cu CSS și JS locale', async () => {
+  const [source, masterHtml, masterJs, css, portalHtml, config] =
+    await Promise.all([
+      read('master/index.html'),
+      read('dist-portal/master/index.html'),
+      read('dist-portal/master/assets/master.js'),
+      read('dist-portal/master/assets/master.css'),
+      read('dist-portal/index.html'),
+      read('wrangler.jsonc'),
+    ]);
+  assert.equal(masterHtml, source);
+  assert.doesNotMatch(masterHtml, /(?:src|href)="https?:/);
   assert.doesNotMatch(
-    portalHtml,
-    /Portfolio overview|dashboard-master\.ionstefan0904/,
+    masterJs + config,
+    /dashboard-master\.ionstefan0904|MASTER_DASHBOARD_URL|vllorastudio-panou-master\.pages\.dev|Authorization/,
   );
+  assert.match(masterHtml, /Portfolio overview/);
+  assert.match(masterJs, /\/api\/admin\/portfolio/);
+  assert.match(css, /grid-template-columns/);
+  assert.doesNotMatch(portalHtml, /Portfolio overview|master\/assets/);
   assert.match(portalHtml, /src="\.\/assets\//);
 });
 

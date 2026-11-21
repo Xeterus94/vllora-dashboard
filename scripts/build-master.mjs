@@ -1,12 +1,49 @@
-import { copyFile, mkdir, rm } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { copyFile, cp, mkdir, rm } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 
-const output = new URL('../dist/', import.meta.url);
-await rm(output, { recursive: true, force: true });
-await mkdir(output, { recursive: true });
-await copyFile(
-  new URL('../legacy/standalone-dashboard.html', import.meta.url),
-  new URL('index.html', output),
+const root = fileURLToPath(new URL('../', import.meta.url));
+const dest = 'dist-portal/master';
+process.chdir(root);
+await rm(dest, { recursive: true, force: true });
+await mkdir(`${dest}/assets`, { recursive: true });
+execFileSync(
+  process.execPath,
+  [
+    'node_modules/tailwind-legacy/lib/cli.js',
+    '-c',
+    'master/tailwind.config.cjs',
+    '-i',
+    'master/master.css',
+    '-o',
+    `${dest}/assets/master.css`,
+    '--minify',
+  ],
+  { stdio: 'inherit' },
 );
-console.log(
-  'Panoul master original a fost copiat neschimbat în dist/index.html.',
-);
+await Promise.all([
+  copyFile('master/index.html', `${dest}/index.html`),
+  copyFile('master/master.js', `${dest}/assets/master.js`),
+  copyFile(
+    'node_modules/chart.js/dist/chart.umd.js',
+    `${dest}/assets/chart.js`,
+  ),
+  copyFile(
+    'node_modules/chart.js/LICENSE.md',
+    `${dest}/assets/chart-license.txt`,
+  ),
+  ...['inter', 'cinzel'].map(async (font) => {
+    const source = `node_modules/@fontsource-variable/${font}`;
+    const out = `${dest}/assets/${font}`;
+    await mkdir(out, { recursive: true });
+    await Promise.all([
+      copyFile(`${source}/index.css`, `${out}/index.css`),
+      copyFile(`${source}/LICENSE`, `${out}/license.txt`),
+      cp(`${source}/files`, `${out}/files`, {
+        recursive: true,
+        filter: (path) =>
+          !path.endsWith('.woff2') || path.endsWith('-wght-normal.woff2'),
+      }),
+    ]);
+  }),
+]);

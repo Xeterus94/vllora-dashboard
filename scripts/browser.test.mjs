@@ -68,12 +68,39 @@ test(
       ).status,
       201,
     );
+    const requests = [];
+    master.on('request', (request) => requests.push(request.url()));
     await master.goto(masterOrigin);
-    assert.equal(new URL(master.url()).pathname, '/portal-admin/');
+    assert.equal(new URL(master.url()).pathname, '/');
+    await master.locator('#demoBtn').click();
+    await master.locator('#app').waitFor();
+    await master.locator('#chartPerf').waitFor();
+    assert.ok(await master.evaluate(() => window.Chart.getChart('chartPerf')));
+    assert.equal(
+      await master
+        .locator('#app')
+        .evaluate((el) => getComputedStyle(el).minHeight),
+      '900px',
+    );
+    await master.locator('#logoutBtn').click();
+    await master.locator('#login').waitFor();
+    await master.getByLabel('Username', { exact: true }).fill('master.ui');
+    await master.getByLabel('Password', { exact: true }).fill(masterPassword);
+    await master.locator('#loginBtn').click();
+    await master.locator('#app').waitFor();
+    await master.locator('#addClient').click();
+    await master.locator('#edName').fill('Master UI Portfolio Site');
+    await master.locator('#edDomain').fill('portfolio.example.com');
+    await master.locator('[data-tab="cms"]').click();
+    await master.locator('#edHeroTitle').fill('A D1-backed title');
+    await master.locator('#saveBtn').click();
+    await master.locator('#editor').waitFor({ state: 'hidden' });
+    await master.reload();
     await master
-      .getByText('Administrare portaluri client', { exact: true })
+      .getByText('Master UI Portfolio Site', { exact: true })
       .waitFor();
-    await login(master, 'master.ui', masterPassword);
+    assert.ok(requests.every((url) => url.startsWith(masterOrigin + '/')));
+    await master.goto(`${masterOrigin}/portal-admin/`);
     await master.getByRole('heading', { name: 'Site-uri și acces' }).waitFor();
     await master
       .getByRole('button', { name: 'Adaugă site', exact: true })

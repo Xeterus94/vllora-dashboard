@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+  html { color-scheme: light; }
+  html.dark { color-scheme: dark; }
+  body { font-family: "Inter Variable", ui-sans-serif, system-ui, sans-serif; }
+  .card { border-radius: 1rem; border: 1px solid #e2e8f0; background: #fff; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); transition: background-color .3s, border-color .3s; }
+  .dark .card { border-color: #1e293b; background: #0f172a; box-shadow: none; }
+  .scroll-thin::-webkit-scrollbar { height: 6px; width: 6px; }
+  .scroll-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+  .dark .scroll-thin::-webkit-scrollbar-thumb { background: #334155; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .fade-up { animation: fadeUp .45s ease both; }
+  @keyframes slideIn { from { transform: translateX(100%); } to { transform: none; } }
+  .slide-in { animation: slideIn .3s cubic-bezier(.22,1,.36,1) both; }
+  @keyframes ping2 { 75%, 100% { transform: scale(2); opacity: 0; } }
+  .ping { animation: ping2 1.4s cubic-bezier(0,0,.2,1) infinite; }
+  .field { height: 2.5rem; width: 100%; border-radius: .5rem; border: 1px solid #e2e8f0; background: #fff; padding: 0 .75rem; font-size: .75rem; color: #0f172a; outline: none; transition: border-color .15s, box-shadow .15s; }
+  .field:focus { border-color: #9E7835; box-shadow: 0 0 0 3px rgba(200,162,86,.22); }
+  .dark .field { border-color: #334155; background: #1e293b; color: #f1f5f9; }
+  .dark .field:focus { border-color: #D6B46C; }
+  .lbl { display: block; margin-bottom: .35rem; font-size: .7rem; font-weight: 500; color: #475569; }
+  .dark .lbl { color: #94a3b8; }
+  .btn-primary { background-image: linear-gradient(90deg,#6B1C2E,#4A1120); color: #F8EAC8; border: 1px solid rgba(214,180,108,.35); box-shadow: 0 10px 15px -8px rgba(79,19,33,.4); }
+  .btn-primary:hover { filter: brightness(1.12); }
+  .btn-primary:disabled { opacity: .6; cursor: not-allowed; filter: none; }

@@ -16,7 +16,6 @@ test(
     const origin = 'https://master.example.com',
       brand = 'brand.example.com',
       fallback = 'fallback.example.net';
-    const portfolio = 'https://vllorastudio-panou-master.pages.dev/';
     const yesterday = new Date(Date.now() - 86400000)
       .toISOString()
       .slice(0, 10);
@@ -27,7 +26,6 @@ test(
       bindings: {
         ENVIRONMENT: 'production',
         APP_ORIGIN: origin,
-        MASTER_DASHBOARD_URL: portfolio,
         CF_ACCOUNT_ID: 'test-account',
         CF_API_TOKEN: 'route-test-token',
         CF_AE_API_TOKEN: 'read-test-token',
@@ -58,6 +56,8 @@ test(
           );
           if (aeDown) return new Response(null, { status: 503 });
           const sql = await request.text();
+          if (sql.includes('GROUP BY site'))
+            return Response.json({ data: [{ site: siteId, visitors: 3 }] });
           if (!sql.includes(`index1='${siteId}'`))
             return Response.json({ data: [] });
           if (sql.includes('GROUP BY path'))
@@ -118,9 +118,14 @@ test(
     t.after(() => env.close());
     const root = (path, opts) => call(env.mf, origin, path, opts);
     const entry = await root('/');
-    assert.equal(entry.status, 302);
-    // Don't forward an old password-reset fragment to the separate Pages UI.
-    assert.equal(entry.headers.get('location'), `${portfolio}#`);
+    assert.equal(entry.status, 200);
+    assert.match(entry.contents, /Vllora Studio Master Dashboard/);
+    assert.equal(entry.headers.get('location'), null);
+    assert.match(
+      entry.headers.get('content-security-policy'),
+      /script-src 'self'/,
+    );
+    assert.equal((await root('/master/assets/master.js')).status, 200);
     assert.equal(entry.headers.get('referrer-policy'), 'no-referrer');
     const redirect = await root('/portal-admin?tab=access');
     assert.equal(redirect.status, 308);
@@ -186,6 +191,124 @@ test(
     assert.match(login.headers.get('set-cookie'), /Secure/);
     const admin = (path, method = 'GET', body) =>
       root(`/api/admin${path}`, { cookie: login.cookie, method, body });
+    assert.equal((await root('/api/admin/portfolio')).status, 401);
+    assert.equal(
+      (
+        await root('/api/admin/portfolio', {
+          headers: { Authorization: 'Basic dGVzdDp0ZXN0' },
+        })
+      ).status,
+      401,
+    );
+    const portfolio = {
+      action: 'create',
+      businessName: 'Test master',
+      domain: 'portfolio.example.com',
+      tier: 'Standard',
+      industry: 'Retail',
+      billing: 'Annual',
+      state: 'active',
+      monthlyPrice: 12.34,
+      annualPrice: 109.99,
+      nextRenewal: '2027-04-17',
+      contactEmail: 'private@example.com',
+      content: {
+        heroTitle: 'Content title',
+        images: ['https://images.example.com/photo.webp'],
+        unknown: 'not public',
+      },
+    };
+    assert.equal(
+      (
+        await admin('/portfolio', 'POST', {
+          ...portfolio,
+          nextRenewal: '2027-02-29',
+        })
+      ).status,
+      400,
+    );
+    assert.equal(
+      (
+        await admin('/portfolio', 'POST', {
+          ...portfolio,
+          content: { images: ['javascript:alert(1)'] },
+        })
+      ).status,
+      400,
+    );
+    const addition = await admin('/portfolio', 'POST', portfolio);
+    assert.equal(addition.status, 201, addition.contents);
+    const id = addition.json.site.id;
+    assert.equal((await admin('/portfolio', 'POST', portfolio)).status, 409);
+    const detail = await env.db
+      .prepare('SELECT annual_cents FROM portfolio_details WHERE site_id=?')
+      .bind(id)
+      .first();
+    assert.equal(detail.annual_cents, 10999);
+    assert.equal(
+      (await call(env.mf, 'https://portfolio.example.com', '/admin/')).status,
+      200,
+    );
+    assert.equal(
+      (
+        await root('/api/admin/portfolio', {
+          method: 'POST',
+          cookie: login.cookie,
+          headers: { Origin: 'https://elsewhere.com' },
+          body: portfolio,
+        })
+      ).status,
+      403,
+    );
+    const read = await root('/api/content?site=portfolio.example.com', {
+      headers: { Origin: 'https://portfolio.example.com' },
+    });
+    assert.equal(read.status, 200, read.contents);
+    assert.equal(read.headers.get('access-control-allow-origin'), '*');
+    assert.equal(read.json.content.heroTitle, 'Content title');
+    assert.doesNotMatch(read.contents, /private@example|unknown|annualPrice/);
+    const suspended = await admin('/portfolio', 'POST', {
+      ...portfolio,
+      id,
+      action: 'update',
+      state: 'suspended',
+      annualPrice: 120.01,
+    });
+    assert.equal(suspended.status, 200, suspended.contents);
+    assert.equal(
+      (await root('/api/content?site=portfolio.example.com')).status,
+      404,
+    );
+    const snapshot = (await admin('/portfolio')).json.clients.find(
+      (site) => site.id === id,
+    );
+    assert.equal(snapshot.state, 'suspended');
+    assert.ok(Number.isFinite(Date.parse(snapshot.suspendedAt)));
+    assert.equal(snapshot.annualPrice, 120.01);
+    assert.equal(
+      (
+        await admin('/portfolio', 'POST', {
+          id,
+          action: 'delete',
+          domain: 'wrong.example.com',
+        })
+      ).status,
+      400,
+    );
+    assert.equal(
+      (
+        await admin('/portfolio', 'POST', {
+          id,
+          action: 'delete',
+          domain: portfolio.domain,
+        })
+      ).status,
+      200,
+    );
+    assert.equal(
+      (await call(env.mf, 'https://portfolio.example.com', '/admin/')).status,
+      404,
+    );
     const create = await admin('/sites', 'POST', { domain: brand });
     assert.equal(create.status, 201, create.contents);
     const site = create.json.site;
@@ -217,6 +340,8 @@ test(
     for (const path of [
       '/portal-admin/',
       '/admin/portal-admin/',
+      '/admin/master/assets/master.js',
+      '/admin/api/content',
       `/admin/portal-admin/assets/${asset}`,
     ]) {
       assert.equal((await call(env.mf, `https://${brand}`, path)).status, 404);
@@ -236,6 +361,11 @@ test(
         })
       ).status,
       400,
+    );
+    assert.equal(
+      (await admin('/portfolio')).json.clients.find((c) => c.id === siteId)
+        .liveVisitors,
+      3,
     );
     const stats = await admin(`/sites/${siteId}/stats?days=30`);
     assert.equal(stats.status, 200, stats.contents);
@@ -272,6 +402,11 @@ test(
       0,
     );
     aeDown = true;
+    const rolledUp = (await admin('/portfolio')).json.clients.find(
+      (c) => c.id === siteId,
+    );
+    assert.equal(rolledUp.liveVisitors, null);
+    assert.equal(rolledUp.visitorsByDay[yesterday], 8);
     const offline = await admin(`/sites/${siteId}/stats?days=30`);
     assert.equal(offline.json.source, 'rollup');
     assert.equal(offline.json.totals.pageviews, 37);

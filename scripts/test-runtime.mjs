@@ -72,10 +72,7 @@ export async function runtime({ bindings = {}, outbound } = {}) {
         ASSETS: async (request) => {
           const pathname = new URL(request.url).pathname;
           const root = resolve('dist-portal'),
-            path = resolve(
-              root,
-              `.` + (pathname === '/' ? '/index.html' : pathname),
-            );
+            path = resolve(root, '.' + pathname);
           if (!path.startsWith(root + '/'))
             return new Response(null, { status: 404 });
           try {
@@ -85,7 +82,9 @@ export async function runtime({ bindings = {}, outbound } = {}) {
               ? 'text/css'
               : path.endsWith('.js')
                 ? 'application/javascript'
-                : 'text/html';
+                : path.endsWith('.woff2')
+                  ? 'font/woff2'
+                  : 'text/html';
             return new Response(
               request.method === 'HEAD' ? null : await readFile(path),
               { headers: { 'Content-Type': type } },
@@ -104,7 +103,7 @@ export async function runtime({ bindings = {}, outbound } = {}) {
     await db.batch(
       schema
         .trim()
-        .split(/;\n(?=(?:CREATE|ALTER|INSERT))/)
+        .split(/;\n(?=(?:CREATE|ALTER|INSERT|UPDATE))/)
         .map((sql) => db.prepare(sql)),
     );
     return {

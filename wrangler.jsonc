@@ -5,12 +5,11 @@
   "compatibility_date": "2026-01-01",
   "workers_dev": true,
   "preview_urls": false,
-  "assets": { "directory": "./dist-portal", "binding": "ASSETS", "run_worker_first": true },
+  "assets": { "directory": "./dist-portal", "binding": "ASSETS", "run_worker_first": true, "html_handling": "none" },
   "triggers": { "crons": ["15 2 * * *"] },
   "vars": {
     "ENVIRONMENT": "production",
     "APP_ORIGIN": "https://vllora-dashboard.ionstefan0904.workers.dev",
-    "MASTER_DASHBOARD_URL": "https://vllorastudio-panou-master.pages.dev/",
     "MASTER_API_BASE": "https://vllora-dashboard.ionstefan0904.workers.dev",
     "EXTRA_ORIGINS": "",
     "MEDIA_PUBLIC_BASE": "",

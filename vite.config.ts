@@ -15,7 +15,7 @@ export default defineConfig(({ command }) => ({
       ...(process.env.DEV_TENANT_HOSTS || 'siteclient.com').split(','),
     ],
     proxy: {
-      '^/(?:$|api(?:/|$)|admin(?:/|$)|portal-admin(?:/|$)|media/|track\\.js$)':
+      '^/(?:$|api(?:/|$)|admin(?:/|$)|portal-admin(?:/|$)|master/assets/|media/|track\\.js$)':
         {
           target: 'http://127.0.0.1:8787',
           changeOrigin: false,
