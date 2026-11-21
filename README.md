@@ -1,12 +1,20 @@
 # Vllora Studio — Backoffice și portal client
 
-Aplicația React și API-ul rulează în același Cloudflare Worker. Masterul administrează site-uri, conturi, branding, media, metrici și jurnalul de activitate. Clientul intră la `https://domeniul-lui.ro/admin`, își schimbă parola temporară la prima autentificare și vede exclusiv datele propriului site. Domeniul platformei este rezervat masterului.
+Un singur Worker, `vllora-dashboard`, publică din acest repository panoul master și aplicația React pentru portaluri. Sesiunea de staff este comună celor două interfețe de pe domeniul master; sesiunile clienților sunt separate, pe hostname-ul lor.
+
+| Interfață | Adresă | Rol |
+| --- | --- | --- |
+| **Panoul master complet** | [vllora-dashboard.ionstefan0904.workers.dev](https://vllora-dashboard.ionstefan0904.workers.dev/) | Designul original, cu portofoliu, MRR, abonamente, CMS, setările studioului și modul demo. |
+| **Portal client** | `https://domeniul-clientului.ro/admin` | Interfața React simplificată. Clientul își schimbă parola temporară la prima autentificare și vede numai propriul site. |
+| **Administrare portaluri client** | [vllora-dashboard…workers.dev/portal-admin/](https://vllora-dashboard.ionstefan0904.workers.dev/portal-admin/) | Operațiuni de staff pentru portaluri: înregistrarea site-ului, accesul clientului, branding, media, metrici și jurnal. |
+
+Panoul master nu redirecționează spre vechiul proiect Pages și nu apelează Worker-ul `dashboard-master`. Site-urile din portofoliu și portalurile folosesc aceleași înregistrări din D1 (`vllora_backoffice`).
 
 - **Worker + D1:** sesiuni în cookie `HttpOnly`, limitare persistentă, resetare cu link prin Resend și autorizare pe hostname și site. Portalul nu folosește ID-ul trimis de browser pentru a alege site-ul.
 - **Parole:** PBKDF2-SHA256 cu 210.000 de iterații, calculat într-un Durable Object privat și fără stare. Hash-urile deja salvate în D1 rămân compatibile.
 - **R2 + KV:** biblioteca fiecărui site, logo/favicon și branding detectat automat (opțional cache în KV); uploadurile UI se convertesc în WebP înainte de transfer. Metadatele și fișierele sunt separate.
 - **Analytics Engine + D1:** trafic prin `track.js`, istoric pe zile și fallback la rollup. Metricile de business folosesc un dataset separat și un registru D1 pentru deduplicare și valori financiare exacte.
-- Dashboardul HTML dinaintea acestui modul rămâne în `legacy/standalone-dashboard.html`. Componentele React de demo existente nu mai sunt importate de aplicația nouă.
+- **Surse:** `master/` pentru panoul complet și `src/` pentru interfața React; `worker/` pentru API și migrații.
 
 ## Dezvoltare locală
 
@@ -21,7 +29,7 @@ npm run build
 npm run dev                       # http://localhost:8787
 ```
 
-`npm run dev:ui` pornește Vite la `http://localhost:3000` și face proxy la Worker pentru API, tracking, media și `/admin/*`. Interfața master are hot reload; `/admin/` folosește buildul din `dist`, deci reconstruiește-l după modificări ale interfeței tenant. Pentru portalul local, configurează `127.0.0.1 siteclient.com` în fișierul hosts și creează site-ul `siteclient.com` în master. Intră la `http://siteclient.com:8787/admin`. Detectarea automată a brandingului și integrările externe nu sunt necesare în dev.
+`npm run dev` servește panoul complet la `http://localhost:8787/` și administrarea portalurilor la `/portal-admin/`. Rulează `npm run build` din nou după modificarea interfețelor (`npm run build:master` e suficient dacă ai schimbat numai `master/`). `npm run dev:ui` oferă și un proxy Vite pe portul 3000, dar folosește aceleași builduri pentru rutele Worker-ului. Pentru portalul local, configurează `127.0.0.1 siteclient.com` în fișierul hosts, creează site-ul `siteclient.com` în master, apoi intră la `http://siteclient.com:8787/admin`.
 
 Inițializează masterul o singură dată prin `POST /api/bootstrap` (vezi mai jos, folosind URL-ul local și tokenul din `.dev.vars`). Nu există parole demo în runtime.
 
@@ -32,6 +40,19 @@ npm run test:ui               # Chromium: desktop/mobil, fluxuri de acces, reset
 ```
 
 Testele pornesc un Workerd izolat cu baze efemere; nu porni aplicația separat. Pe Linux testul UI folosește un Chromium inclus prin npm (are nevoie de librăriile de sistem Chromium/NSS); în CI se instalează dependențele cu `npx playwright install-deps chromium`. Poți folosi `CHROMIUM_EXECUTABLE` pentru alt executabil sau `npx playwright install chromium` pe macOS/Windows.
+
+## Build și publicare din GitHub
+
+- În Cloudflare → **Workers & Pages → vllora-dashboard → Settings → Builds**, conectează acest repository, ramura de producție `main`, directorul rădăcină `/`. Comanda de build: `npm run build`. Comanda de deploy: `npx wrangler deploy`. Aplică migrațiile înainte de primul deploy al acestei versiuni, conform pasului 3. Dacă alegi să rulezi migrațiile în pipeline, tokenul de build trebuie să aibă acces D1 Edit, iar comanda de deploy devine `npm run db:init && npx wrangler deploy`.
+- `npm run build` pregătește React în `dist-portal/` și adaugă masterul în `dist-portal/master/`. CSS, Chart.js și fonturile sunt livrate local de Worker. Nu configura niciun proiect Pages pentru panoul master și nu publica manual fișierele generate.
+- `APP_ORIGIN` și `MASTER_API_BASE` rămân pe originea reală a Worker-ului. Poți configura un domeniu propriu pentru Worker în loc de `workers.dev`; adresa veche `pages.dev` nu este noua adresă master.
+
+### Trecerea de la panoul încărcat manual
+
+1. Dacă există date în instalarea veche, exportă/realizează backup înainte să schimbi ceva. Migrarea `0007_portfolio.sql` extinde **doar** D1-ul `vllora_backoffice`: păstrează site-urile, utilizatorii și datele existente aici. Nu copiază date, parole, imagini sau istoricul din vechiul Worker.
+2. Completează abonamentele și conținutul pe **site-urile existente** din noul portofoliu, potrivind după domeniu. Adaugă doar domeniile lipsă. Valorile facturării sunt în USD, stocate în cenți; pentru site-urile fără abonament completat, nu se presupune un tarif. MRR istoric se estimează din tarifele curente și datele de creare/suspendare disponibile; nu este un registru de facturi. Setările din „Studio settings” rămân locale în browser, ca în interfața originală.
+3. Dacă un site public citește din vechiul CMS, actualizează proiectul acelui site să citească `GET https://vllora-dashboard.ionstefan0904.workers.dev/api/content?site=domeniu-client.ro`. Răspunsul pentru un site activ este `{ businessName, domain, content }`; câmpurile din tabul CMS sunt publice, dar datele de facturare și acces nu sunt. Integrarea clientului trebuie să redea textele ca text, nu ca HTML. Verifică și URL-urile imaginilor, precum și tracking-ul. Fără surse de monitorizare/cereri de conținut, acele secțiuni nu afișează valori simulate în modul autentificat.
+4. Verifică loginul master, portalurile și site-urile publice înainte de retragerea resurselor vechi. Folosește „Suspendat” pentru a opri accesul temporar. Ștergerea confirmată din portofoliu elimină site-ul și datele asociate din noul backoffice, inclusiv accesul la portal și media. Nu șterge vechile resurse cât timp mai sunt consumatori sau date neverificate.
 
 ## Publicare pe Cloudflare
 
@@ -55,17 +76,26 @@ Testele pornesc un Workerd izolat cu baze efemere; nu porni aplicația separat. 
    | `CF_API_TOKEN` | Opțional: automatizare rute, **Zone:Read** și **Workers Routes:Edit** strict pe zonele administrate |
    | `RESEND_API_KEY` + `EMAIL_FROM` | Recuperare parolă; domeniu expeditor verificat în Resend cu înregistrările DNS cerute |
 
-5. Rulează `npm run deploy`. Wrangler creează automat binding-ul `PASSWORD_KDF` la deploy prin migrația Durable Objects din `wrangler.jsonc`; nu este nevoie să creezi o resursă manual sau să modifici schema D1 pentru acest binding. Creează apoi masterul și elimină `BOOTSTRAP_TOKEN`:
+5. Rulează `npm run deploy`. Wrangler creează automat binding-ul `PASSWORD_KDF` la deploy prin migrația Durable Objects din `wrangler.jsonc`; nu este nevoie să creezi o resursă manual sau să modifici schema D1 pentru acest binding. Creează apoi contul pentru administrarea portalurilor, dacă nu există deja, și elimină `BOOTSTRAP_TOKEN`:
 
    ```sh
-   curl -X POST https://portal.domeniu.ro/api/bootstrap \
+   curl -X POST https://vllora-dashboard.ionstefan0904.workers.dev/api/bootstrap \
      -H "x-bootstrap-token: $BOOTSTRAP_TOKEN" -H 'Content-Type: application/json' \
-     -d '{"username":"vllora","name":"Administrator","password":"ÎNLOCUIEȘTE_CU_PAROLA_TA_4!"}'
+     -d '{"username":"adminvllora","name":"Ion Stefan","password":"ÎNLOCUIEȘTE_CU_PAROLA_TA_4!"}'
    npx wrangler secret delete BOOTSTRAP_TOKEN
    ```
 
    Setează și verifică adresa master din **Email recuperare**; clientului îi configurezi adresa din **Acces client**. Trimite un link de test în fiecare caz. În producție furnizorul este întotdeauna Resend, chiar dacă este setat un URL mock de dezvoltare. Fără o adresă salvată, recuperarea automată nu este disponibilă pentru acel cont.
-6. Pentru client: domeniul trebuie să fie într-o zonă Cloudflare cu DNS proxied. Worker-ul încearcă să configureze `domeniu-client.ro/admin*`; în editor → **Acces client** poți reîncerca. Dacă zona nu e accesibilă tokenului, adaugă ruta manual, cu scriptul `vllora-backoffice`. Verifică să nu existe un alt admin la acel prefix. Hostname-ul suplimentar (`portal_host`) necesită DNS, certificat și rutare separată; hostname-urile sunt potrivite exact. Domeniul principal rămâne identitatea site-ului; pentru alt domeniu folosește un alias de portal sau creează un site nou.
+6. Pentru client: domeniul trebuie să fie într-o zonă Cloudflare cu DNS proxied. Worker-ul încearcă să configureze `domeniu-client.ro/admin*`; în editor → **Acces client** poți reîncerca. Dacă zona nu e accesibilă tokenului, adaugă ruta manual, cu scriptul `vllora-dashboard`. Verifică să nu existe un alt admin la acel prefix. Hostname-ul suplimentar (`portal_host`) necesită DNS, certificat și rutare separată; hostname-urile sunt potrivite exact. Domeniul principal rămâne identitatea site-ului; pentru alt domeniu folosește un alias de portal sau creează un site nou.
+
+### `/admin` pe site-uri de client găzduite în Pages
+
+Pentru un hostname partajat `*.pages.dev` (de exemplu `frizeriata.pages.dev`) nu poți crea o rută de zonă Workers `/admin*` pe acel hostname. Ai două opțiuni:
+
+- Folosește un domeniu propriu cu DNS proxied și configurează ruta `/admin*` pentru `vllora-dashboard`, conform pașilor de mai sus.
+- Dacă proiectul Pages al clientului este în același cont cu `vllora-dashboard`, înregistrează hostname-ul exact în **Administrare portaluri client → Adaugă site**, apoi adaugă un **Service Binding** numit `VLLORA_PORTAL`, cu destinația `vllora-dashboard`, în setările **Production** ale proiectului Pages al clientului. Copiază fișierele din `integrations/pages-client/` în rădăcina **outputului de build al acelui client** și redeployează proiectul client. `_routes.json` trimite doar `/admin` și `/admin/*` către adaptor; `_worker.js` păstrează URL-ul original, iar portalul verifică hostname-ul și sesiunea. Dacă proiectul are deja `_worker.js`, Functions sau `_routes.json`, integrează ramura `/admin` în configurația existentă; nu suprascrie rutele aplicației clientului.
+
+Adaptorul este opțional și **nu se instalează pe proiectul Pages al masterului**. După configurare, testează atât pagina publică a clientului, cât și `/admin`. Activarea în contul de producție se face separat, în proiectul fiecărui client.
 
 ### Media și branding
 
@@ -100,7 +130,7 @@ curl -X POST https://portal.domeniu.ro/api/collect-event \
 
 ### Rute API principale
 
-| Domeniu master | Domeniu client (`/admin` prefix) |
+| Worker administrare portaluri | Domeniu client (`/admin` prefix) |
 | --- | --- |
 | `/api/auth/{login,me,logout,change-password,forgot-password,reset-password,sessions/revoke-all}` | `/admin/api/auth/...`, cu aceleași operații |
 | `PATCH /api/auth/recovery-email` | — |

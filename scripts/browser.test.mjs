@@ -68,8 +68,39 @@ test(
       ).status,
       201,
     );
+    const requests = [];
+    master.on('request', (request) => requests.push(request.url()));
     await master.goto(masterOrigin);
-    await login(master, 'master.ui', masterPassword);
+    assert.equal(new URL(master.url()).pathname, '/');
+    await master.locator('#demoBtn').click();
+    await master.locator('#app').waitFor();
+    await master.locator('#chartPerf').waitFor();
+    assert.ok(await master.evaluate(() => window.Chart.getChart('chartPerf')));
+    assert.equal(
+      await master
+        .locator('#app')
+        .evaluate((el) => getComputedStyle(el).minHeight),
+      '900px',
+    );
+    await master.locator('#logoutBtn').click();
+    await master.locator('#login').waitFor();
+    await master.getByLabel('Username', { exact: true }).fill('master.ui');
+    await master.getByLabel('Password', { exact: true }).fill(masterPassword);
+    await master.locator('#loginBtn').click();
+    await master.locator('#app').waitFor();
+    await master.locator('#addClient').click();
+    await master.locator('#edName').fill('Master UI Portfolio Site');
+    await master.locator('#edDomain').fill('portfolio.example.com');
+    await master.locator('[data-tab="cms"]').click();
+    await master.locator('#edHeroTitle').fill('A D1-backed title');
+    await master.locator('#saveBtn').click();
+    await master.locator('#editor').waitFor({ state: 'hidden' });
+    await master.reload();
+    await master
+      .getByText('Master UI Portfolio Site', { exact: true })
+      .waitFor();
+    assert.ok(requests.every((url) => url.startsWith(masterOrigin + '/')));
+    await master.goto(`${masterOrigin}/portal-admin/`);
     await master.getByRole('heading', { name: 'Site-uri și acces' }).waitFor();
     await master
       .getByRole('button', { name: 'Adaugă site', exact: true })
@@ -177,13 +208,11 @@ test(
       (r) =>
         r.url().includes('/portal/media') && r.request().method() === 'POST',
     );
-    await client
-      .getByLabel('Alege imagini', { exact: true })
-      .setInputFiles({
-        name: 'test.svg',
-        mimeType: 'image/svg+xml',
-        buffer: Buffer.from(svg),
-      });
+    await client.getByLabel('Alege imagini', { exact: true }).setInputFiles({
+      name: 'test.svg',
+      mimeType: 'image/svg+xml',
+      buffer: Buffer.from(svg),
+    });
     const uploaded = await (await clientUpload).json();
     assert.equal(uploaded.item.content_type, 'image/webp');
     assert.equal(uploaded.item.width, 2000);
@@ -203,13 +232,11 @@ test(
       ];
     }, uploaded.item.url);
     assert.deepEqual(pixels, [255, 0]);
-    await client
-      .getByLabel('Alege imagini', { exact: true })
-      .setInputFiles({
-        name: 'fake.png',
-        mimeType: 'image/png',
-        buffer: Buffer.from('not an image'),
-      });
+    await client.getByLabel('Alege imagini', { exact: true }).setInputFiles({
+      name: 'fake.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('not an image'),
+    });
     await client.getByRole('alert').filter({ hasText: 'fake.png' }).waitFor();
     assert.equal(
       (await env.db.prepare('SELECT COUNT(*) AS n FROM media').first()).n,

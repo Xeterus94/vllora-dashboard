@@ -1,674 +1,3 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Vllora Studio Master Dashboard</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0' y1='0' x2='120' y2='120' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0%25' stop-color='%236B1C2E'/%3E%3Cstop offset='100%25' stop-color='%23320913'/%3E%3C/linearGradient%3E%3ClinearGradient id='g' x1='12' y1='18' x2='108' y2='102' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0%25' stop-color='%23F6E6BC'/%3E%3Cstop offset='50%25' stop-color='%23D6B46C'/%3E%3Cstop offset='100%25' stop-color='%23A88038'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='120' height='120' rx='26' fill='url(%23bg)'/%3E%3Cg transform='translate(0,12)'%3E%3Cpath d='M12 10 L23.6 10 C31.2 10 36.8 13.6 40.9 21 L58.11 55.32 L53.82 63.04 L32.8 25.2 C29.8 19.8 26.8 17.4 24.47 17 L52.25 67.01 A1.8 1.8 0 0 0 55.39 67.01 L72.4 36.4 C76.6 28.8 82.8 26 91.2 24.8 C94.8 24.3 97.4 22 99.6 17.2 C92.6 16.8 86.2 19.4 81.2 25.4 L71.8 28 C76.4 16.8 84.4 10 95.8 10 L108 10 L96.3 31.06 C93.8 33 90.2 33.6 86.2 34.4 C82.4 35.2 79.8 37.8 77.4 42.16 L61.86 70.6 A9.2 9.2 0 0 1 45.78 70.6 L12 10 Z' fill='url(%23g)'/%3E%3Cpath d='M94.3 34.66 L71.22 75.8 A19.9 19.9 0 0 1 41.8 81.9 C44.8 81.4 47.4 79.8 49.4 77.8 A12.5 12.5 0 0 0 64.75 72.2 L84.7 36.29 C87.8 35.6 91.2 35.2 94.3 34.66 Z' fill='url(%23g)'/%3E%3C/g%3E%3C/svg%3E" />
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-  tailwind.config = {
-    darkMode: 'class',
-    theme: {
-      extend: {
-        fontFamily: {
-          sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-          brand: ['Cinzel', 'Georgia', 'serif']
-        }
-      }
-    }
-  };
-</script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-<style>
-  html { color-scheme: light; }
-  html.dark { color-scheme: dark; }
-  body { font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
-  .card { border-radius: 1rem; border: 1px solid #e2e8f0; background: #fff; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); transition: background-color .3s, border-color .3s; }
-  .dark .card { border-color: #1e293b; background: #0f172a; box-shadow: none; }
-  .scroll-thin::-webkit-scrollbar { height: 6px; width: 6px; }
-  .scroll-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
-  .dark .scroll-thin::-webkit-scrollbar-thumb { background: #334155; }
-  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-  .fade-up { animation: fadeUp .45s ease both; }
-  @keyframes slideIn { from { transform: translateX(100%); } to { transform: none; } }
-  .slide-in { animation: slideIn .3s cubic-bezier(.22,1,.36,1) both; }
-  @keyframes ping2 { 75%, 100% { transform: scale(2); opacity: 0; } }
-  .ping { animation: ping2 1.4s cubic-bezier(0,0,.2,1) infinite; }
-  .field { height: 2.5rem; width: 100%; border-radius: .5rem; border: 1px solid #e2e8f0; background: #fff; padding: 0 .75rem; font-size: .75rem; color: #0f172a; outline: none; transition: border-color .15s, box-shadow .15s; }
-  .field:focus { border-color: #9E7835; box-shadow: 0 0 0 3px rgba(200,162,86,.22); }
-  .dark .field { border-color: #334155; background: #1e293b; color: #f1f5f9; }
-  .dark .field:focus { border-color: #D6B46C; }
-  .lbl { display: block; margin-bottom: .35rem; font-size: .7rem; font-weight: 500; color: #475569; }
-  .dark .lbl { color: #94a3b8; }
-  .btn-primary { background-image: linear-gradient(90deg,#6B1C2E,#4A1120); color: #F8EAC8; border: 1px solid rgba(214,180,108,.35); box-shadow: 0 10px 15px -8px rgba(79,19,33,.4); }
-  .btn-primary:hover { filter: brightness(1.12); }
-  .btn-primary:disabled { opacity: .6; cursor: not-allowed; filter: none; }
-</style>
-</head>
-<body class="min-h-screen bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
-
-<!-- ============================== LOGIN ============================== -->
-<div id="login" class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
-  <button id="languageToggleLogin" type="button" data-language-toggle class="fixed left-4 top-4 z-20 inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white/90 px-3 text-xs font-bold text-slate-600 shadow-sm backdrop-blur transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-300 dark:hover:bg-slate-800" aria-label="Switch to Romanian" title="Switch to Romanian">
-    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg><span class="language-toggle-label">RO</span>
-  </button>
-  <button id="themeToggleLogin" type="button" class="fixed right-4 top-4 z-20 grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white/90 text-slate-600 shadow-sm backdrop-blur transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-300 dark:hover:bg-slate-800" aria-label="Toggle dark mode">
-    <svg class="h-4 w-4 dark:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-    <svg class="hidden h-4 w-4 dark:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
-  </button>
-
-  <div class="pointer-events-none absolute inset-0 -z-10">
-    <div class="absolute inset-0 bg-[#FAF9F6] dark:bg-slate-950"></div>
-    <div class="absolute -top-36 left-1/2 h-96 w-[44rem] -translate-x-1/2 rounded-full blur-3xl" style="background:radial-gradient(circle at 50% 50%, rgba(107,28,46,.20), rgba(214,180,108,.18), transparent 70%)"></div>
-    <div class="absolute -bottom-40 -left-24 h-80 w-80 rounded-full bg-[#D6B46C]/15 blur-3xl dark:bg-[#6B1C2E]/25"></div>
-    <div class="absolute -bottom-32 -right-24 h-80 w-80 rounded-full bg-[#6B1C2E]/10 blur-3xl dark:bg-[#D6B46C]/10"></div>
-  </div>
-
-  <div class="w-full max-w-md fade-up">
-    <div class="mb-6 flex flex-col items-center text-center">
-      <div class="grid h-14 w-14 place-items-center rounded-xl bg-gradient-to-br from-[#6B1C2E] via-[#4F1220] to-[#320913] p-2 shadow-lg shadow-[#4F1220]/30 ring-1 ring-[#D6B46C]/40">
-        <svg viewBox="0 0 120 96" class="h-full w-full" aria-hidden="true">
-          <defs>
-            <linearGradient id="lg1" x1="12" y1="8" x2="106" y2="88" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#F6E6BC"/><stop offset="28%" stop-color="#D6B46C"/><stop offset="52%" stop-color="#F3E0B3"/><stop offset="78%" stop-color="#B38B42"/><stop offset="100%" stop-color="#DFC07D"/>
-            </linearGradient>
-            <linearGradient id="lg2" x1="42" y1="34" x2="95" y2="88" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#E8CB8A"/><stop offset="55%" stop-color="#BA9348"/><stop offset="100%" stop-color="#F0DCAC"/>
-            </linearGradient>
-          </defs>
-          <path d="M12 10 L23.6 10 C31.2 10 36.8 13.6 40.9 21 L58.11 55.32 L53.82 63.04 L32.8 25.2 C29.8 19.8 26.8 17.4 24.47 17 L52.25 67.01 A1.8 1.8 0 0 0 55.39 67.01 L72.4 36.4 C76.6 28.8 82.8 26 91.2 24.8 C94.8 24.3 97.4 22 99.6 17.2 C92.6 16.8 86.2 19.4 81.2 25.4 L71.8 28 C76.4 16.8 84.4 10 95.8 10 L108 10 L96.3 31.06 C93.8 33 90.2 33.6 86.2 34.4 C82.4 35.2 79.8 37.8 77.4 42.16 L61.86 70.6 A9.2 9.2 0 0 1 45.78 70.6 L12 10 Z" fill="url(#lg1)"/>
-          <path d="M94.3 34.66 L71.22 75.8 A19.9 19.9 0 0 1 41.8 81.9 C44.8 81.4 47.4 79.8 49.4 77.8 A12.5 12.5 0 0 0 64.75 72.2 L84.7 36.29 C87.8 35.6 91.2 35.2 94.3 34.66 Z" fill="url(#lg2)"/>
-        </svg>
-      </div>
-      <h1 class="mt-4 text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Vllora Studio</h1>
-      <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Master Dashboard · WaaS client portfolio · live CMS</p>
-    </div>
-
-    <form id="loginForm" class="card space-y-4 p-6 sm:p-7">
-      <div>
-        <div class="flex items-center justify-between gap-2">
-          <h2 class="text-base font-semibold text-slate-900 dark:text-white">Sign in to Vllora Studio</h2>
-          <span class="rounded-full border border-[#D6B46C]/40 bg-[#6B1C2E]/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#6B1C2E] dark:bg-[#D6B46C]/15 dark:text-[#E8CB8A]">Live API</span>
-        </div>
-      </div>
-
-      <div id="loginError" class="hidden items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-xs leading-relaxed text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
-        <svg class="mt-0.5 h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-        <div>
-          <div class="font-semibold">Connection failed</div>
-          <div class="mt-0.5 opacity-90" id="loginErrorMsg"></div>
-          <div class="mt-1.5 opacity-75">Tip: the Worker must allow CORS (<code class="font-mono">Access-Control-Allow-Origin</code>) and accept <code class="font-mono">Authorization</code> + <code class="font-mono">Content-Type</code>.</div>
-        </div>
-      </div>
-
-      <div>
-        <label class="lbl" for="username">Username</label>
-        <div class="relative">
-          <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          <input id="username" class="field pl-10" placeholder="vllora-admin" autocomplete="username" />
-        </div>
-      </div>
-
-      <div>
-        <label class="lbl" for="password">Password</label>
-        <div class="relative">
-          <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          <input id="password" type="password" class="field pl-10 pr-10" placeholder="••••••••••" autocomplete="current-password" />
-          <button id="pwToggle" type="button" class="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" aria-label="Show password">
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-        </div>
-      </div>
-
-      <button id="loginBtn" type="submit" class="btn-primary flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-all active:scale-[0.99]">
-        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        Open Master Dashboard
-      </button>
-
-      <div class="flex items-center gap-3 text-[11px] text-slate-400">
-        <span class="h-px flex-1 bg-slate-200 dark:bg-slate-700"></span> or <span class="h-px flex-1 bg-slate-200 dark:bg-slate-700"></span>
-      </div>
-
-      <button id="demoBtn" type="button" class="h-10 w-full rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
-        Explore with demo data (no login)
-      </button>
-    </form>
-
-    <p class="mt-4 text-center text-[11px] text-slate-400">Vllora Studio Master Dashboard · Client portfolio &amp; CMS</p>
-  </div>
-</div>
-
-<!-- ============================== APP ============================== -->
-<div id="app" class="hidden min-h-screen">
-  <!-- Sidebar -->
-  <aside class="fixed inset-y-0 left-0 z-30 hidden w-60 border-r border-slate-200 bg-white lg:block dark:border-slate-800 dark:bg-slate-900">
-    <nav class="flex h-full flex-col gap-1 p-4">
-      <div class="mb-6 flex items-center gap-3 px-1.5">
-        <div class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#6B1C2E] via-[#4F1220] to-[#320913] p-1.5 shadow-lg shadow-[#4F1220]/30 ring-1 ring-[#D6B46C]/40">
-          <svg viewBox="0 0 120 96" class="h-full w-full"><use href="#brandmark"></use></svg>
-        </div>
-        <div class="min-w-0">
-          <div class="truncate font-brand text-sm font-bold tracking-[0.08em] text-slate-900 dark:text-[#F6E6BC]">VLLORA STUDIO</div>
-          <div class="truncate text-[11px] font-medium text-[#8B6B2E] dark:text-[#D6B46C]/85">Master Dashboard</div>
-        </div>
-      </div>
-      <div class="px-2 pb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Master Menu</div>
-      <a href="#sec-overview" class="nav-link flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium">Overview</a>
-      <a href="#sec-revenue" class="nav-link flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium">Revenue</a>
-      <a href="#sec-sites" class="nav-link flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium">Hosting &amp; Uptime</a>
-      <a href="#sec-content" class="nav-link flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium">Content Ops</a>
-      <a href="#sec-clients" class="nav-link flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium">Clients</a>
-      <button type="button" data-open-settings class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">Settings</button>
-
-      <div class="mt-auto rounded-xl border border-[#D6B46C]/30 bg-gradient-to-br from-[#6B1C2E] via-[#4F1321] to-[#340A14] p-4 text-[#F8EAC8] shadow-lg shadow-[#3B0C17]/25">
-        <svg class="h-5 w-5 text-[#E8CB8A]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
-        <div id="goalTitle" class="mt-2 text-sm font-semibold">Goal: $10,000 MRR</div>
-        <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-white/20">
-          <div id="goalBar" class="h-full rounded-full bg-gradient-to-r from-[#F6E6BC] to-[#D6B46C] transition-all duration-700" style="width:0%"></div>
-        </div>
-        <div id="goalLabel" class="mt-1.5 text-[11px] text-[#E8CB8A]/90">0% of target</div>
-      </div>
-    </nav>
-  </aside>
-
-  <!-- Mobile nav -->
-  <div id="mobileNav" class="fixed inset-0 z-50 hidden lg:hidden">
-    <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" data-close-nav></div>
-    <aside class="relative h-full w-64 bg-white shadow-xl dark:bg-slate-900">
-      <button class="absolute right-3 top-4 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800" data-close-nav aria-label="Close menu">
-        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-      </button>
-      <div class="flex h-full flex-col gap-1 p-4">
-        <div class="mb-6 flex items-center gap-3 px-1.5">
-          <div class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#6B1C2E] via-[#4F1220] to-[#320913] p-1.5 ring-1 ring-[#D6B46C]/40">
-            <svg viewBox="0 0 120 96" class="h-full w-full"><use href="#brandmark"></use></svg>
-          </div>
-          <div>
-            <div class="font-brand text-sm font-bold tracking-[0.08em] text-slate-900 dark:text-[#F6E6BC]">VLLORA STUDIO</div>
-            <div class="text-[11px] font-medium text-[#8B6B2E] dark:text-[#D6B46C]/85">Master Dashboard</div>
-          </div>
-        </div>
-        <a href="#sec-overview" class="nav-link flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium" data-close-nav>Overview</a>
-        <a href="#sec-revenue" class="nav-link flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium" data-close-nav>Revenue</a>
-        <a href="#sec-sites" class="nav-link flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium" data-close-nav>Hosting &amp; Uptime</a>
-        <a href="#sec-content" class="nav-link flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium" data-close-nav>Content Ops</a>
-        <a href="#sec-clients" class="nav-link flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium" data-close-nav>Clients</a>
-        <button type="button" data-open-settings class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">Settings</button>
-        <div class="mt-auto rounded-xl border border-[#D6B46C]/30 bg-gradient-to-br from-[#6B1C2E] via-[#4F1321] to-[#340A14] p-4 text-[#F8EAC8]">
-          <div id="mobileGoalTitle" class="text-sm font-semibold">Goal: $10,000 MRR</div>
-          <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-white/20"><div id="mobileGoalBar" class="h-full rounded-full bg-gradient-to-r from-[#F6E6BC] to-[#D6B46C] transition-all duration-700" style="width:0%"></div></div>
-          <div id="mobileGoalLabel" class="mt-1.5 text-[11px] text-[#E8CB8A]/90">0% of target</div>
-        </div>
-      </div>
-    </aside>
-  </div>
-
-  <div class="lg:pl-60">
-    <!-- Header -->
-    <header class="sticky top-0 z-20 border-b border-slate-200/80 bg-slate-50/85 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/85">
-      <div class="flex items-center gap-2 px-4 py-3 sm:gap-3 sm:px-6">
-        <button id="navOpen" class="rounded-lg p-2 text-slate-500 hover:bg-slate-200/60 lg:hidden dark:hover:bg-slate-800" aria-label="Open menu">
-          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
-        </button>
-        <div class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#6B1C2E] to-[#320913] p-1 ring-1 ring-[#D6B46C]/40 lg:hidden">
-          <svg viewBox="0 0 120 96" class="h-full w-full"><use href="#brandmark"></use></svg>
-        </div>
-        <div class="min-w-0 flex-1">
-          <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            <h1 class="truncate text-base font-semibold tracking-tight sm:text-lg">Vllora Studio Master Dashboard</h1>
-            <span id="greetBadge" class="hidden rounded-full border border-[#D6B46C]/40 bg-[#6B1C2E]/10 px-2 py-0.5 text-[10px] font-semibold text-[#6B1C2E] sm:inline-block dark:bg-[#D6B46C]/15 dark:text-[#E8CB8A]"></span>
-          </div>
-          <p id="headerSub" class="hidden truncate text-xs text-slate-500 sm:block dark:text-slate-400"></p>
-        </div>
-        <div id="connBadge" class="hidden items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium sm:flex"></div>
-        <div id="liveVisitorsBadge" role="status" aria-live="polite" aria-atomic="true" class="hidden items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs dark:border-slate-700 dark:bg-slate-900 sm:flex">
-          <span class="relative flex h-2 w-2 shrink-0" aria-hidden="true"><span id="livePulse" class="hidden absolute h-full w-full rounded-full bg-emerald-400 opacity-70"></span><span id="liveDot" class="relative h-2 w-2 rounded-full bg-slate-400"></span></span>
-          <span id="liveNow" class="font-semibold tabular-nums">--</span>
-          <span id="liveNowLabel" class="text-slate-500 dark:text-slate-400">live visitors unavailable</span>
-          <span id="liveNowUpdated" class="hidden text-slate-400"></span>
-        </div>
-        <button id="refreshBtn" class="hidden h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-60 sm:grid dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800" aria-label="Refresh from API" title="Refresh from API">
-          <svg id="refreshIcon" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
-        </button>
-        <button id="languageToggle" type="button" data-language-toggle class="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800" aria-label="Switch to Romanian" title="Switch to Romanian">
-          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg><span class="language-toggle-label">RO</span>
-        </button>
-        <button id="settingsHeaderBtn" type="button" data-open-settings class="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800" aria-label="Open settings" title="Settings">
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.4 2.42-.08-.02a1.7 1.7 0 0 0-1.8.7l-.05.08h-2.8l-.03-.08a1.7 1.7 0 0 0-1.64-1.12 1.7 1.7 0 0 0-1.64 1.12l-.03.08h-2.8l-.05-.08a1.7 1.7 0 0 0-1.8-.7l-.08.02-1.4-2.42.06-.06A1.7 1.7 0 0 0 4.6 15.1l-.08-.03v-2.8l.08-.03a1.7 1.7 0 0 0 .34-2.57l-.06-.06 1.4-2.42.08.02a1.7 1.7 0 0 0 1.8-.7l.05-.08h2.8l.03.08a1.7 1.7 0 0 0 3.28 0l.03-.08h2.8l.05.08a1.7 1.7 0 0 0 1.8.7l.08-.02 1.4 2.42-.06.06a1.7 1.7 0 0 0 .34 2.57l.08.03v2.8Z"/></svg>
-        </button>
-        <button id="themeToggle" class="relative grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800" aria-label="Toggle dark mode" title="Toggle dark mode">
-          <svg class="absolute h-4 w-4 transition-all duration-300 dark:rotate-90 dark:scale-0 dark:opacity-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-          <svg class="absolute h-4 w-4 rotate-90 scale-0 opacity-0 transition-all duration-300 dark:rotate-0 dark:scale-100 dark:opacity-100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
-        </button>
-        <button id="logoutBtn" class="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-rose-500/10 dark:hover:text-rose-400" aria-label="Log out" title="Log out">
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>
-        </button>
-      </div>
-
-      <!-- Filters -->
-      <div class="scroll-thin flex items-center gap-2 overflow-x-auto px-4 pb-3 sm:px-6">
-        <span class="hidden shrink-0 items-center gap-1 text-xs font-medium text-slate-500 sm:flex dark:text-slate-400">
-          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.5V19l4 2v-8.5L22 3z"/></svg> Filters
-        </span>
-        <div id="rangeGroup" class="inline-flex shrink-0 rounded-lg bg-slate-100 p-0.5 dark:bg-slate-800"></div>
-        <div class="relative shrink-0">
-          <button id="customRangeBtn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="customRangePanel" class="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" title="Custom period">
-            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-            <span id="customRangeLabel">Custom period</span>
-          </button>
-          <div id="customRangePanel" role="dialog" aria-label="Custom period" class="absolute left-0 top-11 z-30 hidden w-72 rounded-xl border border-slate-200 bg-white p-4 shadow-xl dark:border-slate-700 dark:bg-slate-900">
-            <div class="grid grid-cols-2 gap-3">
-              <div><label class="lbl" for="customStart">Start date</label><input id="customStart" type="date" class="field tabular-nums" /></div>
-              <div><label class="lbl" for="customEnd">End date</label><input id="customEnd" type="date" class="field tabular-nums" /></div>
-            </div>
-            <p id="customRangeError" class="mt-2 hidden text-[11px] text-rose-600 dark:text-rose-400"></p>
-            <p class="mt-2 text-[11px] text-slate-400">Statistics compare the selected period with the previous period of the same length.</p>
-            <div class="mt-3 flex items-center justify-end gap-2">
-              <button id="customRangeCancel" type="button" class="h-9 rounded-lg px-3 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">Cancel</button>
-              <button id="customRangeApply" type="button" class="btn-primary h-9 rounded-lg px-3 text-xs font-semibold">Apply period</button>
-            </div>
-          </div>
-        </div>
-        <select id="fIndustry" class="h-9 w-40 shrink-0 appearance-none rounded-lg border border-slate-200 bg-white pl-3 pr-8 text-xs font-medium text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"></select>
-        <select id="fPlan" class="h-9 w-40 shrink-0 appearance-none rounded-lg border border-slate-200 bg-white pl-3 pr-8 text-xs font-medium text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"></select>
-        <select id="fBilling" class="h-9 w-36 shrink-0 appearance-none rounded-lg border border-slate-200 bg-white pl-3 pr-8 text-xs font-medium text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-          <option value="All">All billing</option><option value="Monthly">Monthly</option><option value="Annual">Annual</option>
-        </select>
-        <button id="resetFilters" class="hidden h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-xs font-medium text-[#6B1C2E] hover:bg-[#6B1C2E]/10 dark:text-[#E8CB8A] dark:hover:bg-[#D6B46C]/10">
-          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg> Reset
-        </button>
-      </div>
-    </header>
-
-    <main class="mx-auto max-w-[1500px] space-y-4 px-4 py-5 sm:space-y-5 sm:px-6">
-      <div id="sec-overview" class="flex scroll-mt-40 flex-wrap items-end justify-between gap-2">
-        <div>
-          <h2 class="text-xl font-semibold tracking-tight sm:text-2xl">Portfolio overview</h2>
-          <p id="rangeLabel" class="text-xs text-slate-500 dark:text-slate-400"></p>
-        </div>
-        <div id="liveVisitorsMobile" class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs sm:hidden dark:border-slate-700 dark:bg-slate-900">
-          <span id="liveNowMobile" class="font-semibold tabular-nums">--</span>
-          <span id="liveNowMobileLabel" class="text-slate-500 dark:text-slate-400">live visitors unavailable</span>
-        </div>
-      </div>
-      <p id="liveVisitorsHint" class="hidden text-xs text-slate-500 dark:text-slate-400"></p>
-
-      <div id="alerts" class="space-y-3"></div>
-
-      <!-- KPIs -->
-      <div id="kpiGrid" class="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 2xl:grid-cols-6"></div>
-
-      <div class="grid gap-4 sm:gap-5 lg:grid-cols-3">
-        <section id="sec-revenue" class="card scroll-mt-24 p-4 sm:p-5 lg:col-span-2">
-          <header class="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3 class="text-sm font-semibold">Recurring revenue growth</h3>
-              <p id="revSub" class="mt-0.5 text-xs text-slate-500 dark:text-slate-400"></p>
-            </div>
-            <div class="flex flex-wrap items-center gap-3">
-              <div class="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400">
-                <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-[#6366f1]"></span>Current</span>
-                <span class="flex items-center gap-1.5"><span class="w-3.5 border-t-2 border-dashed border-slate-400"></span>Previous period</span>
-              </div>
-              <div id="revMetric" class="inline-flex rounded-lg bg-slate-100 p-0.5 dark:bg-slate-800"></div>
-            </div>
-          </header>
-          <div class="h-72"><canvas id="chartRevenue"></canvas></div>
-        </section>
-
-        <section class="card p-4 sm:p-5">
-          <header class="mb-4">
-            <h3 class="text-sm font-semibold">MRR by hosting plan</h3>
-            <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Click a slice to filter the dashboard</p>
-          </header>
-          <div class="relative h-52">
-            <canvas id="chartPlan"></canvas>
-            <div id="planCenter" class="pointer-events-none absolute inset-0 grid place-items-center text-center"></div>
-          </div>
-          <div id="planLegend" class="mt-4 grid grid-cols-2 gap-2"></div>
-        </section>
-      </div>
-
-      <div class="grid gap-4 sm:gap-5 lg:grid-cols-2">
-        <section class="card p-4 sm:p-5">
-          <header class="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3 class="text-sm font-semibold">New vs churned MRR</h3>
-              <p id="growthSub" class="mt-0.5 text-xs text-slate-500 dark:text-slate-400"></p>
-            </div>
-            <div class="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400">
-              <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-emerald-500"></span>New</span>
-              <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-rose-500"></span>Churned</span>
-              <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-[#6366f1]"></span>Net</span>
-            </div>
-          </header>
-          <div class="h-64"><canvas id="chartGrowth"></canvas></div>
-        </section>
-
-        <section class="card p-4 sm:p-5">
-          <header class="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3 class="text-sm font-semibold">MRR by client segment</h3>
-              <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Current vs previous period · click a bar to filter</p>
-            </div>
-            <div class="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400">
-              <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-[#6366f1]"></span>Current</span>
-              <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-slate-300"></span>Previous</span>
-            </div>
-          </header>
-          <div class="h-64"><canvas id="chartSegment"></canvas></div>
-        </section>
-      </div>
-
-      <div id="sec-sites" class="grid scroll-mt-24 gap-4 sm:gap-5 lg:grid-cols-3">
-        <section class="card p-4 sm:p-5 lg:col-span-2">
-          <header class="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3 class="text-sm font-semibold">Hosted sites performance</h3>
-              <p id="perfSub" class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Aggregate visitors across client sites</p>
-            </div>
-            <div id="perfMetric" class="inline-flex rounded-lg bg-slate-100 p-0.5 dark:bg-slate-800"></div>
-          </header>
-          <div class="h-64"><canvas id="chartPerf"></canvas></div>
-        </section>
-
-        <section class="card p-4 sm:p-5">
-          <header class="mb-4">
-            <h3 class="text-sm font-semibold">Live site status</h3>
-            <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Right now across all hosted sites</p>
-          </header>
-          <div class="relative h-44">
-            <canvas id="chartStatus"></canvas>
-            <div id="statusCenter" class="pointer-events-none absolute inset-0 grid place-items-center text-center"></div>
-          </div>
-          <ul id="statusList" class="mt-4 space-y-1.5"></ul>
-        </section>
-      </div>
-
-      <div id="sec-content" class="grid scroll-mt-24 gap-4 sm:gap-5 lg:grid-cols-2">
-        <section class="card p-4 sm:p-5">
-          <header class="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3 class="text-sm font-semibold">Content update requests</h3>
-              <p id="reqSub" class="mt-0.5 text-xs text-slate-500 dark:text-slate-400"></p>
-            </div>
-            <div class="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400">
-              <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-amber-500"></span>Opened</span>
-              <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-emerald-500"></span>Resolved</span>
-            </div>
-          </header>
-          <div class="h-48"><canvas id="chartRequests"></canvas></div>
-          <div id="reqTypes" class="mt-4 space-y-2"></div>
-        </section>
-
-        <section class="card p-4 sm:p-5">
-          <header class="mb-4 flex items-center justify-between">
-            <div>
-              <h3 class="text-sm font-semibold">Activity</h3>
-              <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Subscriptions, incidents and client requests</p>
-            </div>
-            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-              <span class="relative flex h-1.5 w-1.5"><span class="ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-70"></span><span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500"></span></span> Live
-            </span>
-          </header>
-          <ul id="activityList" class="scroll-thin -mr-2 max-h-[372px] space-y-1 overflow-y-auto pr-2"></ul>
-        </section>
-      </div>
-
-      <!-- Clients table -->
-      <section id="sec-clients" class="card scroll-mt-24 overflow-hidden">
-        <header class="flex flex-wrap items-start justify-between gap-3 p-4 pb-3 sm:p-5 sm:pb-3">
-          <div class="min-w-0">
-            <h3 class="text-sm font-semibold">Client sites &amp; subscriptions</h3>
-            <p id="tableSub" class="mt-0.5 text-xs text-slate-500 dark:text-slate-400"></p>
-          </div>
-          <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-            <div class="relative flex-1 sm:flex-none">
-              <svg class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
-              <input id="tableSearch" class="h-9 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-3 text-xs outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 sm:w-56 dark:border-slate-700 dark:bg-slate-900" placeholder="Search client, domain…" />
-            </div>
-            <button id="exportCsv" class="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
-              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg> CSV
-            </button>
-            <button id="addClient" class="btn-primary inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-all">
-              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Add New Client
-            </button>
-          </div>
-        </header>
-
-        <div id="statusChips" class="scroll-thin flex gap-1.5 overflow-x-auto px-4 pb-3 sm:px-5"></div>
-
-        <div class="scroll-thin overflow-x-auto">
-          <table class="w-full min-w-[1000px] text-left text-xs">
-            <thead class="border-y border-slate-100 bg-slate-50/70 text-slate-500 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-400">
-              <tr id="tableHead"></tr>
-            </thead>
-            <tbody id="tableBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
-          </table>
-        </div>
-
-        <div class="flex items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-xs text-slate-500 sm:px-5 dark:border-slate-800 dark:text-slate-400">
-          <span id="pageInfo"></span>
-          <div class="flex items-center gap-1">
-            <button id="prevPage" class="grid h-7 w-7 place-items-center rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:hover:bg-slate-800" aria-label="Previous page">
-              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
-            </button>
-            <span id="pageLabel" class="px-2 tabular-nums"></span>
-            <button id="nextPage" class="grid h-7 w-7 place-items-center rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:hover:bg-slate-800" aria-label="Next page">
-              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <footer id="footer" class="py-6 text-center text-[11px] text-slate-400"></footer>
-    </main>
-  </div>
-</div>
-
-<!-- ============================== EDITOR SLIDE-OVER ============================== -->
-<div id="editor" class="fixed inset-0 z-50 hidden">
-  <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" data-close-editor></div>
-  <aside class="slide-in scroll-thin relative flex h-full w-full max-w-lg flex-col overflow-y-auto bg-white shadow-2xl dark:bg-slate-900">
-    <header class="sticky top-0 z-10 border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
-      <div class="flex items-start justify-between gap-3">
-        <div>
-          <h2 id="editorTitle" class="text-base font-semibold text-slate-900 dark:text-white">Edit client</h2>
-          <p id="editorSub" class="mt-0.5 text-xs text-slate-500 dark:text-slate-400"></p>
-        </div>
-        <button class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200" data-close-editor aria-label="Close editor">
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </button>
-      </div>
-      <div class="mt-3 grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
-        <button data-tab="billing" class="editor-tab flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold">
-          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg> Status &amp; Billing
-        </button>
-        <button data-tab="cms" class="editor-tab flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold">
-          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> Site Content (CMS)
-        </button>
-      </div>
-    </header>
-
-    <div class="flex-1 space-y-4 px-5 py-5">
-      <div id="saveError" class="hidden items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200"></div>
-
-      <!-- Tab: billing -->
-      <div id="tab-billing" class="space-y-4">
-        <div class="grid gap-3 sm:grid-cols-2">
-          <div><label class="lbl">Client name *</label><input id="edName" class="field" placeholder="Bluebird Bakery" /></div>
-          <div><label class="lbl">Domain *</label><input id="edDomain" class="field" placeholder="bluebirdbakery.com" spellcheck="false" /></div>
-        </div>
-
-        <div>
-          <div class="mb-1 flex items-center justify-between gap-3"><label class="lbl mb-0" for="edSegment">Client segment</label><button type="button" data-open-settings class="text-[11px] font-semibold text-[#6B1C2E] hover:underline dark:text-[#E8CB8A]">Manage segments</button></div>
-          <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-            <select id="edSegment" class="field"></select>
-            <button id="edSegmentNewBtn" type="button" class="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-[#D6B46C]/50 px-3 text-xs font-semibold text-[#6B1C2E] transition-colors hover:bg-[#6B1C2E]/5 dark:text-[#E8CB8A] dark:hover:bg-[#D6B46C]/10"><svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>New segment</button>
-          </div>
-          <div id="edSegmentNewWrap" class="mt-2 hidden gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-            <input id="edSegmentNew" class="field" maxlength="60" placeholder="e.g. Restaurants" />
-            <button id="edSegmentNewSave" type="button" class="btn-primary h-10 rounded-lg px-3 text-xs font-semibold">Add segment</button>
-          </div>
-          <p id="edSegmentError" class="mt-1.5 hidden text-[11px] text-rose-600 dark:text-rose-400"></p>
-        </div>
-
-        <div>
-          <span class="lbl">Site status</span>
-          <div class="grid grid-cols-2 gap-2">
-            <button type="button" data-state="active" class="state-opt rounded-xl border p-3 text-left">
-              <span class="flex items-center gap-1.5 text-xs font-semibold"><span class="h-2 w-2 rounded-full bg-emerald-500"></span>Active</span>
-              <span class="mt-0.5 block text-[11px] text-slate-500 dark:text-slate-400">Site live, billed normally</span>
-            </button>
-            <button type="button" data-state="suspended" class="state-opt rounded-xl border p-3 text-left">
-              <span class="flex items-center gap-1.5 text-xs font-semibold"><span class="h-2 w-2 rounded-full bg-purple-500"></span>Suspended</span>
-              <span class="mt-0.5 block text-[11px] text-slate-500 dark:text-slate-400">Taken offline, no MRR</span>
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <div class="mb-1 flex items-center justify-between gap-3"><span class="lbl mb-0">Hosting plan</span><button type="button" data-open-settings class="text-[11px] font-semibold text-[#6B1C2E] hover:underline dark:text-[#E8CB8A]">Manage subscriptions</button></div>
-          <div id="planOptions" class="grid grid-cols-2 gap-2 sm:grid-cols-3"></div>
-          <p class="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">Selecting a plan fills its default prices, which you can customize for this client.</p>
-        </div>
-
-        <div>
-          <span class="lbl">Billing cycle</span>
-          <div class="inline-flex rounded-lg bg-slate-100 p-0.5 dark:bg-slate-800">
-            <button type="button" data-billing="Monthly" class="bill-opt rounded-md px-4 py-1.5 text-xs font-medium">Monthly</button>
-            <button type="button" data-billing="Annual" class="bill-opt rounded-md px-4 py-1.5 text-xs font-medium">Annual</button>
-          </div>
-        </div>
-
-        <div class="grid gap-3 sm:grid-cols-2">
-          <div><label class="lbl">Monthly price (USD)</label><input id="edMonthly" class="field tabular-nums" inputmode="decimal" placeholder="59" /></div>
-          <div><label class="lbl">Annual price (USD)</label><input id="edAnnual" class="field tabular-nums" inputmode="decimal" placeholder="600" /></div>
-        </div>
-
-        <div class="grid gap-3 sm:grid-cols-2">
-          <div><label class="lbl">Next renewal date</label><input id="edRenewal" type="date" class="field tabular-nums" /></div>
-          <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
-            <div class="text-[11px] text-slate-500 dark:text-slate-400">Effective MRR</div>
-            <div id="edMrr" class="mt-0.5 text-lg font-semibold tabular-nums text-slate-900 dark:text-white">$0/mo</div>
-            <div class="text-[11px] text-slate-500 dark:text-slate-400">as billed</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab: CMS -->
-      <div id="tab-cms" class="hidden space-y-3">
-        <div><label class="lbl">Special announcement banner</label><input id="edAnnouncement" class="field" placeholder="Summer sale — 20% off all catering orders" /></div>
-        <div><label class="lbl">Hero Title</label><input id="edHeroTitle" class="field" placeholder="Fresh sourdough, baked every morning" /></div>
-        <div><label class="lbl">Subtitle</label><input id="edHeroSubtitle" class="field" placeholder="Family-run bakery in the heart of Portland…" /></div>
-        <div class="grid gap-3 sm:grid-cols-2">
-          <div><label class="lbl">Phone</label><input id="edPhone" class="field" placeholder="+1 (555) 010-2030" /></div>
-          <div><label class="lbl">WhatsApp</label><input id="edWhatsapp" class="field" placeholder="+15550102030" /></div>
-        </div>
-        <div class="grid gap-3 sm:grid-cols-2">
-          <div><label class="lbl">Email</label><input id="edEmail" type="email" class="field" placeholder="hello@client.com" /></div>
-          <div><label class="lbl">Address</label><input id="edAddress" class="field" placeholder="123 Main St, Portland OR" /></div>
-        </div>
-        <div><label class="lbl">Google Maps URL</label><input id="edMaps" class="field" placeholder="https://maps.google.com/?q=…" /></div>
-        <div class="grid gap-3 sm:grid-cols-2">
-          <div><label class="lbl">Facebook</label><input id="edFacebook" class="field" placeholder="https://facebook.com/…" /></div>
-          <div><label class="lbl">Instagram</label><input id="edInstagram" class="field" placeholder="https://instagram.com/…" /></div>
-        </div>
-        <div>
-          <div class="mb-1 flex items-center justify-between">
-            <label class="lbl mb-0">Image URLs (GitHub / jsDelivr) — one per line</label>
-            <span id="imgCount" class="text-[11px] tabular-nums text-slate-400">0 images</span>
-          </div>
-          <textarea id="edImages" rows="5" spellcheck="false" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 font-mono text-[11px] leading-relaxed text-slate-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" placeholder="https://cdn.jsdelivr.net/gh/user/repo@main/hero.jpg"></textarea>
-          <div id="imgPreview" class="mt-2 grid grid-cols-4 gap-2"></div>
-        </div>
-      </div>
-    </div>
-
-    <footer class="sticky bottom-0 flex items-center gap-2 border-t border-slate-100 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-900">
-      <button id="deleteBtn" class="hidden h-10 items-center gap-1.5 rounded-xl border border-rose-200 px-3 text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-400 dark:hover:bg-rose-500/10">
-        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg> Delete
-      </button>
-      <div class="flex-1"></div>
-      <button class="h-10 rounded-xl px-4 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800" data-close-editor>Cancel</button>
-      <button id="saveBtn" class="btn-primary flex h-10 items-center gap-1.5 rounded-xl px-5 text-xs font-semibold transition-all">
-        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Save Changes
-      </button>
-    </footer>
-  </aside>
-</div>
-
-<!-- ============================== SETTINGS ============================== -->
-<div id="settings" class="fixed inset-0 z-[60] hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-  <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" data-close-settings></div>
-  <aside class="slide-in absolute inset-y-0 right-0 flex w-full max-w-xl flex-col bg-white shadow-2xl dark:bg-slate-900">
-    <form id="settingsForm" novalidate class="flex min-h-0 flex-1 flex-col">
-      <header class="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-5 sm:px-6 dark:border-slate-800">
-        <div>
-          <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9B7835] dark:text-[#D6B46C]">Vllora Studio</p>
-          <h2 id="settingsTitle" class="mt-1 text-lg font-semibold tracking-tight">Studio settings</h2>
-          <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Set your revenue goal and the subscriptions available to clients.</p>
-        </div>
-        <button type="button" data-close-settings class="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200" aria-label="Close settings">
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </button>
-      </header>
-      <div class="scroll-thin flex-1 space-y-7 overflow-y-auto px-5 py-6 sm:px-6">
-        <section aria-labelledby="goalSettingsTitle">
-          <h3 id="goalSettingsTitle" class="text-sm font-semibold text-slate-900 dark:text-white">Monthly goal</h3>
-          <p class="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">The target used to track monthly recurring revenue progress.</p>
-          <div class="mt-4 max-w-xs">
-            <label class="lbl" for="settingsGoal">MRR goal (USD)</label>
-            <div class="relative"><span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">$</span><input id="settingsGoal" type="number" min="0.01" step="0.01" inputmode="decimal" required class="field pl-7 tabular-nums" /></div>
-          </div>
-        </section>
-        <section aria-labelledby="plansSettingsTitle" class="border-t border-slate-100 pt-6 dark:border-slate-800">
-          <div class="flex flex-wrap items-start justify-between gap-3">
-            <div><h3 id="plansSettingsTitle" class="text-sm font-semibold text-slate-900 dark:text-white">Available subscriptions</h3><p class="mt-1 max-w-md text-xs leading-relaxed text-slate-500 dark:text-slate-400">These plans and default prices appear when you add or edit a client. Existing contracts are not changed automatically.</p></div>
-            <button id="addPlanSetting" type="button" class="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[#D6B46C]/50 px-3 text-xs font-semibold text-[#6B1C2E] transition-colors hover:bg-[#6B1C2E]/5 dark:text-[#E8CB8A] dark:hover:bg-[#D6B46C]/10"><svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Add subscription</button>
-          </div>
-          <div id="settingsPlans" class="mt-4 space-y-3"></div>
-          <p class="mt-3 text-[11px] leading-relaxed text-slate-400">Removing or renaming a plan does not change existing client subscriptions.</p>
-        </section>
-        <section aria-labelledby="segmentsSettingsTitle" class="border-t border-slate-100 pt-6 dark:border-slate-800">
-          <div class="flex flex-wrap items-start justify-between gap-3">
-            <div><h3 id="segmentsSettingsTitle" class="text-sm font-semibold text-slate-900 dark:text-white">Client segments</h3><p class="mt-1 max-w-md text-xs leading-relaxed text-slate-500 dark:text-slate-400">Segments are available when you add or edit a client and in the dashboard filters. Clients keep their current segment.</p></div>
-            <button id="addSegmentSetting" type="button" class="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[#D6B46C]/50 px-3 text-xs font-semibold text-[#6B1C2E] transition-colors hover:bg-[#6B1C2E]/5 dark:text-[#E8CB8A] dark:hover:bg-[#D6B46C]/10"><svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Add segment</button>
-          </div>
-          <div id="settingsSegments" class="mt-4 space-y-2"></div>
-        </section>
-        <p id="settingsError" role="alert" class="hidden rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"></p>
-      </div>
-      <footer class="flex flex-wrap items-center gap-3 border-t border-slate-100 px-5 py-4 sm:px-6 dark:border-slate-800">
-        <span class="mr-auto text-[11px] text-slate-400">Settings are saved in this browser.</span>
-        <button type="button" data-close-settings class="h-10 rounded-lg px-3 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">Cancel</button>
-        <button type="submit" class="btn-primary h-10 rounded-lg px-4 text-xs font-semibold transition-all">Save settings</button>
-      </footer>
-    </form>
-  </aside>
-</div>
-
-<!-- Reusable brand mark -->
-<svg width="0" height="0" class="absolute" aria-hidden="true">
-  <defs>
-    <linearGradient id="bm-gold" x1="12" y1="8" x2="106" y2="88" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#F6E6BC"/><stop offset="28%" stop-color="#D6B46C"/><stop offset="52%" stop-color="#F3E0B3"/><stop offset="78%" stop-color="#B38B42"/><stop offset="100%" stop-color="#DFC07D"/>
-    </linearGradient>
-    <linearGradient id="bm-shade" x1="42" y1="34" x2="95" y2="88" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#E8CB8A"/><stop offset="55%" stop-color="#BA9348"/><stop offset="100%" stop-color="#F0DCAC"/>
-    </linearGradient>
-    <g id="brandmark">
-      <path d="M12 10 L23.6 10 C31.2 10 36.8 13.6 40.9 21 L58.11 55.32 L53.82 63.04 L32.8 25.2 C29.8 19.8 26.8 17.4 24.47 17 L52.25 67.01 A1.8 1.8 0 0 0 55.39 67.01 L72.4 36.4 C76.6 28.8 82.8 26 91.2 24.8 C94.8 24.3 97.4 22 99.6 17.2 C92.6 16.8 86.2 19.4 81.2 25.4 L71.8 28 C76.4 16.8 84.4 10 95.8 10 L108 10 L96.3 31.06 C93.8 33 90.2 33.6 86.2 34.4 C82.4 35.2 79.8 37.8 77.4 42.16 L61.86 70.6 A9.2 9.2 0 0 1 45.78 70.6 L12 10 Z" fill="url(#bm-gold)"/>
-      <path d="M94.3 34.66 L71.22 75.8 A19.9 19.9 0 0 1 41.8 81.9 C44.8 81.4 47.4 79.8 49.4 77.8 A12.5 12.5 0 0 0 64.75 72.2 L84.7 36.29 C87.8 35.6 91.2 35.2 94.3 34.66 Z" fill="url(#bm-shade)"/>
-    </g>
-  </defs>
-</svg>
-
-<script>
 /* =========================================================================
    Vllora Studio Master Dashboard — standalone build
    Tailwind CSS (CDN) + Chart.js (CDN) · all logic inline
@@ -677,7 +6,7 @@
   'use strict';
 
   /* ---------------------------------------------------------- constants */
-  var API_BASE = 'https://dashboard-master.ionstefan0904.workers.dev';
+  var PORTFOLIO_API = '/api/admin/portfolio';
   var LIVE_POLL_MS = 30000;
   var LIVE_STALE_MS = 90000;
   var DAYS = 730;
@@ -693,7 +22,7 @@
   var SETTINGS_KEY = 'vllora-studio-settings-v1';
   var DEFAULT_SEGMENTS = ['Hospitality', 'Wellness', 'Retail', 'Professional', 'Creative', 'Home Services'];
   var LANGUAGE_KEY = 'vllora-studio-language-v1';
-  var STATUS_COLORS = { Online: '#10b981', Active: '#10b981', Degraded: '#f59e0b', Down: '#ef4444', Suspended: '#a855f7' };
+  var STATUS_COLORS = { Online: '#10b981', Active: '#10b981', Degraded: '#f59e0b', Down: '#ef4444', Suspended: '#a855f7', Unknown: '#94a3b8' };
   var RANGES = [
     { key: '30d', label: '30D', days: 30, bucket: 1 },
     { key: '90d', label: '90D', days: 90, bucket: 7 },
@@ -739,7 +68,13 @@
     'or': 'sau', 'Username': 'Nume de utilizator', 'Password': 'Parolă',
     'Sign in to Vllora Studio': 'Autentificare în Vllora Studio', 'Open Master Dashboard': 'Deschide panoul principal',
     'Explore with demo data (no login)': 'Explorează cu date demo (fără autentificare)',
-    'Connection failed': 'Conexiune eșuată', 'Tip: the Worker must allow CORS (': 'Sugestie: Worker-ul trebuie să permită CORS (',
+    'Connection failed': 'Conexiune eșuată',
+    'Manage access or reset password': 'Administrare acces sau resetare parolă',
+    'Monitoring not configured': 'Monitorizarea nu este configurată',
+    'No request feed configured': 'Nu este configurată o sursă de cereri',
+    'Unknown': 'Necunoscut',
+    'CMS fields below are public on active sites through the content API.': 'Câmpurile de mai jos sunt publice prin API-ul CMS pentru site-urile active.',
+    'Deleting also removes this site’s portal access, media and analytics records held in the dashboard.': 'Ștergerea elimină și accesul la portal, fișierele media și statisticile salvate în panou.',
     ') and accept': ') și să accepte', 'Vllora Studio Master Dashboard · Client portfolio & CMS': 'Vllora Studio Master Dashboard · Portofoliu clienți și CMS',
     'Show password': 'Afișează parola', 'Open menu': 'Deschide meniul', 'Close menu': 'Închide meniul',
     'Close editor': 'Închide editorul', 'Close settings': 'Închide setările', 'Toggle dark mode': 'Comută modul întunecat',
@@ -943,7 +278,7 @@
   /* ------------------------------------------------------------- state */
   var state = {
     lang: loadLanguage(),  // persisted interface language: en | ro
-    auth: null,            // {username,password} Basic auth
+    auth: null,            // Staff identity only; the session is in an HttpOnly cookie.
     demo: false,           // no-auth demo mode
     live: false,           // data came from the Worker
     clients: [],
@@ -1094,10 +429,6 @@
     var pal = ['#6366f1', '#06b6d4', '#f43f5e', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899'];
     return pal[hash(p) % pal.length];
   }
-  function authHeader() {
-    var a = state.auth;
-    return 'Basic ' + btoa(unescape(encodeURIComponent(a.username + ':' + a.password)));
-  }
   function isDark() { return document.documentElement.classList.contains('dark'); }
   function textColor() { return isDark() ? '#94a3b8' : '#64748b'; }
   function gridColor() { return isDark() ? '#1e293b' : '#eef2f7'; }
@@ -1188,7 +519,7 @@
     var mrr = billing === 'Annual' ? Math.round((annual / 12) * 100) / 100 : Math.round(monthly * 100) / 100;
 
     var renewal = asStr(pick(raw, nested, ['nextRenewal', 'renewalDate', 'next_renewal', 'renewsAt', 'renewal', 'nextBillingDate']));
-    if (renewal) {
+    if (renewal && !/^\d{4}-\d{2}-\d{2}$/.test(renewal)) {
       var rt = Date.parse(renewal);
       renewal = isNaN(rt) ? (/^\d{4}-\d{2}-\d{2}$/.test(renewal) ? renewal : '') : isoDay(new Date(rt));
     }
@@ -1214,16 +545,16 @@
     var created = dayIndexFromISO(typeof createdISO === 'string' ? createdISO : null, DAYS - 365);
     var suspendISO = pick(raw, null, ['suspendedAt', 'updatedAt']);
     var suspendedAt = st === 'suspended'
-      ? dayIndexFromISO(typeof suspendISO === 'string' ? suspendISO : null, DAYS - 20)
+      ? dayIndexFromISO(typeof suspendISO === 'string' ? suspendISO : null, null)
       : null;
-    var health = asStr(pick(raw, nested, ['health', 'siteStatus', 'uptimeState']), 'Online');
+    var health = asStr(pick(raw, nested, ['health', 'siteStatus', 'uptimeState']), 'Unknown');
     if (st === 'suspended') health = 'Suspended';
-    if (['Online', 'Degraded', 'Down'].indexOf(health) === -1) health = 'Online';
+    if (['Online', 'Degraded', 'Down', 'Suspended'].indexOf(health) === -1) health = 'Unknown';
 
     return {
       id: id, slug: asStr(pick(raw, null, ['slug']), slugOf(domain)), name: name, domain: domain, state: st, health: health,
       plan: plan, billing: billing, monthly: monthly, annual: annual, mrr: mrr,
-      renewal: renewal, email: email || content.email || '—',
+      renewal: renewal, email: email || content.email || '',
       industry: asStr(pick(raw, nested, ['industry', 'segment', 'category', 'vertical']), 'Unspecified'),
       content: content, createdAt: created, suspendedAt: suspendedAt,
       liveVisitors: readLiveVisitors(raw), raw: raw
@@ -1281,7 +612,9 @@
     entries.forEach(function (entry) {
       var parsed = Date.parse(entry[0]);
       if (isNaN(parsed)) return;
-      var day = new Date(parsed); day.setHours(0, 0, 0, 0);
+      var parts = entry[0].match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      var day = parts ? new Date(+parts[1], +parts[2] - 1, +parts[3]) : new Date(parsed);
+      day.setHours(0, 0, 0, 0);
       var today = new Date(); today.setHours(0, 0, 0, 0);
       var index = DAYS - 1 - Math.round((today - day) / 86400000);
       if (index >= 0 && index < DAYS) { history[index] = (history[index] || 0) + entry[1]; known++; }
@@ -1289,14 +622,14 @@
     return known ? history : null;
   }
   function withLiveHistory(c, raw) {
-    withHistory(c);
+    c.downtime = null;
     var real = readVisitorHistory(raw);
     if (real) {
       c.visitors = real;
       c.visitorsSource = 'worker';
     } else {
       // No traffic history from the Worker: keep the arrays, but mark them unknown.
-      c.visitors = c.visitors.map(function () { return null; });
+      c.visitors = new Array(DAYS).fill(null);
       c.visitorsSource = 'none';
     }
     return c;
@@ -1422,12 +755,12 @@
     $('#liveVisitorsHint').classList.toggle('hidden', !summary.message);
     localizeDOM();
   }
-  function activeAt(c, t) { return c.createdAt <= t && (c.suspendedAt === null || c.suspendedAt > t); }
-  function counted(c) { return c.state !== 'suspended'; }
+  function activeAt(c, t) { return c.createdAt <= t && (c.suspendedAt === null ? c.state !== 'suspended' : c.suspendedAt > t); }
+  function counted(c) { return !state.demo || c.state !== 'suspended'; }
   function mrrAt(list, t) {
     var s = 0, i;
-    for (i = 0; i < list.length; i++) if (activeAt(list[i], t) && counted(list[i])) s += list[i].mrr;
-    return Math.round(s * 100) / 100;
+    for (i = 0; i < list.length; i++) if (activeAt(list[i], t) && counted(list[i])) s += list[i].billing === 'Annual' ? Math.round(list[i].annual * 100) : 12 * Math.round(list[i].monthly * 100);
+    return Math.round(s / 12) / 100;
   }
   function countAt(list, t) {
     var n = 0, i;
@@ -1455,7 +788,7 @@
         days++; down += list[i].downtime[d];
       }
     }
-    return days === 0 ? 100 : 100 * (1 - down / (days * 1440));
+    return days === 0 ? (state.demo ? 100 : null) : 100 * (1 - down / (days * 1440));
   }
   function openRequestsAt(list, t) {
     var n = 0, i;
@@ -1471,7 +804,9 @@
     var parsed = Date.parse(iso + 'T00:00:00');
     if (isNaN(parsed)) return null;
     var today = new Date(); today.setHours(0, 0, 0, 0);
-    var day = new Date(parsed); day.setHours(0, 0, 0, 0);
+    var parts = entry[0].match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      var day = parts ? new Date(+parts[1], +parts[2] - 1, +parts[3]) : new Date(parsed);
+      day.setHours(0, 0, 0, 0);
     return DAYS - 1 - Math.round((today - day) / 86400000);
   }
   function resolveRange() {
@@ -1514,7 +849,7 @@
         churnedMrr: Math.round(churnS.reduce(function (a, c) { return a + c.mrr; }, 0)),
         newClients: newS.length, churned: churnS.length,
         visitors: visitorsBetween(list, bs, be), prevVisitors: visitorsBetween(list, bs - range.days, be - range.days),
-        uptime: Math.round(uptimeBetween(list, bs, be) * 1000) / 1000,
+        uptime: uptimeBetween(list, bs, be),
         opened: opened, resolved: resolved
       });
     }
@@ -1544,9 +879,9 @@
       { key: 'mrr', label: 'Monthly Recurring Revenue', value: mrr, prev: prevMrr, fmt: 'money', upGood: true, hint: 'ARR ' + fmtMoney(mrr * 12, true), spark: buckets.map(function (b) { return b.mrr; }) },
       { key: 'clients', label: 'Active Clients', value: clients, prev: prevClients, fmt: 'int', upGood: true, hint: 'ARPC ' + fmtMoney(clients ? mrr / clients : 0), spark: buckets.map(function (b) { return b.clients; }) },
       { key: 'churn', label: 'Client Churn', value: churn, prev: pchurn, fmt: 'pct', upGood: false, hint: lost + ' suspended this period', spark: buckets.map(function (b) { return b.churned; }) },
-      { key: 'uptime', label: 'Portfolio Uptime', value: up, prev: pup, fmt: 'pct', upGood: true, hint: 'SLA target 99.90%', spark: buckets.map(function (b) { return b.uptime; }) },
+      { key: 'uptime', label: 'Portfolio Uptime', value: up, prev: pup, fmt: 'pct', upGood: true, hint: state.demo ? 'SLA target 99.90%' : 'Monitoring not configured', spark: buckets.map(function (b) { return b.uptime || 0; }) },
       { key: 'visitors', label: visitorsLabel, value: vis, prev: pvis, fmt: 'int', upGood: true, hint: visitorsHint, unavailable: vis === null, spark: buckets.map(function (b) { return b.visitors === null ? 0 : b.visitors; }) },
-      { key: 'open', label: 'Open Content Requests', value: open, prev: popen, fmt: 'int', upGood: false, hint: 'queued across portfolio', spark: buckets.map(function (b) { return b.opened; }) }
+      { key: 'open', label: 'Open Content Requests', value: state.demo ? open : null, prev: state.demo ? popen : null, fmt: 'int', upGood: false, hint: state.demo ? 'queued across portfolio' : 'No request feed configured', spark: buckets.map(function (b) { return b.opened; }) }
     ];
 
     // plan donut (mrr by plan, active now)
@@ -1567,12 +902,12 @@
       .sort(function (a, b) { return b.current - a.current; });
 
     // statuses
-    var counts = { Online: 0, Degraded: 0, Down: 0, Suspended: 0 };
+    var counts = { Online: 0, Degraded: 0, Down: 0, Suspended: 0, Unknown: 0 };
     list.forEach(function (c) {
-      if (!activeAt(c, end)) return;
+      if (c.createdAt > end) return;
       counts[c.state === 'suspended' ? 'Suspended' : c.health] = (counts[c.state === 'suspended' ? 'Suspended' : c.health] || 0) + 1;
     });
-    var byStatus = ['Online', 'Degraded', 'Down', 'Suspended'].map(function (s) { return { name: s, value: counts[s] || 0 }; })
+    var byStatus = ['Online', 'Degraded', 'Down', 'Suspended', 'Unknown'].map(function (s) { return { name: s, value: counts[s] || 0 }; })
       .filter(function (s) { return s.value > 0; });
 
     // request types (demo/live synthetic breakdown of the queue)
@@ -1819,7 +1154,7 @@
     var perfUptime = state.perfMetric === 'uptime';
     var po = baseOpts();
     if (perfUptime) {
-      var ups = dash.buckets.map(function (b) { return b.uptime; });
+      var ups = dash.buckets.map(function (b) { return b.uptime; }).filter(Number.isFinite);
       var minUp = Math.min.apply(null, ups.concat([99.9]));
       po.scales.y.min = Math.floor((minUp - 0.05) * 10) / 10;
       po.scales.y.max = 100;
@@ -1843,7 +1178,7 @@
         { label: 'Visitors', data: dash.buckets.map(function (b) { return b.visitors; }), borderColor: C.violet, borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 5, tension: .35, fill: true, backgroundColor: function (ctx) { return grad(ctx, C.violet, .3, 0); } }
       ];
     mkChart('chartPerf', { type: 'line', data: { labels: labels, datasets: perfDatasets }, options: po });
-    var perfSubtitle = perfUptime ? 'Portfolio uptime vs 99.9% SLA'
+    var perfSubtitle = perfUptime ? (state.demo ? 'Portfolio uptime vs 99.9% SLA' : 'Monitoring not configured')
       : dash.visitorsStatus === 'sample' ? 'Illustrative traffic history (not live visitor data)'
       : dash.visitorsStatus === 'worker' ? 'Daily visitors reported by the Worker analytics'
       : dash.visitorsStatus === 'partial' ? 'Daily visitors from the Worker · some clients have no history'
@@ -1862,7 +1197,7 @@
     var totalSt = dash.byStatus.reduce(function (a, b) { return a + b.value; }, 0);
     var okSt = (dash.byStatus.filter(function (s) { return s.name === 'Online'; })[0] || { value: 0 }).value;
     $('#statusCenter').innerHTML = '<div><div class="text-2xl font-semibold tabular-nums text-slate-900 dark:text-white">' +
-      (totalSt ? Math.round((okSt / totalSt) * 100) : 0) + '%</div><div class="text-[11px] text-slate-500 dark:text-slate-400">healthy</div></div>';
+      (state.demo ? (totalSt ? Math.round((okSt / totalSt) * 100) : 0) + '%' : '—') + '</div><div class="text-[11px] text-slate-500 dark:text-slate-400">healthy</div></div>';
     $('#statusList').innerHTML = dash.byStatus.map(function (s) {
       return '<li><button data-status="' + esc(s.name) + '" class="status-jump flex w-full items-center justify-between rounded-lg px-2 py-1 text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60">' +
         '<span class="flex items-center gap-2 text-slate-600 dark:text-slate-300"><span class="h-2 w-2 rounded-full" style="background:' + STATUS_COLORS[s.name] + '"></span>' + esc(s.name) + '</span>' +
@@ -1891,7 +1226,7 @@
     });
     var openedTotal = dash.buckets.reduce(function (a, b) { return a + b.opened; }, 0);
     var resolvedTotal = dash.buckets.reduce(function (a, b) { return a + b.resolved; }, 0);
-    $('#reqSub').textContent = fmtNum(openedTotal) + ' opened · ' + fmtNum(resolvedTotal) + ' resolved this period';
+    $('#reqSub').textContent = state.demo ? fmtNum(openedTotal) + ' opened · ' + fmtNum(resolvedTotal) + ' resolved this period' : 'No request feed configured';
     var maxType = Math.max.apply(null, dash.byType.map(function (t) { return t.value; }).concat([1]));
     $('#reqTypes').innerHTML = dash.byType.slice(0, 5).map(function (t) {
       return '<div class="flex items-center gap-3 text-xs">' +
@@ -1940,7 +1275,7 @@
     { key: 'renewal', label: 'Next renewal', sortable: true },
     { key: 'actions', label: 'Actions', sortable: false, cls: 'pr-4 text-right sm:pr-5' }
   ];
-  var STATUS_CHIPS = ['All', 'Online', 'Degraded', 'Down', 'Suspended'];
+  var STATUS_CHIPS = ['All', 'Online', 'Degraded', 'Down', 'Suspended', 'Unknown'];
 
   function rowStatus(c) { return c.state === 'suspended' ? 'Suspended' : c.health; }
 
@@ -1950,11 +1285,11 @@
       var visKnown = false;
       for (i = Math.max(dash.start, c.createdAt); i <= dash.end; i++) {
         if (typeof c.visitors[i] === 'number') { vis += c.visitors[i]; visKnown = true; }
-        if (activeAt(c, i)) { days++; down += c.downtime[i]; }
+        if (c.downtime && activeAt(c, i)) { days++; down += c.downtime[i]; }
       }
       return {
         c: c, status: rowStatus(c),
-        uptime: days ? 100 * (1 - down / (days * 1440)) : 0,
+        uptime: days ? 100 * (1 - down / (days * 1440)) : null,
         visitors: visKnown ? vis : null,
         price: c.billing === 'Annual' ? c.annual : c.monthly
       };
@@ -2045,7 +1380,7 @@
         '<span class="font-medium text-slate-700 dark:text-slate-200">' + esc(c.plan) + '</span></div><div class="text-[11px] text-slate-400">' + c.billing + '</div></td>' +
         '<td class="px-3 py-2.5 font-semibold tabular-nums text-slate-900 dark:text-white">' + fmtMoney(r.price) + '<div class="text-[11px] font-normal text-slate-400">' + (c.billing === 'Annual' ? 'per year' : 'per month') + '</div></td>' +
         '<td class="px-3 py-2.5">' + pill(r.status) + '</td>' +
-        '<td class="px-3 py-2.5 font-medium tabular-nums ' + upCls + '">' + (r.uptime ? r.uptime.toFixed(2) + '%' : '—') + '</td>' +
+        '<td class="px-3 py-2.5 font-medium tabular-nums ' + upCls + '">' + (r.uptime !== null ? r.uptime.toFixed(2) + '%' : '—') + '</td>' +
         '<td class="px-3 py-2.5 tabular-nums text-slate-700 dark:text-slate-200">' + (r.visitors === null ? '—' : fmtNum(r.visitors, true)) + '</td>' +
         '<td class="px-3 py-2.5 text-slate-500 dark:text-slate-400">' + (c.renewal ? esc(c.renewal) : '—') + '</td>' +
         '<td class="py-2.5 pl-3 pr-4 text-right sm:pr-5"><button data-edit="' + esc(c.id) + '" class="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-semibold text-[#6B1C2E] transition-colors hover:border-[#6B1C2E]/40 hover:bg-[#6B1C2E]/5 dark:border-slate-700 dark:text-[#E8CB8A] dark:hover:border-[#D6B46C]/40 dark:hover:bg-[#D6B46C]/10">' +
@@ -2176,9 +1511,9 @@
   }
 
   function renderFooter(dash) {
-    var host = state.auth ? API_BASE.replace(/^https?:\/\//, '') : '';
+    var host = state.auth ? location.host : '';
     if (state.demo) $('#footer').textContent = 'Vllora Studio Master Dashboard · Sample data generated for demonstration';
-    else if (state.live) $('#footer').textContent = 'Vllora Studio Master Dashboard · Connected to ' + host + ' · ' + state.clients.length + ' live clients · traffic history is illustrative';
+    else if (state.live) $('#footer').textContent = 'Vllora Studio Master Dashboard · Connected to ' + host + ' · ' + state.clients.length + ' live clients · historical MRR uses current rates';
     else $('#footer').textContent = 'Vllora Studio Master Dashboard · Worker unavailable · last fetched data may be out of date';
   }
 
@@ -2218,59 +1553,37 @@
   }
 
   /* ------------------------------------------------------------ API IO */
-  function apiUrl() { return API_BASE; }
-
-  async function fetchClients() {
+  async function apiRequest(path, body) {
     var res;
     try {
-      res = await fetch(apiUrl(), { method: 'GET', cache: 'no-store', headers: { 'Authorization': authHeader(), 'Accept': 'application/json' } });
-    } catch (e) {
-      throw new Error('Cannot reach ' + API_BASE + '. Check the Worker URL and network connection.');
-    }
-    if (res.status === 401 || res.status === 403) throw new Error('Invalid username or password (server rejected the credentials).');
-    if (!res.ok) throw new Error('Worker responded with ' + res.status + ' ' + (res.statusText || 'error') + '.');
-    var json;
-    try { json = await res.json(); } catch (e) { throw new Error('Worker did not return JSON. Check the endpoint URL.'); }
-    var arr = null;
-    if (Array.isArray(json)) arr = json;
-    else if (json && typeof json === 'object') {
-      ['clients', 'data', 'sites', 'items', 'results'].some(function (k) {
-        if (Array.isArray(json[k])) { arr = json[k]; return true; }
-        return false;
+      res = await fetch(path, {
+        cache: 'no-store', credentials: 'same-origin',
+        method: body === undefined ? 'GET' : 'POST',
+        headers: { 'Accept': 'application/json', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+        body: body === undefined ? undefined : JSON.stringify(body)
       });
-      if (arr === null && json.data && typeof json.data === 'object') {
-        ['clients', 'sites', 'items', 'results'].some(function (k) {
-          if (Array.isArray(json.data[k])) { arr = json.data[k]; return true; }
-          return false;
-        });
-      }
+    } catch (e) {
+      throw new Error('Could not reach the dashboard API. Check your connection.');
     }
-    if (arr === null) throw new Error('Worker did not return a client list.');
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) {
+      var error = new Error(data.error || 'Dashboard API error (' + res.status + ').');
+      error.status = res.status;
+      throw error;
+    }
+    return data;
+  }
+
+  async function fetchClients() {
+    var data = await apiRequest(PORTFOLIO_API);
+    if (!Array.isArray(data.clients)) throw new Error('Worker did not return a client list.');
     return {
-      clients: arr.map(function (raw, i) { return withLiveHistory(normalizeClient(raw, i), raw); }),
-      liveVisitors: readLiveVisitors(json)
+      clients: data.clients.map(function (raw, i) { return withLiveHistory(normalizeClient(raw, i), raw); }),
+      liveVisitors: readLiveVisitors(data)
     };
   }
 
-  async function postClient(payload) {
-    var res;
-    try {
-      res = await fetch(apiUrl(), {
-        method: 'POST',
-        headers: { 'Authorization': authHeader(), 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-    } catch (e) {
-      throw new Error('Cannot reach ' + API_BASE + '. Changes were not saved.');
-    }
-    if (res.status === 401 || res.status === 403) throw new Error('Invalid username or password (server rejected the credentials).');
-    if (!res.ok) {
-      var detail = '';
-      try { detail = await res.text(); } catch (e) {}
-      throw new Error(('Save failed (' + res.status + '). ' + detail.slice(0, 160)).trim());
-    }
-    try { var t = await res.text(); return t ? JSON.parse(t) : null; } catch (e) { return null; }
-  }
+  async function postClient(payload) { return apiRequest(PORTFOLIO_API, payload); }
 
   async function refresh(silent) {
     var requestAuth = state.auth;
@@ -2291,6 +1604,11 @@
       return true;
     } catch (e) {
       if (state.auth !== requestAuth || requestId !== refreshGeneration) return false;
+      if (e.status === 401 || e.status === 403) {
+        clearSession();
+        showLoginError(e.message);
+        return false;
+      }
       state.apiError = e.message;
       state.live = false;
       state.liveVisitors = null;
@@ -2493,6 +1811,7 @@
     $('#deleteBtn').classList.remove('inline-flex');
     $('#deleteBtn').innerHTML = '<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg> Delete';
     fillEditor();
+    $('#edDomain').readOnly = Boolean(state.auth && c);
     setTab('billing');
     $('#editor').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
@@ -2660,8 +1979,8 @@
     localizeDOM();
     var payload = buildSavePayload(f, state.editing);
     try {
-      if (state.auth) await postClient(payload);   // demo mode: local-only save
-      applyOptimistic(payload, state.editing);
+      if (state.auth) await postClient(payload);
+      else applyOptimistic(payload, state.editing);
       addLog((state.editing ? 'Updated client ' : 'Created client ') + payload.businessName + (state.auth ? '' : ' (demo)'));
       closeEditor(true);
       if (state.auth) await refresh(true); else render();
@@ -2676,9 +1995,10 @@
   }
 
   async function deleteClient() {
-    if (!state.editing || !state.auth) return;
+    if (!state.editing || !state.auth || state.saving) return;
     if (!state.deleteArmed) {
       state.deleteArmed = true;
+      showSaveError('Deleting also removes this site’s portal access, media and analytics records held in the dashboard.');
       $('#deleteBtn').innerHTML = '<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Confirm delete';
       localizeDOM();
       return;
@@ -2687,7 +2007,7 @@
     state.saving = true;
     $('#deleteBtn').disabled = true;
     try {
-      if (state.auth) await postClient({ action: 'delete', id: state.editing, slug: c ? c.slug : slugOf(state.form.domain) });
+      if (state.auth) await postClient({ action: 'delete', id: state.editing, domain: c ? c.domain : state.form.domain });
       state.clients = state.clients.filter(function (x) { return x.id !== state.editing; });
       addLog('Deleted client ' + (c ? c.name : '') + (state.auth ? '' : ' (demo)'));
       closeEditor(true);
@@ -2740,30 +2060,44 @@
       ? '<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 15.8a5.5 5.5 0 0 1 7 0"/><path d="M12 19h.01"/></svg>'
       : '<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 1l22 22M16.7 16.7A9 9 0 1 1 7.3 7.3"/></svg>';
     var label = state.demo ? 'Demo data' : state.live ? 'Live API' : 'Offline';
-    el.innerHTML = icon + label + (state.auth && state.live ? '<span class="max-w-36 truncate font-normal opacity-70">' + esc(API_BASE.replace(/^https?:\/\//, '')) + '</span>' : '');
+    el.innerHTML = icon + label + (state.auth && state.live ? '<span class="max-w-36 truncate font-normal opacity-70">' + esc(location.host) + '</span>' : '');
   }
 
+  async function enterStaff(identity) {
+    if (!identity.user || identity.user.role !== 'super_admin') throw new Error('Staff access required.');
+    if (identity.must_change_password) { location.assign('/portal-admin/'); return; }
+    state.auth = { username: identity.user.username };
+    state.demo = false;
+    // Keep the authenticated shell available if portfolio data is temporarily unavailable.
+    await refresh(false);
+    if (state.auth) enterApp();
+  }
   async function doLogin(username, password) {
     showLoginError('');
     var btn = $('#loginBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg> Connecting to Worker…';
+    if (btn.disabled) return;
+    var original = btn.innerHTML;
+    btn.disabled = $('#demoBtn').disabled = true;
+    btn.textContent = 'Connecting to Worker…';
+    $('#password').value = '';
     localizeDOM();
-    state.auth = { username: username, password: password };
-    state.demo = false;
-    state.liveVisitors = null;
-    state.liveVisitorsAt = null;
-    var ok = await refresh(false);
-    btn.disabled = false;
-    btn.innerHTML = '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Open Master Dashboard';
-    localizeDOM();
-    if (ok) {
-      addLog('Connected to Worker API as ' + username + ' — client list loaded');
-      enterApp();
-    } else {
-      state.auth = null;
-      showLoginError(state.apiError || 'Could not load the client list with those credentials.');
+    try {
+      var identity = await apiRequest('/api/auth/login', { username: username, password: password });
+      await enterStaff(identity);
+    } catch (e) {
+      showLoginError(e.message);
+    } finally {
+      btn.disabled = $('#demoBtn').disabled = false;
+      btn.innerHTML = original;
+      localizeDOM();
     }
+  }
+  async function restoreSession() {
+    $('#loginBtn').disabled = $('#demoBtn').disabled = true;
+    try {
+      await enterStaff(await apiRequest('/api/auth/me'));
+    } catch (e) { /* No staff session: show the normal login and demo actions. */ }
+    finally { $('#loginBtn').disabled = $('#demoBtn').disabled = false; }
   }
   function enterDemo() {
     refreshGeneration++;
@@ -2778,7 +2112,18 @@
     addLog('Opened the dashboard with demo data');
     enterApp();
   }
-  function logout() {
+  async function logout() {
+    if (state.saving) return;
+    if (state.auth) {
+      try { await apiRequest('/api/auth/logout', {}); }
+      catch (e) { state.apiError = e.message; render(); return; }
+    }
+    clearSession();
+  }
+  function clearSession() {
+    closeEditor(true);
+    closeSettings();
+    $('#refreshIcon').classList.remove('animate-spin');
     refreshGeneration++;
     state.auth = null; state.demo = false; state.live = false; state.apiError = null;
     state.liveVisitors = null; state.liveVisitorsAt = null;
@@ -2796,7 +2141,7 @@
     var rows = filteredRows(state.dash);
     var header = ['Client', 'Domain', 'Segment', 'Plan', 'Billing', 'Price', 'MRR', 'Status', 'Uptime %', 'Visitors', 'Next renewal'];
     var lines = rows.map(function (r) {
-      return [r.c.name, r.c.domain, r.c.industry, r.c.plan, r.c.billing, r.price, r.c.mrr, r.status, r.uptime.toFixed(3), r.visitors === null ? '' : r.visitors, r.c.renewal]
+      return [r.c.name, r.c.domain, r.c.industry, r.c.plan, r.c.billing, r.price, r.c.mrr, r.status, r.uptime === null ? '' : r.uptime.toFixed(3), r.visitors === null ? '' : r.visitors, r.c.renewal]
         .map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(',');
     });
     var blob = new Blob([[header.join(',')].concat(lines).join('\n')], { type: 'text/csv;charset=utf-8' });
@@ -3058,11 +2403,10 @@
     wire();
     syncFilterUI();
     localizeDOM();
+    if (location.hash.startsWith('#reset=')) location.replace('/portal-admin/' + location.hash);
+    else restoreSession();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();
-</script>
-</body>
-</html>

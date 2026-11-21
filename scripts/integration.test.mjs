@@ -236,6 +236,8 @@ test(
           false,
         );
         must(await a('/admin/api/admin/sites', { cookie: client }), 403);
+        must(await a('/admin/api/admin/portfolio', { cookie: client }), 403);
+        must(await p('/api/admin/portfolio', { cookie: client }), 401);
         must(await a(`${portal}/stats?days=21`, { cookie: client }), 400);
         const day = new Date().toISOString().slice(0, 10);
         await db
@@ -653,6 +655,10 @@ test(
           202,
         );
         await waitUntil(() => received.length >= 4);
+        assert.match(
+          received[3].text,
+          /http:\/\/localhost\/portal-admin\/#reset=[\da-f]{64}/,
+        );
         const resetMaster = received[3].text.match(/#reset=([\da-f]{64})/)[1];
         must(
           await p(

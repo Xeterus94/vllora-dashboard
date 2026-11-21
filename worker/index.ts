@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
+import { PORTAL_ADMIN_PATH } from '../shared/portal-paths';
 import { admin } from './admin';
 import { auth, bootstrap, requireRole } from './auth';
 import {
@@ -22,11 +23,13 @@ import {
   text,
   trustedOrigin,
   type Bindings,
+  type Ctx,
   type Env,
   type Site,
 } from './core';
 import { listMedia, removeImage, serveMedia, upload } from './media';
 import { businessReport, collectEvent } from './metrics';
+import { publicContent } from './portfolio';
 
 export { PasswordKdf } from './password';
 
@@ -90,6 +93,7 @@ worker.use('*', async (c, next) => {
 api.route('/auth', auth);
 api.post('/bootstrap', bootstrap);
 api.route('/admin', admin);
+api.get('/content', publicContent);
 api.options('/collect', (c) =>
   c.get('tenant') ? fail(404, 'Ruta nu există.') : c.body(null, 204),
 );
@@ -153,26 +157,53 @@ worker.on(['GET', 'HEAD'], '/media/*', (c) => {
     return fail(404, 'Imaginea nu există.');
   return serveMedia(c, key);
 });
-worker.on(['GET', 'HEAD'], '/', async (c) => {
-  const url = new URL(c.req.url);
-  if (url.pathname === '/admin') return c.redirect('/admin/', 308);
+async function shell(c: Ctx, path = '/index.html') {
   const asset = await c.env.ASSETS.fetch(
-    new Request(new URL('/', url), { method: c.req.method }),
+    new Request(new URL(path, c.req.url), { method: c.req.method }),
   );
   const response = new Response(asset.body, asset);
   response.headers.set('Cache-Control', 'no-store');
   response.headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self'; base-uri 'none'; form-action 'self'" +
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'" +
       (dev(c.env) ? '' : "; frame-ancestors 'none'"),
   );
   return response;
-});
-worker.on(['GET', 'HEAD'], '/assets/*', (c) => {
+}
+function portalAsset(c: Ctx, prefix: string) {
   const url = new URL(c.req.url);
-  url.pathname = url.pathname.replace(mount, '');
+  url.pathname = url.pathname.slice(prefix.length);
   return c.env.ASSETS.fetch(new Request(url, c.req.raw));
+}
+worker.on(['GET', 'HEAD'], '/', (c) => {
+  const url = new URL(c.req.url);
+  if (c.get('tenant')) {
+    if (url.pathname === '/admin')
+      return c.redirect('/admin/' + url.search, 308);
+    return shell(c);
+  }
+  return shell(c, '/master/index.html');
 });
+const portalAdminPrefix = PORTAL_ADMIN_PATH.slice(0, -1);
+const staffOnly = (c: Ctx, handler: () => Response | Promise<Response>) =>
+  c.get('tenant') ? fail(404, 'Ruta nu există.') : handler();
+worker.on(['GET', 'HEAD'], '/master/assets/*', (c) =>
+  staffOnly(c, () => c.env.ASSETS.fetch(c.req.raw)),
+);
+worker.on(['GET', 'HEAD'], portalAdminPrefix, (c) =>
+  staffOnly(c, () =>
+    c.redirect(PORTAL_ADMIN_PATH + new URL(c.req.url).search, 308),
+  ),
+);
+worker.on(['GET', 'HEAD'], PORTAL_ADMIN_PATH, (c) =>
+  staffOnly(c, () => shell(c)),
+);
+worker.on(['GET', 'HEAD'], `${PORTAL_ADMIN_PATH}assets/*`, (c) =>
+  staffOnly(c, () => portalAsset(c, portalAdminPrefix)),
+);
+worker.on(['GET', 'HEAD'], '/assets/*', (c) =>
+  c.get('tenant') ? portalAsset(c, '/admin') : fail(404, 'Ruta nu există.'),
+);
 
 export default {
   fetch: worker.fetch,

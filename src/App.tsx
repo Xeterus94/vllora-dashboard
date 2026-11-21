@@ -3,7 +3,7 @@ import { AuthScreens } from './components/AuthScreens';
 import { MasterDashboard } from './components/MasterDashboard';
 import { PortalDashboard } from './components/PortalDashboard';
 import { Alert } from './components/PortalUI';
-import { ApiError, message, request, type Identity } from './lib/api';
+import { ApiError, message, mount, request, type Identity } from './lib/api';
 
 function takeResetToken() {
   const token = new URLSearchParams(location.hash.slice(1)).get('reset') ?? '';
@@ -91,9 +91,9 @@ export default function App() {
         onDismissReset={() => setReset('')}
       />
     );
-  if (identity.user.role === 'super_admin')
+  if (!mount && identity.user.role === 'super_admin')
     return <MasterDashboard user={identity.user} onLogout={signedOut} />;
-  return identity.site ? (
+  return mount && identity.user.role === 'client_admin' && identity.site ? (
     <PortalDashboard identity={identity} onLogout={signedOut} />
   ) : null;
 }
