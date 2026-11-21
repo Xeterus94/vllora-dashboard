@@ -133,7 +133,7 @@ export function MediaLibrary({
           onFiles={upload}
         />
         <span className="muted">
-          Imagini și PDF-uri · poți și să le tragi aici
+          Poze comprimate în WebP și documente PDF · poți și să le tragi aici
         </span>
       </div>
       {siteId && (
@@ -149,7 +149,7 @@ export function MediaLibrary({
             });
           }}
         >
-          <Field label="Importă de la un URL HTTPS">
+          <Field label="Importă de la un URL HTTPS (păstrează formatul original)">
             <input
               type="url"
               value={url}

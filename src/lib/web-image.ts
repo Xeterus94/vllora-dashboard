@@ -12,9 +12,6 @@ export async function webImage(
 ): Promise<File> {
   if (!file.size || file.size > maxInput)
     throw new Error('Alege o imagine mai mică de 32 MB.');
-  const safeOriginal =
-    file.size <= maxOutput &&
-    /\.(?:jpe?g|png|webp|gif|avif|ico)$/i.test(file.name);
   const url = URL.createObjectURL(file);
   const image = new Image();
   const canvas = document.createElement('canvas');
@@ -23,8 +20,6 @@ export async function webImage(
     try {
       await image.decode();
     } catch {
-      // Some mobile browsers cannot decode formats that the Worker can safely validate.
-      if (safeOriginal) return file;
       throw new Error(
         'Telefonul sau browserul nu poate deschide această imagine. Încearcă un JPG, PNG sau WebP.',
       );
@@ -40,29 +35,39 @@ export async function webImage(
     const context = canvas.getContext('2d');
     if (!context) throw new Error('Browserul nu poate pregăti imaginea.');
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise<Blob | null>((resolve) => {
+    let blob = await new Promise<Blob | null>((resolve) => {
       try {
         canvas.toBlob(resolve, 'image/webp', quality);
       } catch {
         resolve(null);
       }
     });
-    if (
-      !blob ||
-      !['image/webp', 'image/png'].includes(blob.type) ||
-      !blob.size ||
-      blob.size > maxOutput
-    ) {
-      if (safeOriginal) return file;
-      throw new Error(
-        'Imaginea nu a putut fi pregătită. Încearcă un JPG sau PNG mai mic.',
-      );
+    if (blob?.type !== 'image/webp' || !blob.size || blob.size > maxOutput) {
+      try {
+        const { default: encode } = await import('@jsquash/webp/encode.js');
+        const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+        blob = new Blob(
+          [await encode(pixels, { quality: Math.round(quality * 100) })],
+          {
+            type: 'image/webp',
+          },
+        );
+      } catch {
+        throw new Error(
+          'Conversia în WebP nu a reușit. Încearcă alt browser sau o imagine mai mică.',
+        );
+      }
     }
-    const ext = blob.type === 'image/webp' ? 'webp' : 'png';
+    if (!blob.size || blob.size > maxOutput)
+      throw new Error(
+        'Imaginea WebP depășește 8 MB. Alege o imagine mai mică.',
+      );
     return new File(
       [blob],
-      `${file.name.replace(/\.[^.]*$/, '') || 'imagine'}.${ext}`,
-      { type: blob.type },
+      `${file.name.replace(/\.[^.]*$/, '') || 'imagine'}.webp`,
+      {
+        type: 'image/webp',
+      },
     );
   } finally {
     URL.revokeObjectURL(url);

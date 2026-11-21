@@ -34,6 +34,7 @@ import {
   Panel,
   useAction,
 } from './PortalUI';
+import { SiteEditor as ContentEditor } from './SiteEditor';
 import { MediaLibrary } from './MediaLibrary';
 import { MetricEditor, MetricsPanel, Period } from './MetricsPanel';
 
@@ -329,18 +330,26 @@ function SiteReports({ siteId }: { siteId: string }) {
     </div>
   );
 }
-function SiteEditor({
+function SiteSettings({
   detail,
   reload,
   remove,
+  startInContent,
+  dirty,
+  setDirty,
 }: {
   detail: SiteDetail;
   reload: () => Promise<void>;
   remove: () => void;
+  startInContent: boolean;
+  dirty: boolean;
+  setDirty: (dirty: boolean) => void;
 }) {
   const { site } = detail,
     path = adminSite(site.id),
-    [tab, setTab] = useState<'setup' | 'access' | 'media' | 'reports'>('setup');
+    [tab, setTab] = useState<
+      'setup' | 'access' | 'content' | 'media' | 'reports'
+    >(startInContent ? 'content' : 'setup');
   const [metrics, setMetrics] = useState(detail.settings),
     [serverKey, setServerKey] = useState(''),
     [status, setStatus] = useState(''),
@@ -439,6 +448,7 @@ function SiteEditor({
               [
                 ['setup', 'Configurare'],
                 ['access', 'Acces client'],
+                ['content', 'Editează site-ul'],
                 ['media', 'Bibliotecă media'],
                 ['reports', 'Raport'],
               ] as const
@@ -447,6 +457,7 @@ function SiteEditor({
                 key={id}
                 aria-current={tab === id ? 'page' : undefined}
                 onClick={() => {
+                  if (id !== tab && !leaveContent(dirty)) return;
                   setTab(id);
                   setServerKey('');
                   setStatus('');
@@ -693,6 +704,9 @@ function SiteEditor({
               }}
             />
           )}
+          {tab === 'content' && (
+            <ContentEditor site={site} staff onDirty={setDirty} />
+          )}
           {tab === 'reports' && <SiteReports siteId={site.id} />}
         </>
       )}
@@ -901,6 +915,13 @@ function Recovery({ user, onLogout }: { user: User; onLogout: () => void }) {
     </div>
   );
 }
+const leaveContent = (dirty: boolean) =>
+  !dirty || confirm('Renunți la modificările nepublicate?');
+function requestedSite() {
+  const id = new URLSearchParams(location.search).get('editSite') ?? '';
+  return /^site_[0-9a-f]{24}$/.test(id) ? id : '';
+}
+
 export function MasterDashboard({
   user,
   onLogout,
@@ -908,10 +929,12 @@ export function MasterDashboard({
   user: User;
   onLogout: () => void;
 }) {
-  const [tab, setTab] = useState<
-      'sites' | 'new' | 'details' | 'audit' | 'account'
-    >('sites'),
-    [id, setId] = useState(''),
+  const [id, setId] = useState(requestedSite),
+    [tab, setTab] = useState<'sites' | 'new' | 'details' | 'audit' | 'account'>(
+      id ? 'details' : 'sites',
+    ),
+    [startInContent, setStartInContent] = useState(!!id),
+    [dirty, setDirty] = useState(false),
     [detail, setDetail] = useState<SiteDetail>(),
     [sites, setSites] = useState<Site[]>();
   const [overview, setOverview] = useState<{
@@ -951,12 +974,19 @@ export function MasterDashboard({
     };
   }, [tab, id, listVersion, onLogout, action.setError]);
   const open = (target: string) => {
+    setStartInContent(false);
     setId(target);
     setDetail(undefined);
     action.setError('');
     setTab('details');
   };
   const go = (target: typeof tab) => {
+    if (!leaveContent(dirty)) return;
+    if (
+      target !== 'details' &&
+      new URLSearchParams(location.search).has('editSite')
+    )
+      history.replaceState(null, '', location.pathname);
     action.setError('');
     setTab(target);
   };
@@ -986,18 +1016,22 @@ export function MasterDashboard({
           <button
             className="button secondary"
             disabled={action.busy}
-            onClick={() =>
+            onClick={() => {
+              if (!leaveContent(dirty)) return;
               void action.run(async () => {
                 await request('/auth/logout', 'POST');
                 onLogout();
-              })
-            }
+              });
+            }}
           >
             <LogOut size={16} /> Deconectare
           </button>
         </div>
       </header>
       <main className="wrap page stack">
+        <a className="text-button" href="/">
+          <ArrowLeft size={16} /> Înapoi la panoul master
+        </a>
         <nav className="tabs" aria-label="Master">
           {(
             [
@@ -1144,8 +1178,11 @@ export function MasterDashboard({
         {tab === 'new' && <NewSite created={open} />}
         {tab === 'details' &&
           (detail ? (
-            <SiteEditor
+            <SiteSettings
               key={detail.site.id}
+              startInContent={startInContent}
+              dirty={dirty}
+              setDirty={setDirty}
               detail={detail}
               reload={async () => {
                 setDetail(await request<SiteDetail>(adminSite(detail.site.id)));

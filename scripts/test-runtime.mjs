@@ -10,6 +10,10 @@ export const png = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/zCwAAAAASUVORK5CYII=',
   'base64',
 );
+export const webp = Buffer.from(
+  'UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASoBAAEAAUAiJaQAA3AA/v050AA=',
+  'base64',
+);
 export async function runtime({ bindings = {}, outbound } = {}) {
   const received = [];
   let rejectEmail = false;
@@ -84,7 +88,9 @@ export async function runtime({ bindings = {}, outbound } = {}) {
                 ? 'application/javascript'
                 : path.endsWith('.woff2')
                   ? 'font/woff2'
-                  : 'text/html';
+                  : path.endsWith('.wasm')
+                    ? 'application/wasm'
+                    : 'text/html';
             return new Response(
               request.method === 'HEAD' ? null : await readFile(path),
               { headers: { 'Content-Type': type } },

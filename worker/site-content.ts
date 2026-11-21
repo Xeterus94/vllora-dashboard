@@ -118,6 +118,7 @@ async function resolveContent(
   raw: string | null,
   strict = false,
   publicOrigin?: string,
+  prefix = '',
 ): Promise<SiteContent> {
   const data = JSON.parse(raw || '{}') as Partial<Stored>;
   const ids = [
@@ -151,7 +152,7 @@ async function resolveContent(
         content_type: row.content_type,
         url: publicOrigin
           ? new URL(publicMediaUrl(env, row.object_key), publicOrigin).href
-          : publicMediaUrl(env, row.object_key, '/admin'),
+          : publicMediaUrl(env, row.object_key, prefix),
       } satisfies CmsFile,
     ]),
   );
@@ -197,7 +198,14 @@ const current = (env: Env, id: string) =>
 export async function editorContent(c: Ctx, site: string) {
   const raw = await current(c.env, site);
   return c.json({
-    content: await resolveContent(c.env, site, raw),
+    content: await resolveContent(
+      c.env,
+      site,
+      raw,
+      false,
+      undefined,
+      c.get('tenant') ? '/admin' : '',
+    ),
     revision: await hash(raw ?? ''),
   });
 }
@@ -211,15 +219,23 @@ export async function publishContent(c: Ctx, site: string) {
     );
   if (body.revision !== (await hash(previous ?? ''))) return conflict();
   const next = JSON.stringify(normalizeInput(record(body.content)));
-  const content = await resolveContent(c.env, site, next, true);
+  const content = await resolveContent(
+    c.env,
+    site,
+    next,
+    true,
+    undefined,
+    c.get('tenant') ? '/admin' : '',
+  );
   const [result] = await c.env.DB.batch([
     stmt(
       c.env,
       `INSERT INTO portfolio_details(site_id,industry,billing,monthly_cents,annual_cents,next_renewal,contact_email,content)
-      SELECT id,'Unspecified','Monthly',0,0,'','',? FROM sites WHERE id=? AND status='active'
+      SELECT id,'Unspecified','Monthly',0,0,'','',? FROM sites WHERE id=? AND (status='active' OR (? AND status='suspended'))
       ON CONFLICT(site_id) DO UPDATE SET content=excluded.content WHERE portfolio_details.content IS ?`,
       next,
       site,
+      Number(c.get('user').role === 'super_admin'),
       previous,
     ),
     stmt(

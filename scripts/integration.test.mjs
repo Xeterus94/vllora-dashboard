@@ -7,6 +7,7 @@ import {
   clientPassword,
   masterPassword,
   png,
+  webp,
   runtime,
 } from './test-runtime.mjs';
 
@@ -306,12 +307,22 @@ test(
     await t.test(
       'R2, semnături, cote, ETag, logo cu relație de tenant și migrare idempotentă',
       async () => {
-        const body = pngForm();
+        const webpForm = () => pngForm(webp, 'image/webp', 'logo.webp');
+        const body = webpForm();
         logo = must(
           await a(`${portal}/media`, send(body, { cookie: client })),
           201,
         ).json.item;
-        assert.equal(logo.content_type, 'image/png');
+        assert.equal(logo.content_type, 'image/webp');
+        assert.match(logo.url, /\.webp$/);
+        must(
+          await a(
+            `${portal}/media`,
+            send(pngForm(png, 'image/webp', 'fake.webp'), { cookie: client }),
+          ),
+          415,
+        );
+        must(await adminCall(`/sites/${site.id}/media`, send(pngForm())), 415);
         assert.equal(logo.width, 1);
         must(
           await a(
@@ -391,12 +402,12 @@ test(
           .bind(200 * 1024 * 1024, key)
           .run();
         must(
-          await a(`${portal}/media`, send(pngForm(), { cookie: client })),
+          await a(`${portal}/media`, send(webpForm(), { cookie: client })),
           413,
         );
         await db
           .prepare('UPDATE media SET size=? WHERE object_key=?')
-          .bind(png.length, key)
+          .bind(webp.length, key)
           .run();
         await db
           .prepare('UPDATE sites SET logo_data=? WHERE id=?')
@@ -506,6 +517,39 @@ test(
           /forged|tracking_token|contact_email|Private tenant note/,
         );
         must(await p('/api/content?site=other-client.com'), 404);
+        const staffPath = `/sites/${site.id}/content`;
+        const staffLoad = must(await adminCall(staffPath), 200).json;
+        const staffPublish = (content, revision = staffLoad.revision) =>
+          adminCall(staffPath, {
+            method: 'PUT',
+            body: { revision, content },
+          });
+        assert.equal(staffLoad.revision, config.revision);
+        must(await p(`/api/admin${staffPath}`), 401);
+        must(await a(`/admin/api/admin${staffPath}`, { cookie: client }), 403);
+        must(await staffPublish({ heroMedia: otherLogo }), 400);
+        must(
+          await staffPublish({ heroTitle: 'Ediție învechită' }, load.revision),
+          409,
+        );
+        const savedByStaff = must(
+          await staffPublish({
+            ...staffLoad.content,
+            heroTitle: 'Editat din master',
+          }),
+          200,
+        ).json;
+        assert.equal(
+          savedByStaff.content.heroMedia.url,
+          logo.url.replace(/^\/admin/, ''),
+        );
+        must(
+          await publish(
+            { heroTitle: 'Conflict master/client' },
+            config.revision,
+          ),
+          409,
+        );
         must(
           await adminCall(
             '/portfolio',
@@ -520,13 +564,13 @@ test(
               billing: 'Monthly',
               monthlyPrice: 99,
               annualPrice: 1000,
-              content: { heroTitle: 'Editat din master' },
             }),
           ),
           200,
         );
         const shared = must(await a(path, { cookie: client }), 200).json;
         assert.equal(shared.content.heroTitle, 'Editat din master');
+        assert.equal(shared.revision, savedByStaff.revision);
         assert.equal(shared.content.services[0].name, 'Tuns');
         assert.equal(shared.content.documents[0].name, 'preturi.pdf');
         must(
@@ -567,7 +611,7 @@ test(
               )
               .first()
           ).n,
-          2,
+          3,
         );
       },
     );

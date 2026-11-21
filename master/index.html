@@ -513,6 +513,7 @@
           <div><label class="lbl">Annual price (USD)</label><input id="edAnnual" class="field tabular-nums" inputmode="decimal" placeholder="600" /></div>
         </div>
 
+        <div><label class="lbl" for="edContactEmail">Billing contact email</label><input id="edContactEmail" type="email" class="field" /></div>
         <div class="grid gap-3 sm:grid-cols-2">
           <div><label class="lbl">Next renewal date</label><input id="edRenewal" type="date" class="field tabular-nums" /></div>
           <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
@@ -525,57 +526,63 @@
 
       <!-- Tab: CMS -->
       <div id="tab-cms" class="hidden space-y-3">
-        <p class="text-xs text-slate-500 dark:text-slate-400">CMS fields below are public on active sites through the content API.</p>
-        <div><label class="lbl">Special announcement banner</label><input id="edAnnouncement" class="field" placeholder="Summer sale — 20% off all catering orders" /></div>
-        <div><label class="lbl">Hero Title</label><input id="edHeroTitle" class="field" placeholder="Fresh sourdough, baked every morning" /></div>
-        <div><label class="lbl">Subtitle</label><input id="edHeroSubtitle" class="field" placeholder="Family-run bakery in the heart of Portland…" /></div>
-        <div class="grid gap-3 sm:grid-cols-2">
-          <div><label class="lbl">Phone</label><input id="edPhone" class="field" placeholder="+1 (555) 010-2030" /></div>
-          <div><label class="lbl">WhatsApp</label><input id="edWhatsapp" class="field" placeholder="+15550102030" /></div>
+        <div id="liveCms" class="hidden space-y-3">
+          <p class="text-sm text-slate-600 dark:text-slate-300">Edit text, services, opening hours and photos in the visual editor. Review the preview before publishing.</p>
+          <a id="liveCmsLink" class="btn-primary inline-flex items-center rounded-xl px-4 py-2 text-sm font-semibold" href="/portal-admin/">Open visual editor</a>
         </div>
-        <div class="grid gap-3 sm:grid-cols-2">
-          <div><label class="lbl">Email</label><input id="edEmail" type="email" class="field" placeholder="hello@client.com" /></div>
-          <div><label class="lbl">Address</label><input id="edAddress" class="field" placeholder="123 Main St, Portland OR" /></div>
-        </div>
-        <div><label class="lbl">Google Maps URL</label><input id="edMaps" class="field" placeholder="https://maps.google.com/?q=…" /></div>
-        <div class="grid gap-3 sm:grid-cols-2">
-          <div><label class="lbl">Facebook</label><input id="edFacebook" class="field" placeholder="https://facebook.com/…" /></div>
-          <div><label class="lbl">Instagram</label><input id="edInstagram" class="field" placeholder="https://instagram.com/…" /></div>
-        </div>
-        <div>
-          <div class="mb-1 flex items-center justify-between">
-            <label class="lbl mb-0">Image URLs (GitHub / jsDelivr) — one per line</label>
-            <span id="imgCount" class="text-[11px] tabular-nums text-slate-400">0 images</span>
+        <div id="legacyCms" class="space-y-3">
+          <p class="text-xs text-slate-500 dark:text-slate-400">CMS fields below are public on active sites through the content API.</p>
+          <div><label class="lbl">Special announcement banner</label><input id="edAnnouncement" class="field" placeholder="Summer sale — 20% off all catering orders" /></div>
+          <div><label class="lbl">Hero Title</label><input id="edHeroTitle" class="field" placeholder="Fresh sourdough, baked every morning" /></div>
+          <div><label class="lbl">Subtitle</label><input id="edHeroSubtitle" class="field" placeholder="Family-run bakery in the heart of Portland…" /></div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div><label class="lbl">Phone</label><input id="edPhone" class="field" placeholder="+1 (555) 010-2030" /></div>
+            <div><label class="lbl">WhatsApp</label><input id="edWhatsapp" class="field" placeholder="+15550102030" /></div>
           </div>
-          <textarea id="edImages" rows="5" spellcheck="false" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 font-mono text-[11px] leading-relaxed text-slate-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" placeholder="https://cdn.jsdelivr.net/gh/user/repo@main/hero.jpg"></textarea>
-          <div id="imgPreview" class="mt-2 grid grid-cols-4 gap-2"></div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div><label class="lbl">Email</label><input id="edEmail" type="email" class="field" placeholder="hello@client.com" /></div>
+            <div><label class="lbl">Address</label><input id="edAddress" class="field" placeholder="123 Main St, Portland OR" /></div>
+          </div>
+          <div><label class="lbl">Google Maps URL</label><input id="edMaps" class="field" placeholder="https://maps.google.com/?q=…" /></div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div><label class="lbl">Facebook</label><input id="edFacebook" class="field" placeholder="https://facebook.com/…" /></div>
+            <div><label class="lbl">Instagram</label><input id="edInstagram" class="field" placeholder="https://instagram.com/…" /></div>
+          </div>
+          <div>
+            <div class="mb-1 flex items-center justify-between">
+              <label class="lbl mb-0">Image URLs (GitHub / jsDelivr) — one per line</label>
+              <span id="imgCount" class="text-[11px] tabular-nums text-slate-400">0 images</span>
+            </div>
+            <textarea id="edImages" rows="5" spellcheck="false" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 font-mono text-[11px] leading-relaxed text-slate-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" placeholder="https://cdn.jsdelivr.net/gh/user/repo@main/hero.jpg"></textarea>
+            <div id="imgPreview" class="mt-2 grid grid-cols-4 gap-2"></div>
+          </div>
         </div>
       </div>
     </div>
 
     <footer class="sticky bottom-0 flex items-center gap-2 border-t border-slate-100 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-900">
-      <button id="deleteBtn" class="hidden h-10 items-center gap-1.5 rounded-xl border border-rose-200 px-3 text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-400 dark:hover:bg-rose-500/10">
-        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg> Delete
-      </button>
-      <div class="flex-1"></div>
-      <button class="h-10 rounded-xl px-4 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800" data-close-editor>Cancel</button>
-      <button id="saveBtn" class="btn-primary flex h-10 items-center gap-1.5 rounded-xl px-5 text-xs font-semibold transition-all">
-        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Save Changes
-      </button>
-    </footer>
-  </aside>
-</div>
+        <button id="deleteBtn" class="hidden h-10 items-center gap-1.5 rounded-xl border border-rose-200 px-3 text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-400 dark:hover:bg-rose-500/10">
+          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg> Delete
+        </button>
+        <div class="flex-1"></div>
+        <button class="h-10 rounded-xl px-4 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800" data-close-editor>Cancel</button>
+        <button id="saveBtn" class="btn-primary flex h-10 items-center gap-1.5 rounded-xl px-5 text-xs font-semibold transition-all">
+          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Save Changes
+        </button>
+      </footer>
+    </aside>
+  </div>
 
-<!-- ============================== SETTINGS ============================== -->
-<div id="settings" class="fixed inset-0 z-[60] hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-  <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" data-close-settings></div>
-  <aside class="slide-in absolute inset-y-0 right-0 flex w-full max-w-xl flex-col bg-white shadow-2xl dark:bg-slate-900">
-    <form id="settingsForm" novalidate class="flex min-h-0 flex-1 flex-col">
-      <header class="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-5 sm:px-6 dark:border-slate-800">
-        <div>
-          <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9B7835] dark:text-[#D6B46C]">Vllora Studio</p>
-          <h2 id="settingsTitle" class="mt-1 text-lg font-semibold tracking-tight">Studio settings</h2>
-          <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Set your revenue goal and the subscriptions available to clients.</p>
+  <!-- ============================== SETTINGS ============================== -->
+  <div id="settings" class="fixed inset-0 z-[60] hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" data-close-settings></div>
+    <aside class="slide-in absolute inset-y-0 right-0 flex w-full max-w-xl flex-col bg-white shadow-2xl dark:bg-slate-900">
+      <form id="settingsForm" novalidate class="flex min-h-0 flex-1 flex-col">
+        <header class="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-5 sm:px-6 dark:border-slate-800">
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9B7835] dark:text-[#D6B46C]">Vllora Studio</p>
+            <h2 id="settingsTitle" class="mt-1 text-lg font-semibold tracking-tight">Studio settings</h2>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Set your revenue goal and the subscriptions available to clients.</p>
         </div>
         <button type="button" data-close-settings class="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200" aria-label="Close settings">
           <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>

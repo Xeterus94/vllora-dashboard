@@ -70,8 +70,9 @@ export function portfolioDetails(b: Body): PortfolioDetails {
     next_renewal,
     contact_email: email(b.contactEmail ?? '') ?? '',
     content: JSON.stringify({
-      ...content,
-      images: images.map(cmsUrl).filter(Boolean),
+      ...(b.content === undefined
+        ? {}
+        : { ...content, images: images.map(cmsUrl).filter(Boolean) }),
     }),
   };
 }
@@ -86,7 +87,7 @@ export const putPortfolio = (
    SELECT id,?,?,?,?,?,?,? FROM sites WHERE id=? AND status!='deleting'
    ON CONFLICT(site_id) DO UPDATE SET industry=excluded.industry,billing=excluded.billing,
    monthly_cents=excluded.monthly_cents,annual_cents=excluded.annual_cents,next_renewal=excluded.next_renewal,
-   contact_email=excluded.contact_email,content=json_patch(portfolio_details.content,excluded.content)`,
+   contact_email=excluded.contact_email,content=CASE WHEN excluded.content='{}' THEN portfolio_details.content ELSE json_patch(portfolio_details.content,excluded.content) END`,
     detail.industry,
     detail.billing,
     detail.monthly_cents,

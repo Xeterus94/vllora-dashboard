@@ -174,7 +174,7 @@ async function shell(c: Ctx, path = '/index.html') {
   response.headers.set('Cache-Control', 'no-store');
   response.headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'" +
+    `default-src 'self'; script-src 'self'${path === '/index.html' ? " 'wasm-unsafe-eval'" : ''}; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'` +
       (dev(c.env) ? '' : "; frame-ancestors 'none'"),
   );
   const tenant = c.get('tenant');

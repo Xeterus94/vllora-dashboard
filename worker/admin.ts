@@ -39,6 +39,7 @@ import {
   type PortfolioDetails,
 } from './portfolio';
 import { removeRoute, syncRoute } from './routes';
+import { editorContent, publishContent } from './site-content';
 
 export const admin = new Hono<Bindings>();
 admin.use('*', async (c, next) => {
@@ -540,6 +541,12 @@ admin.get('/audit', async (c) =>
       `SELECT a.id,a.action,a.site_id,a.at,u.username FROM audit_log a LEFT JOIN users u ON u.id=a.actor_id ORDER BY a.id DESC LIMIT 100`,
     ),
   }),
+);
+admin.get('/sites/:id/content', async (c) =>
+  editorContent(c, (await editable(c)).id),
+);
+admin.put('/sites/:id/content', async (c) =>
+  publishContent(c, (await editable(c)).id),
 );
 admin.get('/sites/:id/media', async (c) => listMedia(c, (await target(c)).id));
 admin.post('/sites/:id/media', async (c) => upload(c, (await editable(c)).id));

@@ -129,6 +129,83 @@ test(
       .getByText('Master UI Portfolio Site', { exact: true })
       .waitFor();
     assert.ok(requests.every((url) => url.startsWith(masterOrigin + '/')));
+    await master
+      .getByRole('row')
+      .filter({ hasText: 'Master UI Portfolio Site' })
+      .locator('[data-edit]')
+      .click();
+    await master.locator('[data-tab="cms"]').click();
+    await master.locator('#liveCmsLink').click();
+    await master
+      .getByRole('heading', { name: 'Master UI Portfolio Site', exact: true })
+      .waitFor();
+    assert.equal(
+      await master.getByLabel('Titlu principal', { exact: true }).inputValue(),
+      'A D1-backed title',
+    );
+    await master
+      .getByLabel('Titlu principal', { exact: true })
+      .fill('Publicat de master');
+    master.once('dialog', (dialog) => dialog.dismiss());
+    await master
+      .getByRole('button', { name: 'Bibliotecă media', exact: true })
+      .click();
+    await master
+      .getByRole('button', { name: 'Galerie și fișiere', exact: true })
+      .click();
+    const jpg = Buffer.from(
+      await master.evaluate(() => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 2400;
+        canvas.height = 1200;
+        canvas.getContext('2d').fillRect(0, 0, 2400, 1200);
+        return canvas.toDataURL('image/jpeg').split(',')[1];
+      }),
+      'base64',
+    );
+    const cmsUpload = master.waitForResponse(
+      (response) =>
+        /\/api\/admin\/sites\/[^/]+\/media$/.test(response.url()) &&
+        response.request().method() === 'POST',
+    );
+    const masterChooser = master.waitForEvent('filechooser');
+    await master
+      .getByRole('button', { name: 'Atașează poze', exact: true })
+      .click();
+    await (
+      await masterChooser
+    ).setFiles({ name: 'portofoliu.jpg', mimeType: 'image/jpeg', buffer: jpg });
+    const masterImage = (await (await cmsUpload).json()).item;
+    assert.equal(masterImage.content_type, 'image/webp');
+    assert.equal(masterImage.width, 2000);
+    assert.equal(masterImage.height, 1000);
+    assert.ok(masterImage.size < jpg.length);
+    const stored = await (
+      await master.request.get(new URL(masterImage.url, masterOrigin).href)
+    ).body();
+    assert.equal(stored.subarray(8, 12).toString(), 'WEBP');
+    await master
+      .getByRole('status')
+      .filter({ hasText: 'Fișiere atașate în editor' })
+      .waitFor();
+    await master
+      .getByRole('button', { name: 'Previzualizează', exact: true })
+      .click();
+    await master.getByRole('heading', { name: 'Publicat de master' }).waitFor();
+    await master.getByRole('button', { name: 'Înapoi la editor' }).click();
+    await master.getByRole('button', { name: 'Publică modificările' }).click();
+    await master
+      .getByRole('status')
+      .filter({ hasText: 'Conținut publicat' })
+      .waitFor();
+    const fromMaster = await call(
+      env.mf,
+      masterOrigin,
+      '/api/content?site=portfolio.example.com',
+    );
+    assert.equal(fromMaster.json.content.heroTitle, 'Publicat de master');
+    assert.equal(fromMaster.json.content.gallery[0].id, masterImage.id);
+
     await master.goto(`${masterOrigin}/portal-admin/`);
     await master.getByRole('heading', { name: 'Site-uri și acces' }).waitFor();
     await master
@@ -267,7 +344,7 @@ test(
     await client
       .getByLabel('Titlu principal', { exact: true })
       .fill('Un titlu din editorul mobil');
-    // Simulate a mobile browser that falls back to PNG when WebP encoding is requested.
+    // Simulate a browser returning PNG; the fallback must still encode and upload WebP.
     const restoreCanvas = await client.evaluateHandle(() => {
       const original = HTMLCanvasElement.prototype.toBlob;
       HTMLCanvasElement.prototype.toBlob = function (callback) {
@@ -289,8 +366,8 @@ test(
       await chooser
     ).setFiles({ name: 'hero.png', mimeType: 'image/png', buffer: png });
     const fallbackResult = await (await fallbackUpload).json();
-    assert.equal(fallbackResult.item.content_type, 'image/png');
-    assert.match(fallbackResult.item.name, /\.png$/);
+    assert.equal(fallbackResult.item.content_type, 'image/webp');
+    assert.match(fallbackResult.item.name, /\.webp$/);
     await restoreCanvas.evaluate((restore) => restore());
     await restoreCanvas.dispose();
     await client
@@ -394,16 +471,16 @@ test(
       ];
     }, uploaded.item.url);
     assert.deepEqual(pixels, [255, 0]);
+    const countMedia = async () =>
+      (await env.db.prepare('SELECT COUNT(*) AS n FROM media').first()).n;
+    const mediaBeforeInvalid = await countMedia();
     await client.getByLabel('Alege imagini', { exact: true }).setInputFiles({
       name: 'fake.png',
       mimeType: 'image/png',
       buffer: Buffer.from('not an image'),
     });
     await client.getByRole('alert').filter({ hasText: 'fake.png' }).waitFor();
-    assert.equal(
-      (await env.db.prepare('SELECT COUNT(*) AS n FROM media').first()).n,
-      4,
-    );
+    assert.equal(await countMedia(), mediaBeforeInvalid);
 
     await client
       .getByRole('button', { name: 'Deconectare', exact: true })
@@ -452,7 +529,10 @@ test(
     await publicSite.route('https://frizeria.example.org/**', (route) =>
       route.request().url().endsWith('.js')
         ? route.fulfill({ body: adapter, contentType: 'text/javascript' })
-        : route.fulfill({ body: html, contentType: 'text/html; charset=utf-8' }),
+        : route.fulfill({
+            body: html,
+            contentType: 'text/html; charset=utf-8',
+          }),
     );
     await publicSite.route('https://cms.example.org/**', (route) =>
       route.fulfill({

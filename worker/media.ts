@@ -262,6 +262,8 @@ async function saveAsset(
         ? 'Fișier invalid. Alege o imagine acceptată sau un PDF.'
         : 'Format de imagine invalid sau SVG nesigur.',
     );
+  if (allowPDF && !pdf && image.ext !== 'webp')
+    return fail(415, 'Imaginile încărcate trebuie convertite în format WebP.');
   if (image.width && image.height && image.width * image.height > 40_000_000)
     return fail(400, 'Imaginea poate avea cel mult 40 megapixeli.');
   const id = `m_${random(12)}`,
@@ -274,7 +276,9 @@ async function saveAsset(
     AND (SELECT COALESCE(SUM(size),0) FROM media WHERE site_id=?) + ? <= ?`,
     id,
     key,
-    name.slice(0, 200),
+    allowPDF && image.ext === 'webp'
+      ? `${(name.replace(/\.[^.]*$/, '') || 'imagine').slice(0, 195)}.webp`
+      : name.slice(0, 200),
     image.type,
     bytes.length,
     image.width ?? null,

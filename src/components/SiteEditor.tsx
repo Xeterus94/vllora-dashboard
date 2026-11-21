@@ -23,6 +23,7 @@ import {
   type SiteContent,
 } from '../../shared/site-content';
 import {
+  adminSite,
   ApiError,
   collection,
   message,
@@ -34,7 +35,6 @@ import {
 import { Alert, Field, Panel, useAction } from './PortalUI';
 import { FilePicker } from './FilePicker';
 
-const editorPath = '/portal/content';
 const sections = [
   ['intro', 'Prima pagină'],
   ['services', 'Servicii și prețuri'],
@@ -112,10 +112,14 @@ function RowActions({
 export function SiteEditor({
   site,
   onDirty,
+  staff = false,
 }: {
   site: Site;
+  staff?: boolean;
   onDirty: (dirty: boolean) => void;
 }) {
+  const editorPath = `${staff ? adminSite(site.id) : '/portal'}/content`;
+  const mediaPath = collection(staff ? site.id : undefined);
   const [data, setData] = useState<EditorData>(),
     [draft, setDraft] = useState<SiteContent>();
   const [media, setMedia] = useState<CmsFile[]>([]),
@@ -141,7 +145,7 @@ export function SiteEditor({
         if (active) setLoadError(message(error));
       },
     );
-    request<MediaList>(collection()).then(
+    request<MediaList>(mediaPath).then(
       (result) => {
         if (active) setMedia(result.items);
       },
@@ -152,7 +156,7 @@ export function SiteEditor({
     return () => {
       active = false;
     };
-  }, [attempt]);
+  }, [attempt, editorPath, mediaPath]);
   useEffect(() => {
     onDirty(dirty);
     return () => onDirty(false);
@@ -261,7 +265,7 @@ export function SiteEditor({
                 ? 'Alege un document PDF.'
                 : 'Alege o imagine.',
             );
-          const result = await uploadMedia(collection(), file, 'gallery');
+          const result = await uploadMedia(mediaPath, file, 'gallery');
           const valid =
             slot === 'documents'
               ? result.item.content_type === 'application/pdf'
@@ -423,8 +427,14 @@ export function SiteEditor({
       <p className="muted cms-info">
         Previzualizarea arată conținutul, nu designul exact al site-ului.
         Modificările apar public doar în secțiunile conectate la CMS. Fișierele
-        încărcate nu sunt private.
+        încărcate nu sunt private. Pozele noi se comprimă automat în WebP.
       </p>
+      {staff && site.status === 'suspended' && (
+        <p className="muted">
+          Site suspendat: conținutul salvat nu este disponibil public prin CMS
+          până la reactivare.
+        </p>
+      )}
       <div className={`cms-grid${preview ? ' cms-preview-only' : ''}`}>
         <form onSubmit={publish} className="cms-form stack" hidden={preview}>
           <nav className="tabs" aria-label="Secțiuni editor">
