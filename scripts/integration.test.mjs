@@ -653,6 +653,10 @@ test(
           202,
         );
         await waitUntil(() => received.length >= 4);
+        assert.match(
+          received[3].text,
+          /http:\/\/localhost\/portal-admin\/#reset=[\da-f]{64}/,
+        );
         const resetMaster = received[3].text.match(/#reset=([\da-f]{64})/)[1];
         must(
           await p(

@@ -71,7 +71,7 @@ export async function runtime({ bindings = {}, outbound } = {}) {
       serviceBindings: {
         ASSETS: async (request) => {
           const pathname = new URL(request.url).pathname;
-          const root = resolve('dist'),
+          const root = resolve('dist-portal'),
             path = resolve(
               root,
               `.` + (pathname === '/' ? '/index.html' : pathname),

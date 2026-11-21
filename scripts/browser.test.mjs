@@ -69,6 +69,10 @@ test(
       201,
     );
     await master.goto(masterOrigin);
+    assert.equal(new URL(master.url()).pathname, '/portal-admin/');
+    await master
+      .getByText('Administrare portaluri client', { exact: true })
+      .waitFor();
     await login(master, 'master.ui', masterPassword);
     await master.getByRole('heading', { name: 'Site-uri și acces' }).waitFor();
     await master
@@ -177,13 +181,11 @@ test(
       (r) =>
         r.url().includes('/portal/media') && r.request().method() === 'POST',
     );
-    await client
-      .getByLabel('Alege imagini', { exact: true })
-      .setInputFiles({
-        name: 'test.svg',
-        mimeType: 'image/svg+xml',
-        buffer: Buffer.from(svg),
-      });
+    await client.getByLabel('Alege imagini', { exact: true }).setInputFiles({
+      name: 'test.svg',
+      mimeType: 'image/svg+xml',
+      buffer: Buffer.from(svg),
+    });
     const uploaded = await (await clientUpload).json();
     assert.equal(uploaded.item.content_type, 'image/webp');
     assert.equal(uploaded.item.width, 2000);
@@ -203,13 +205,11 @@ test(
       ];
     }, uploaded.item.url);
     assert.deepEqual(pixels, [255, 0]);
-    await client
-      .getByLabel('Alege imagini', { exact: true })
-      .setInputFiles({
-        name: 'fake.png',
-        mimeType: 'image/png',
-        buffer: Buffer.from('not an image'),
-      });
+    await client.getByLabel('Alege imagini', { exact: true }).setInputFiles({
+      name: 'fake.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('not an image'),
+    });
     await client.getByRole('alert').filter({ hasText: 'fake.png' }).waitFor();
     assert.equal(
       (await env.db.prepare('SELECT COUNT(*) AS n FROM media').first()).n,

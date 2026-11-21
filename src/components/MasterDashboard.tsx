@@ -979,7 +979,7 @@ export function MasterDashboard({
             <Logo />
             <div>
               <span className="eyebrow">Vllora Studio</span>
-              <p>Master dashboard</p>
+              <p>Administrare portaluri client</p>
             </div>
           </div>
           <button

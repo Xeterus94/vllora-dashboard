@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, KeyRound, LockKeyhole } from 'lucide-react';
-import { request, type Identity } from '../lib/api';
+import { mount, request, type Identity } from '../lib/api';
 import { brandStyle } from '../lib/brand';
 import { Alert, Field, Logo, useAction } from './PortalUI';
 
@@ -101,7 +101,7 @@ export function AuthScreens({
             <span className="eyebrow">
               {identity?.site?.name || 'Vllora Studio'}
             </span>
-            <p>Portal de administrare</p>
+            <p>{mount ? 'Portal client' : 'Administrare portaluri client'}</p>
           </div>
         </div>
         <div className="auth-intro">

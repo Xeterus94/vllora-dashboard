@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
+import { PORTAL_ADMIN_PATH } from '../shared/portal-paths';
 import {
   all,
   audit,
@@ -327,7 +328,7 @@ auth.post('/forgot-password', async (c) => {
     return response();
   const link = tenant
     ? new URL(`https://${host}/admin/`)
-    : new URL('/', origin);
+    : new URL(PORTAL_ADMIN_PATH, origin);
   const token = random(),
     digest = await hash(token);
   link.hash = `reset=${token}`;

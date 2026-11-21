@@ -16,6 +16,7 @@ test(
     const origin = 'https://master.example.com',
       brand = 'brand.example.com',
       fallback = 'fallback.example.net';
+    const portfolio = 'https://vllorastudio-panou-master.pages.dev/';
     const yesterday = new Date(Date.now() - 86400000)
       .toISOString()
       .slice(0, 10);
@@ -26,6 +27,7 @@ test(
       bindings: {
         ENVIRONMENT: 'production',
         APP_ORIGIN: origin,
+        MASTER_DASHBOARD_URL: portfolio,
         CF_ACCOUNT_ID: 'test-account',
         CF_API_TOKEN: 'route-test-token',
         CF_AE_API_TOKEN: 'read-test-token',
@@ -115,6 +117,22 @@ test(
     });
     t.after(() => env.close());
     const root = (path, opts) => call(env.mf, origin, path, opts);
+    const entry = await root('/');
+    assert.equal(entry.status, 302);
+    // Don't forward an old password-reset fragment to the separate Pages UI.
+    assert.equal(entry.headers.get('location'), `${portfolio}#`);
+    assert.equal(entry.headers.get('referrer-policy'), 'no-referrer');
+    const redirect = await root('/portal-admin?tab=access');
+    assert.equal(redirect.status, 308);
+    assert.equal(redirect.headers.get('location'), '/portal-admin/?tab=access');
+    const tools = await root('/portal-admin/');
+    assert.equal(tools.status, 200);
+    assert.match(tools.headers.get('cache-control'), /no-store/);
+    const asset = tools.contents.match(/src="\.\/assets\/([^"]+)/)[1];
+    assert.equal((await root(`/portal-admin/assets/${asset}`)).status, 200);
+    assert.equal((await root(`/assets/${asset}`)).status, 404);
+    assert.equal((await root('/admin/')).status, 404);
+
     const boot = await root('/api/bootstrap', {
       method: 'POST',
       headers: { 'x-bootstrap-token': bootstrapToken },
@@ -195,6 +213,15 @@ test(
       200,
     );
     const tenant = await call(env.mf, `https://${brand}`, '/admin/');
+    assert.equal(tenant.status, 200);
+    for (const path of [
+      '/portal-admin/',
+      '/admin/portal-admin/',
+      `/admin/portal-admin/assets/${asset}`,
+    ]) {
+      assert.equal((await call(env.mf, `https://${brand}`, path)).status, 404);
+    }
+
     assert.equal(tenant.headers.get('x-frame-options'), 'DENY');
     const other = await admin('/sites', 'POST', { domain: fallback });
     assert.equal(other.status, 201, other.contents);

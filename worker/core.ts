@@ -12,6 +12,7 @@ export interface Env {
   ENVIRONMENT?: string;
   APP_ORIGIN?: string;
   MASTER_API_BASE?: string;
+  MASTER_DASHBOARD_URL?: string;
   EXTRA_ORIGINS?: string;
   DEV_TENANT_HOSTS?: string;
   MEDIA_PUBLIC_BASE?: string;
