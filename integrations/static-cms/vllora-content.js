@@ -42,14 +42,37 @@
               : https(value);
       if (url) node.href = url;
     }
-    const hero = https(content.heroMedia?.url);
-    if (hero)
-      for (const image of document.querySelectorAll(
+    for (const [selector, url] of [
+      [
         'img[data-vllora-hero-image]',
-      )) {
+        https(content.heroMedia?.url) || https(content.heroImageUrl),
+      ],
+      [
+        'img[data-vllora-logo]',
+        https(content.logoMedia?.url) || https(content.logoUrl),
+      ],
+    ]) {
+      if (!url) continue;
+      for (const image of document.querySelectorAll(selector)) {
         image.removeAttribute('srcset');
-        image.src = hero;
+        image.src = url;
       }
+    }
+    for (const node of document.querySelectorAll('[data-vllora-theme]')) {
+      for (const [field, property] of [
+        ['primaryColor', '--vllora-primary'],
+        ['secondaryColor', '--vllora-secondary'],
+        ['accentColor', '--vllora-accent'],
+      ]) {
+        const value = content[field];
+        if (typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value))
+          node.style.setProperty(property, value);
+      }
+      if (content.siteScheme === 'light' || content.siteScheme === 'dark') {
+        node.dataset.vlloraScheme = content.siteScheme;
+        node.style.colorScheme = content.siteScheme;
+      }
+    }
     for (const list of document.querySelectorAll('[data-vllora-list]')) {
       const key = list.dataset.vlloraList;
       if (!['services', 'hours', 'images', 'documents'].includes(key)) continue;

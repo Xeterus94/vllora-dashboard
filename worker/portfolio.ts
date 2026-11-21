@@ -172,7 +172,7 @@ export async function publicContent(c: Ctx) {
   );
   return c.json(
     {
-      businessName: row.name,
+      businessName: content.siteName || row.name,
       domain: row.domain,
       content: {
         ...content,

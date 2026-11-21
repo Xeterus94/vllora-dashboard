@@ -20,6 +20,8 @@ import {
   type Env,
 } from './core';
 
+import { color } from './branding';
+
 type Body = Record<string, unknown>;
 const record = (value: unknown) => {
   if (!value || typeof value !== 'object' || Array.isArray(value))
@@ -43,11 +45,32 @@ const urlFields = new Set<CmsTextField>([
   'facebook',
   'instagram',
   'bookingUrl',
+  'logoUrl',
+  'heroImageUrl',
 ]);
-const fieldText = (field: CmsTextField, value: unknown) =>
-  urlFields.has(field)
-    ? cmsUrl(value)
-    : text(value ?? '', field === 'aboutText' ? 3000 : 1200, field, true);
+export function fieldText(field: CmsTextField, value: unknown) {
+  if (urlFields.has(field)) return cmsUrl(value);
+  if (
+    field === 'primaryColor' ||
+    field === 'secondaryColor' ||
+    field === 'accentColor'
+  ) {
+    if (value == null || value === '') return '';
+    return color(value) ?? fail(400, 'Folosește o culoare în format #RRGGBB.');
+  }
+  if (field === 'siteScheme') {
+    if (value == null || value === '') return '';
+    return value === 'light' || value === 'dark'
+      ? value
+      : fail(400, 'Alege o temă validă.');
+  }
+  return text(
+    value ?? '',
+    field === 'siteName' ? 100 : field === 'aboutText' ? 3000 : 1200,
+    field,
+    true,
+  );
+}
 const items = (value: unknown, maximum: number, label: string) => {
   if (!Array.isArray(value) || value.length > maximum)
     return fail(400, `${label}: limita este de ${maximum}.`);
@@ -59,8 +82,12 @@ const mediaId = (value: unknown) => {
     return fail(400, 'Fișierul nu este valid.');
   return id;
 };
-type Stored = Omit<SiteContent, 'heroMedia' | 'gallery' | 'documents'> & {
+type Stored = Omit<
+  SiteContent,
+  'heroMedia' | 'logoMedia' | 'gallery' | 'documents'
+> & {
   heroMedia: string | null;
+  logoMedia: string | null;
   gallery: string[];
   documents: string[];
 };
@@ -74,6 +101,7 @@ function normalizeInput(body: Body): Stored {
       .map(cmsUrl)
       .filter(Boolean),
     heroMedia: body.heroMedia == null ? null : mediaId(body.heroMedia),
+    logoMedia: body.logoMedia == null ? null : mediaId(body.logoMedia),
     gallery: [
       ...new Set(
         items(body.gallery ?? [], galleryLimit, 'Galerie').map(mediaId),
@@ -127,6 +155,7 @@ async function resolveContent(
         ...(data.gallery ?? []),
         ...(data.documents ?? []),
         data.heroMedia,
+        data.logoMedia,
       ].filter((id): id is string => Boolean(id)),
     ),
   ];
@@ -179,6 +208,7 @@ async function resolveContent(
     ...fields,
     images: data.images ?? [],
     heroMedia: data.heroMedia ? find(data.heroMedia, 'image') : null,
+    logoMedia: data.logoMedia ? find(data.logoMedia, 'image') : null,
     gallery: (data.gallery ?? [])
       .map((id) => find(id, 'image'))
       .filter((file): file is CmsFile => file !== null),
