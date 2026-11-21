@@ -72,6 +72,34 @@ test(
     master.on('request', (request) => requests.push(request.url()));
     await master.goto(masterOrigin);
     assert.equal(new URL(master.url()).pathname, '/');
+    for (const id of ['username', 'password']) {
+      const gaps = await master.locator(`#${id}`).evaluate((input) => {
+        const { paddingLeft, paddingRight, borderLeftWidth, borderRightWidth } =
+          getComputedStyle(input);
+        const box = input.getBoundingClientRect();
+        const icon = input.previousElementSibling.getBoundingClientRect();
+        const toggle = input.nextElementSibling?.getBoundingClientRect();
+        return {
+          left:
+            box.left +
+            parseFloat(borderLeftWidth) +
+            parseFloat(paddingLeft) -
+            icon.right,
+          right:
+            toggle &&
+            toggle.left -
+              (box.right -
+                parseFloat(borderRightWidth) -
+                parseFloat(paddingRight)),
+        };
+      });
+      assert.ok(gaps.left >= 4, `${id}: text must clear the leading icon`);
+      if (id === 'password')
+        assert.ok(
+          gaps.right >= 4,
+          'password: text must clear the visibility toggle',
+        );
+    }
     await master.locator('#demoBtn').click();
     await master.locator('#app').waitFor();
     await master.locator('#chartPerf').waitFor();

@@ -17,6 +17,9 @@
   @keyframes ping2 { 75%, 100% { transform: scale(2); opacity: 0; } }
   .ping { animation: ping2 1.4s cubic-bezier(0,0,.2,1) infinite; }
   .field { height: 2.5rem; width: 100%; border-radius: .5rem; border: 1px solid #e2e8f0; background: #fff; padding: 0 .75rem; font-size: .75rem; color: #0f172a; outline: none; transition: border-color .15s, box-shadow .15s; }
+  /* Keep login text clear of the icons without changing the editor fields. */
+  #login .field { padding-left: 2.5rem; }
+  #login #password { padding-right: 2.5rem; }
   .field:focus { border-color: #9E7835; box-shadow: 0 0 0 3px rgba(200,162,86,.22); }
   .dark .field { border-color: #334155; background: #1e293b; color: #f1f5f9; }
   .dark .field:focus { border-color: #D6B46C; }
