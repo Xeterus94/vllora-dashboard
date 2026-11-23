@@ -1768,6 +1768,7 @@
     $('#app').inert = true;
     $('#editor').inert = true;
     document.body.style.overflow = 'hidden';
+    $('#settings .master-sheet__body').scrollTop = 0;
     $('#settingsGoal').focus();
   }
   function closeSettings() {
@@ -1868,7 +1869,6 @@
       ? (c ? c.domain + ' · demo mode, changes stay in this tab.' : 'Demo mode — the new client stays in this tab.')
       : (c ? c.domain + ' · changes POST to your Worker.' : 'Creates the record via POST to your Worker.');
     $('#deleteBtn').classList.toggle('hidden', !c);
-    $('#deleteBtn').classList.remove('inline-flex');
     $('#deleteBtn').innerHTML = '<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg> Delete';
     fillEditor();
     var liveCms = Boolean(state.auth && c);
@@ -1880,7 +1880,7 @@
     $('#editor').classList.remove('hidden');
     $('#app').inert = true;
     document.body.style.overflow = 'hidden';
-    $('#editorPanel').scrollTop = 0;
+    $('#editorBody').scrollTop = 0;
     $('#editorTitle').focus({ preventScroll: true });
   }
   function closeEditor(force) {
@@ -1898,8 +1898,8 @@
     $('#saveBtn').classList.toggle('invisible', tab === 'cms' && state.auth && !!state.editing);
     $$('.editor-tab').forEach(function (b) {
       var on = b.dataset.tab === tab;
-      b.className = 'editor-tab flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all ' +
-        (on ? 'bg-white text-[#6B1C2E] shadow-sm dark:bg-slate-700 dark:text-[#F6E6BC]' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200');
+      b.className = 'editor-tab master-sheet__tab' + (on ? ' is-active' : '');
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
     });
   }
   function renderSegmentSelect() {
@@ -2331,6 +2331,15 @@
     });
 
     // editor tabs + options (delegated inside editor)
+    $('#editor .master-sheet__tabs').addEventListener('keydown', function (e) {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      var tabs = $$('.editor-tab'), current = tabs.indexOf(document.activeElement);
+      if (current === -1) return;
+      e.preventDefault();
+      var next = tabs[(current + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length];
+      next.focus();
+      setTab(next.dataset.tab);
+    });
     $('#editor').addEventListener('click', function (e) {
       var tab = e.target.closest('.editor-tab');
       if (tab) { setTab(tab.dataset.tab); return; }
