@@ -167,6 +167,34 @@ test(
               : [],
           );
         if (
+          url.pathname === '/client/v4/zones/zone-com/ssl/certificate_packs' &&
+          request.method === 'GET'
+        )
+          return success([
+            {
+              id: 'pack-1',
+              status: 'active',
+              hosts: ['example.com', '*.example.com'],
+              certificates: [
+                {
+                  hosts: ['example.com', '*.example.com'],
+                  expires_on: new Date(Date.now() + 16 * 86400000).toISOString(),
+                },
+              ],
+            },
+            {
+              id: 'pack-2',
+              status: 'active',
+              hosts: ['unrelated.example.net'],
+              certificates: [
+                {
+                  hosts: ['unrelated.example.net'],
+                  expires_on: new Date(Date.now() + 200 * 86400000).toISOString(),
+                },
+              ],
+            },
+          ]);
+        if (
           url.pathname === '/client/v4/zones/zone-com/workers/routes' &&
           request.method === 'POST'
         ) {
@@ -396,6 +424,18 @@ test(
       'active',
     );
     assert.equal(routeList.length, 1);
+    const certificate = await admin(`/sites/${siteId}/certificate`);
+    assert.equal(certificate.status, 200, certificate.contents);
+    // Only the pack that covers the site domain is reported.
+    assert.equal(certificate.json.state, 'expiring');
+    assert.equal(certificate.json.domain, brand);
+    assert.ok(
+      [15, 16].includes(certificate.json.days_left),
+      String(certificate.json.days_left),
+    );
+    assert.deepEqual(certificate.json.hosts, ['example.com', '*.example.com']);
+    assert.equal(certificate.json.pack_status, 'active');
+    assert.ok(Date.parse(certificate.json.expires_on));
     assert.equal(
       (
         await root(

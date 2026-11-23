@@ -1,14 +1,17 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import {
   ArrowLeft,
   ExternalLink,
   Globe2,
+  Inbox,
   KeyRound,
   LogOut,
   Plus,
   RefreshCw,
+  Rocket,
   ShieldCheck,
   Users,
+  Wrench,
 } from 'lucide-react';
 import { profileSettings, type MetricSettings } from '../../shared/metrics';
 import {
@@ -19,6 +22,7 @@ import {
   request,
   type AuditEntry,
   type BusinessReport,
+  type CertificateReport,
   type Site,
   type SiteDetail,
   type Stats,
@@ -290,6 +294,219 @@ function Accounts({
     </Panel>
   );
 }
+type CertificateState = CertificateReport['state'];
+const certificateLabels: Record<CertificateState, string> = {
+  active: 'Certificat valid',
+  expiring: 'Expiră curând',
+  expired: 'Certificat expirat',
+  none: 'Niciun certificat găsit',
+  unknown: 'Stare neconfirmată',
+  unmanaged: 'Zonă neadministrată',
+  unconfigured: 'Verificare neconfigurată',
+  error: 'Verificare eșuată',
+};
+function certificateDetail(report: CertificateReport) {
+  if (report.state === 'unconfigured')
+    return 'Verificarea certificatului cere tokenul Cloudflare (Zone:Read) în Worker.';
+  if (report.state === 'unmanaged')
+    return `${report.domain} nu este într-o zonă Cloudflare administrată de acest token.`;
+  if (report.state === 'error')
+    return 'Cloudflare nu a răspuns. Reîncearcă verificarea.';
+  if (report.state === 'none')
+    return 'Nu există un pachet de certificate care să acopere acest domeniu.';
+  if (report.expires_on && report.days_left !== null) {
+    const date = new Date(report.expires_on).toLocaleDateString('ro-RO', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
+    if (report.days_left < 0)
+      return `A expirat la ${date}. Reînnoiește-l în Cloudflare.`;
+    return `Expiră la ${date} (${report.days_left} ${report.days_left === 1 ? 'zi' : 'zile'}). Cloudflare reînnoiește automat certificatele administrate.`;
+  }
+  return 'Cloudflare nu a raportat o dată de expirare pentru acest domeniu.';
+}
+function AdministrationRow({
+  icon,
+  title,
+  detail,
+  badge,
+  tone,
+  action,
+}: {
+  icon: ReactNode;
+  title: string;
+  detail: string;
+  badge?: string;
+  tone?: 'good' | 'warn' | 'muted';
+  action?: ReactNode;
+}) {
+  return (
+    <div className={`admin-row${tone ? ` ${tone}` : ''}`}>
+      <span className="admin-row-icon" aria-hidden>
+        {icon}
+      </span>
+      <div className="admin-row-body">
+        <strong>{title}</strong>
+        <small className="muted">{detail}</small>
+      </div>
+      {(badge || action) && (
+        <div className="admin-row-actions">
+          {badge && (
+            <span className={`badge ${tone === 'good' ? 'good' : ''}`}>
+              {badge}
+            </span>
+          )}
+          {action}
+        </div>
+      )}
+    </div>
+  );
+}
+function SiteAdministration({
+  detail,
+  path,
+  reload,
+  setTab,
+  setStatus,
+  disabled,
+}: {
+  detail: SiteDetail;
+  path: string;
+  reload: () => Promise<void>;
+  setTab: (tab: 'content') => void;
+  setStatus: (value: string) => void;
+  disabled: boolean;
+}) {
+  const { site } = detail,
+    action = useAction(),
+    [certificate, setCertificate] = useState<CertificateReport>(),
+    [checking, setChecking] = useState(false);
+  const checkCertificate = () => {
+    setChecking(true);
+    request<CertificateReport>(`${path}/certificate`)
+      .then(setCertificate, (e) => {
+        setCertificate({
+          state: 'error',
+          domain: site.portal_host || site.domain,
+          expires_on: null,
+          days_left: null,
+          pack_status: null,
+          hosts: [],
+          checked_at: new Date().toISOString(),
+        });
+        action.setError(message(e));
+      })
+      .finally(() => setChecking(false));
+  };
+  const toggleStatus = () => {
+    const suspend = site.status !== 'suspended';
+    const question = suspend
+      ? 'Suspenzi site-ul? Portalul și API-ul public răspund cu eroare până la reactivare.'
+      : 'Reactivezi site-ul? Portalul și conținutul public redevin disponibile.';
+    if (!confirm(question)) return;
+    void action.run(async () => {
+      await request(path, 'PATCH', {
+        status: suspend ? 'suspended' : 'active',
+      });
+      await reload();
+      setStatus(suspend ? 'Site-ul a fost suspendat.' : 'Site-ul a fost reactivat.');
+    });
+  };
+  const busy = disabled || action.busy;
+  return (
+    <Panel
+      title="Administrare site"
+      description="Acțiuni pentru site-ul public. Cele neconectate la backend rămân marcate explicit."
+    >
+      {action.error && <Alert>{action.error}</Alert>}
+      <div className="admin-rows">
+        <AdministrationRow
+          icon={<Wrench size={18} />}
+          title={
+            site.status === 'suspended'
+              ? 'Oprește modul de mentenanță'
+              : 'Activează modul de mentenanță'
+          }
+          detail={
+            site.status === 'suspended'
+              ? 'Site-ul este oprit acum. Reactivarea îl face din nou public.'
+              : 'Oprește site-ul public și portalul până la reactivare.'
+          }
+          tone={site.status === 'suspended' ? 'warn' : undefined}
+          action={
+            <button
+              className="button secondary small"
+              disabled={busy}
+              onClick={toggleStatus}
+            >
+              {site.status === 'suspended' ? 'Reactivează' : 'Suspendă'}
+            </button>
+          }
+        />
+        <AdministrationRow
+          icon={<Rocket size={18} />}
+          title="Publică modificările în așteptare"
+          detail="Nu există modificări în coadă: conținutul se publică direct din editor."
+          action={
+            <button
+              className="button secondary small"
+              disabled={busy}
+              onClick={() => setTab('content')}
+            >
+              Deschide editorul
+            </button>
+          }
+        />
+        <AdministrationRow
+          icon={<ShieldCheck size={18} />}
+          title="Certificat SSL"
+          detail={
+            certificate
+              ? certificateDetail(certificate)
+              : 'Verifică certificatul TLS al domeniului în Cloudflare. Reînnoirea este automată la Cloudflare.'
+          }
+          badge={certificate ? certificateLabels[certificate.state] : undefined}
+          tone={
+            certificate
+              ? certificate.state === 'active'
+                ? 'good'
+                : certificate.state === 'expiring' ||
+                    certificate.state === 'expired' ||
+                    certificate.state === 'error'
+                  ? 'warn'
+                  : 'muted'
+              : undefined
+          }
+          action={
+            <button
+              className="button secondary small"
+              disabled={checking}
+              onClick={checkCertificate}
+            >
+              <RefreshCw size={14} />{' '}
+              {checking ? 'Se verifică…' : certificate ? 'Reverifică' : 'Verifică'}
+            </button>
+          }
+        />
+        <AdministrationRow
+          icon={<Inbox size={18} />}
+          title="Cereri de conținut"
+          detail="Inbox-ul de cereri nu este conectat la acest dashboard, deci nu există un număr real de cereri."
+          badge="Neconectat"
+          tone="muted"
+        />
+      </div>
+      <p className="muted">
+        Modul de mentenanță folosește suspendarea existentă: site-ul și portalul
+        nu mai răspund. O pagină „back soon” proprie nu există încă. Reînnoirea
+        forțată a certificatului nu este expusă de Cloudflare; putem doar citi
+        starea lui.
+      </p>
+    </Panel>
+  );
+}
 function SiteReports({ siteId }: { siteId: string }) {
   const [days, setDays] = useState(30),
     [data, setData] = useState<{ stats: Stats; report: BusinessReport }>(),
@@ -475,6 +692,14 @@ function SiteSettings({
           </nav>
           {tab === 'setup' && (
             <>
+              <SiteAdministration
+                detail={detail}
+                path={path}
+                reload={reload}
+                setTab={setTab}
+                setStatus={setStatus}
+                disabled={action.busy}
+              />
               <form key={formVersion} className="stack" onSubmit={save}>
                 <Panel title="Setări site">
                   <div className="form-grid">

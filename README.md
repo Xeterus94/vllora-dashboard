@@ -73,7 +73,7 @@ Testele pornesc un Workerd izolat cu baze efemere; nu porni aplicația separat. 
    | `BOOTSTRAP_TOKEN` | Temporar, aleatoriu, minim 16 caractere, numai pentru crearea masterului |
    | `TRACK_SALT` | Sare aleatorie pentru hashul zilnic al vizitatorului; recomandat `openssl rand -hex 32` |
    | `CF_ACCOUNT_ID` + `CF_AE_API_TOKEN` | Analytics Engine SQL; token cu **Account → Analytics → Read** pentru contul respectiv |
-   | `CF_API_TOKEN` | Opțional: automatizare rute, **Zone:Read** și **Workers Routes:Edit** strict pe zonele administrate |
+   | `CF_API_TOKEN` | Opțional: automatizare rute și citirea certificatului SSL — **Zone:Read** (+ **Workers Routes:Edit** doar dacă vrei crearea automată a rutei) strict pe zonele administrate |
    | `RESEND_API_KEY` + `EMAIL_FROM` | Recuperare parolă; domeniu expeditor verificat în Resend cu înregistrările DNS cerute |
 
 5. Rulează `npm run deploy`. Wrangler creează automat binding-ul `PASSWORD_KDF` la deploy prin migrația Durable Objects din `wrangler.jsonc`; nu este nevoie să creezi o resursă manual sau să modifici schema D1 pentru acest binding. Creează apoi contul pentru administrarea portalurilor, dacă nu există deja, și elimină `BOOTSTRAP_TOKEN`:
@@ -96,6 +96,15 @@ Pentru un hostname partajat `*.pages.dev` (de exemplu `frizeriata.pages.dev`) nu
 - Dacă proiectul Pages al clientului este în același cont cu `vllora-dashboard`, înregistrează hostname-ul exact în **Administrare portaluri client → Adaugă site**, apoi adaugă un **Service Binding** numit `VLLORA_PORTAL`, cu destinația `vllora-dashboard`, în setările **Production** ale proiectului Pages al clientului. Copiază fișierele din `integrations/pages-client/` în rădăcina **outputului de build al acelui client** și redeployează proiectul client. `_routes.json` trimite doar `/admin` și `/admin/*` către adaptor; `_worker.js` păstrează URL-ul original, iar portalul verifică hostname-ul și sesiunea. Dacă proiectul are deja `_worker.js`, Functions sau `_routes.json`, integrează ramura `/admin` în configurația existentă; nu suprascrie rutele aplicației clientului.
 
 Adaptorul este opțional și **nu se instalează pe proiectul Pages al masterului**. După configurare, testează atât pagina publică a clientului, cât și `/admin`. Activarea în contul de producție se face separat, în proiectul fiecărui client.
+
+### Administrare site în panoul master
+
+Editorul de client (master) și pagina de detaliu din **Administrare portaluri client** au aceeași secțiune „Administrare site / Site administration”:
+
+- **Modul de mentenanță** folosește suspendarea existentă (`PATCH /api/admin/sites/:id` cu `status`). Site-ul public, `/admin` și `GET /api/content` nu mai răspund până la reactivare; nu există încă o pagină „back soon” personalizată.
+- **Publică modificările în așteptare** nu are o coadă: conținutul se publică direct din editor, iar acțiunea deschide editorul. Nu se afișează un număr inventat de modificări.
+- **Certificat SSL** este doar citit: `GET /api/admin/sites/:id/certificate` întoarce `state` (`active`/`expiring`/`expired`/`none`/`unmanaged`/`unconfigured`/`error`), `expires_on`, `days_left` și `pack_status` pentru domeniul portalului. Cere `CF_API_TOKEN` cu **Zone:Read**; fără el răspunde `unconfigured`. Cloudflare reînnoiește automat certificatele administrate, deci dashboardul nu forțează o reînnoire.
+- **Cereri de conținut** rămâne marcat „Neconectat”: nu există încă un inbox de cereri în D1/Worker, deci nu se afișează valori simulate.
 
 ### Media și branding
 

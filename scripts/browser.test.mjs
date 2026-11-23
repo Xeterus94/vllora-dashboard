@@ -270,6 +270,39 @@ test(
       .filter({ hasText: 'Master UI Portfolio Site' })
       .locator('[data-edit]')
       .click();
+    // Site administration: real suspend/resume, real certificate read, honest gaps.
+    const administration = master.locator('#siteAdminPanel');
+    await administration.getByText('Site administration', { exact: true }).waitFor();
+    await administration
+      .getByText('Enable maintenance mode', { exact: true })
+      .waitFor();
+    await administration.getByText('Not connected', { exact: true }).waitFor();
+    await administration.getByRole('button', { name: 'Check', exact: true }).click();
+    await administration
+      .getByText('No certificate found', { exact: true })
+      .or(administration.getByText('Zone not managed', { exact: true }))
+      .or(administration.getByText('Check not configured', { exact: true }))
+      .first()
+      .waitFor();
+    master.once('dialog', (dialog) => dialog.accept());
+    await administration.getByRole('button', { name: 'Suspend', exact: true }).click();
+    await administration
+      .getByRole('button', { name: 'Reactivate', exact: true })
+      .waitFor();
+    const whileSuspended = await call(
+      env.mf,
+      masterOrigin,
+      '/api/content?site=portfolio.example.com',
+    );
+    assert.equal(whileSuspended.status, 404);
+    master.once('dialog', (dialog) => dialog.accept());
+    await administration
+      .getByRole('button', { name: 'Reactivate', exact: true })
+      .click();
+    await administration.getByRole('button', { name: 'Suspend', exact: true }).waitFor();
+    await administration.getByRole('button', { name: 'Open editor', exact: true }).click();
+    assert.equal(await master.locator('#tab-cms').isVisible(), true);
+    await master.locator('[data-tab="billing"]').click();
     await master.locator('[data-tab="cms"]').click();
     await master.locator('#liveCmsLink').click();
     await master
@@ -576,9 +609,34 @@ test(
       await noOverflow(master, `administrare portale ${width}`);
     }
     await master.setViewportSize({ width: 320, height: 640 });
-    await staffCards.getByRole('button', { name: 'Editează site-ul' }).click();
+    await staffCards.getByRole('button', { name: 'Editează site-ul' }).first().click();
     await master
       .getByRole('button', { name: 'Previzualizează', exact: true })
+      .waitFor();
+    // Staff detail page exposes the same administration block.
+    const staffAdministration = master
+      .locator('.panel')
+      .filter({ hasText: 'Administrare site' });
+    await master.getByRole('button', { name: 'Configurare', exact: true }).click();
+    await staffAdministration
+      .getByText('Activează modul de mentenanță', { exact: true })
+      .waitFor();
+    await staffAdministration
+      .getByText('Neconectat', { exact: true })
+      .waitFor();
+    await staffAdministration
+      .getByRole('button', { name: 'Verifică', exact: true })
+      .click();
+    await staffAdministration
+      .getByText('Certificat valid', { exact: true })
+      .or(staffAdministration.getByText('Zonă neadministrată', { exact: true }))
+      .or(
+        staffAdministration.getByText('Verificare neconfigurată', {
+          exact: true,
+        }),
+      )
+      .or(staffAdministration.getByText('Niciun certificat găsit', { exact: true }))
+      .first()
       .waitFor();
     await noOverflow(master, 'editor administrare 320');
     await master.getByRole('button', { name: 'Înapoi la site-uri' }).click();

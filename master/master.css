@@ -99,6 +99,27 @@
   .master-sheet__tab { padding-inline: .35rem; font-size: .7rem; }
 }
 
+/* Site administration rows inside the editor sheet. */
+.site-admin-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .65rem; padding: .7rem; border: 1px solid #e2e8f0; border-radius: .75rem; background: rgb(248 250 252 / .7); }
+.site-admin-row__icon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: .55rem; border: 1px solid rgb(214 180 108 / .5); background: rgb(214 180 108 / .16); color: #6b1c2e; }
+.site-admin-row__icon svg { width: 16px; height: 16px; }
+.site-admin-row__body { min-width: 0; display: grid; gap: .1rem; }
+.site-admin-row__title { margin: 0; color: #0f172a; font-size: .75rem; font-weight: 700; line-height: 1.3; }
+.site-admin-row__detail { margin: 0; color: #64748b; font-size: .7rem; line-height: 1.45; }
+.site-admin-row__action { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: .35rem; }
+.site-admin-row__badge { flex: none; border: 1px solid #e2e8f0; border-radius: 100px; padding: .2rem .55rem; color: #64748b; font-size: .6rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }
+.site-admin-row .master-sheet__secondary-action { min-height: 34px; padding: .3rem .6rem; font-size: .7rem; white-space: nowrap; }
+.dark .site-admin-row { border-color: #334155; background: rgb(30 41 59 / .5); }
+.dark .site-admin-row__icon { color: #e8cb8a; }
+.dark .site-admin-row__title { color: #f1f5f9; }
+.dark .site-admin-row__detail { color: #94a3b8; }
+.dark .site-admin-row__badge { border-color: #475569; color: #94a3b8; }
+@media (max-width: 560px) {
+  .site-admin-row { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+  .site-admin-row__action { grid-column: 2; justify-content: flex-start; }
+  .site-admin-row .master-sheet__secondary-action { min-height: 36px; }
+}
+
 /* Compact client list and controls for phones and tablets. */
 #mobileNav { position: fixed; inset: 0; margin: 0; width: 100%; max-width: none; height: 100%; max-height: none; padding: 0; background: transparent; }
 #mobileNav::backdrop { background: rgb(15 23 42 / .48); }
