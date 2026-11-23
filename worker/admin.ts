@@ -38,7 +38,7 @@ import {
   putPortfolio,
   type PortfolioDetails,
 } from './portfolio';
-import { removeRoute, syncRoute } from './routes';
+import { certificateReport, removeRoute, syncRoute } from './routes';
 import {
   companyPatch,
   editorContent,
@@ -382,6 +382,13 @@ admin.post('/sites/:id/refresh-branding', async (c) => {
 admin.post('/sites/:id/sync-route', async (c) =>
   c.json({ status: await syncRoute(c.env, await editable(c), actor(c)) }),
 );
+// Read-only: Cloudflare renews managed certificates on its own.
+admin.get('/sites/:id/certificate', async (c) => {
+  const site = await target(c);
+  return c.json(
+    await certificateReport(c.env, site.portal_host || site.domain),
+  );
+});
 async function deleteSite(c: Ctx, site: Site) {
   const [marked] = await c.env.DB.batch([
     stmt(

@@ -81,6 +81,31 @@
     'Optional. These details are available for the public website footer.': 'Opționale. Datele sunt disponibile pentru afișare în subsolul site-ului public.',
     'Billing contact email': 'Email de facturare',
     'Open visual editor': 'Deschide editorul vizual',
+    'Site administration': 'Administrare site',
+    'Site online': 'Site online', 'Site offline': 'Site offline',
+    'Enable maintenance mode': 'Activează modul de mentenanță',
+    'Turn off maintenance mode': 'Oprește modul de mentenanță',
+    'Takes the public site and the client portal offline until you reactivate.': 'Oprește site-ul public și portalul clientului până la reactivare.',
+    'The site is offline now. Reactivating makes it public again.': 'Site-ul este oprit acum. Reactivarea îl face din nou public.',
+    'Publish pending changes': 'Publică modificările în așteptare',
+    'No queued updates: content is published straight from the editor.': 'Nu există modificări în coadă: conținutul se publică direct din editor.',
+    'Check': 'Verifică', 'Check again': 'Reverifică', 'Checking…': 'Se verifică…',
+    'Suspend': 'Suspendă', 'Reactivate': 'Reactivează', 'Open editor': 'Deschide editorul',
+    'SSL certificate': 'Certificat SSL',
+    'Checks the TLS certificate of the domain in Cloudflare. Renewal is automatic at Cloudflare.': 'Verifică certificatul TLS al domeniului în Cloudflare. Reînnoirea este automată la Cloudflare.',
+    'Open content requests': 'Cereri de conținut',
+    'The request inbox is not connected to this dashboard, so there is no real open-request count.': 'Inbox-ul de cereri nu este conectat la acest dashboard, deci nu există un număr real de cereri.',
+    'Not connected': 'Neconectat',
+    'Certificate valid': 'Certificat valid', 'Expiring soon': 'Expiră curând', 'Certificate expired': 'Certificat expirat',
+    'No certificate found': 'Niciun certificat găsit', 'State unconfirmed': 'Stare neconfirmată',
+    'Zone not managed': 'Zonă neadministrată', 'Check not configured': 'Verificare neconfigurată', 'Check failed': 'Verificare eșuată',
+    'Certificate checks need the Cloudflare token (Zone:Read) set on the Worker.': 'Verificarea certificatului cere tokenul Cloudflare (Zone:Read) în Worker.',
+    'Cloudflare did not answer. Try the check again.': 'Cloudflare nu a răspuns. Reîncearcă verificarea.',
+    'No certificate pack covers this domain.': 'Nu există un pachet de certificate care să acopere acest domeniu.',
+    'Cloudflare renews managed certificates automatically.': 'Cloudflare reînnoiește automat certificatele administrate.',
+    'Cloudflare did not report an expiry date for this domain.': 'Cloudflare nu a raportat o dată de expirare pentru acest domeniu.',
+    'The site is suspended.': 'Site-ul a fost suspendat.', 'The site is active again.': 'Site-ul a fost reactivat.',
+    'Maintenance mode uses the existing suspend action: the public site and the client portal stop responding. A custom branded "back soon" page does not exist yet. Cloudflare does not expose a forced renewal, so the certificate is only read.': 'Modul de mentenanță folosește suspendarea existentă: site-ul public și portalul nu mai răspund. O pagină „back soon” proprie nu există încă. Cloudflare nu expune o reînnoire forțată, deci certificatul este doar citit.',
     'Edit text, services, opening hours and photos in the visual editor. Review the preview before publishing.': 'Editează textele, serviciile, programul și pozele în editorul vizual. Verifică previzualizarea înainte de publicare.',
     'CMS fields below are public on active sites through the content API.': 'Câmpurile de mai jos sunt publice prin API-ul CMS pentru site-urile active.',
     'Deleting also removes this site’s portal access, media and analytics records held in the dashboard.': 'Ștergerea elimină și accesul la portal, fișierele media și statisticile salvate în panou.',
@@ -306,6 +331,11 @@
     perfMetric: 'visitors',
     editing: null,         // client id or null (create)
     form: null,
+    adminBusy: '',         // 'maintenance' while a site administration action runs
+    adminMessage: '',      // result of the last site administration action
+    adminError: '',        // error of the last site administration action
+    certificates: {},      // site id -> last certificate report read from the Worker
+    certificateBusy: {},   // site id -> true while the certificate check runs
     saving: false,
     deleteArmed: false,
     logs: [],
@@ -1622,6 +1652,27 @@
     };
   }
 
+  // Same session/CSRF handling as apiRequest, but with an explicit method.
+  async function siteApiRequest(path, method, body) {
+    var res;
+    try {
+      res = await fetch(path, {
+        cache: 'no-store', credentials: 'same-origin', method: method,
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+    } catch (e) {
+      throw new Error('Could not reach the dashboard API. Check your connection.');
+    }
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) {
+      var error = new Error(data.error || 'Dashboard API error (' + res.status + ').');
+      error.status = res.status;
+      throw error;
+    }
+    return data;
+  }
+
   async function postClient(payload) { return apiRequest(PORTFOLIO_API, payload); }
 
   async function refresh(silent) {
@@ -1845,6 +1896,9 @@
     state.editorReturnFocus = document.activeElement;
     state.editing = id || null;
     state.deleteArmed = false;
+    state.adminBusy = '';
+    state.adminMessage = '';
+    state.adminError = '';
     $('#saveError').classList.add('hidden');
     var c = id ? state.clients.filter(function (x) { return x.id === id; })[0] : null;
     var firstPlan = state.settings.plans[0];
@@ -1895,6 +1949,7 @@
   function setTab(tab) {
     $('#tab-billing').classList.toggle('hidden', tab !== 'billing');
     $('#tab-cms').classList.toggle('hidden', tab !== 'cms');
+    if (tab === 'billing') renderSiteAdmin();
     $('#saveBtn').classList.toggle('invisible', tab === 'cms' && state.auth && !!state.editing);
     $$('.editor-tab').forEach(function (b) {
       var on = b.dataset.tab === tab;
@@ -2104,6 +2159,138 @@
       localizeDOM();
     }
   }
+  /* ------------------------------------------------- site administration */
+  function editingClient() {
+    if (!state.editing) return null;
+    return state.clients.filter(function (x) { return x.id === state.editing; })[0] || null;
+  }
+  function adminRow(icon, title, detail, extra) {
+    return '<div class="site-admin-row">' +
+      '<span class="site-admin-row__icon" aria-hidden="true">' + icon + '</span>' +
+      '<div class="site-admin-row__body">' +
+        '<p class="site-admin-row__title">' + esc(title) + '</p>' +
+        '<p class="site-admin-row__detail">' + esc(detail) + '</p>' +
+      '</div>' +
+      (extra ? '<div class="site-admin-row__action">' + extra + '</div>' : '') +
+    '</div>';
+  }
+  function adminButton(action, label, disabled) {
+    return '<button type="button" data-admin-action="' + action + '" class="master-sheet__secondary-action" ' +
+      (disabled ? 'disabled' : '') + '>' + esc(label) + '</button>';
+  }
+  function certificateDetail(report) {
+    if (!report) return '';
+    if (report.state === 'unconfigured') return 'Certificate checks need the Cloudflare token (Zone:Read) set on the Worker.';
+    if (report.state === 'unmanaged') return report.domain + ' is not in a Cloudflare zone managed by this token.';
+    if (report.state === 'error') return 'Cloudflare did not answer. Try the check again.';
+    if (report.state === 'none') return 'No certificate pack covers this domain.';
+    if (report.expires_on && report.days_left !== null) {
+      var date = new Date(report.expires_on).toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+      if (report.days_left < 0) return 'Expired on ' + date + '. Renew it in Cloudflare.';
+      return 'Expires on ' + date + ' (' + report.days_left + (report.days_left === 1 ? ' day' : ' days') + '). Cloudflare renews managed certificates automatically.';
+    }
+    return 'Cloudflare did not report an expiry date for this domain.';
+  }
+  var CERTIFICATE_LABELS = {
+    active: 'Certificate valid', expiring: 'Expiring soon', expired: 'Certificate expired',
+    none: 'No certificate found', unknown: 'State unconfirmed', unmanaged: 'Zone not managed',
+    unconfigured: 'Check not configured', error: 'Check failed'
+  };
+  function renderSiteAdmin() {
+    var panel = $('#siteAdminPanel');
+    if (!panel) return;
+    var c = editingClient();
+    var live = Boolean(state.auth && c);
+    panel.classList.toggle('hidden', !live);
+    if (!live) return;
+    var suspended = c.state === 'suspended';
+    var busy = Boolean(state.adminBusy);
+    var certificate = state.certificates[c.id];
+    var checking = Boolean(state.certificateBusy[c.id]);
+    $('#siteAdminState').textContent = suspended ? 'Site offline' : 'Site online';
+    var note = state.adminError || state.adminMessage ||
+      'Maintenance mode uses the existing suspend action: the public site and the client portal stop responding. A custom branded "back soon" page does not exist yet. Cloudflare does not expose a forced renewal, so the certificate is only read.';
+    var noteEl = $('#siteAdminNote');
+    noteEl.textContent = note;
+    noteEl.className = 'text-[11px] leading-relaxed ' + (state.adminError
+      ? 'text-rose-600 dark:text-rose-400'
+      : state.adminMessage
+        ? 'text-emerald-700 dark:text-emerald-300'
+        : 'text-slate-500 dark:text-slate-400');
+    $('#siteAdminRows').innerHTML = [
+      adminRow(
+        '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17v3h3l5.3-5.3a4 4 0 0 0 5.4-5.4l-2.1 2.1-2.1-2.1z"/></svg>',
+        suspended ? 'Turn off maintenance mode' : 'Enable maintenance mode',
+        suspended ? 'The site is offline now. Reactivating makes it public again.' : 'Takes the public site and the client portal offline until you reactivate.',
+        adminButton('maintenance', suspended ? 'Reactivate' : 'Suspend', busy)
+      ),
+      adminRow(
+        '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l-2 5 5-2 9-9-3-3z"/><path d="M9 5l1 2 2-2-2-2z"/></svg>',
+        'Publish pending changes',
+        'No queued updates: content is published straight from the editor.',
+        adminButton('content', 'Open editor', busy)
+      ),
+      adminRow(
+        '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7 3v6c0 4.4-3 8.4-7 9-4-.6-7-4.6-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>',
+        'SSL certificate',
+        certificate
+          ? certificateDetail(certificate)
+          : 'Checks the TLS certificate of the domain in Cloudflare. Renewal is automatic at Cloudflare.',
+        (certificate ? '<span class="site-admin-row__badge">' + esc(CERTIFICATE_LABELS[certificate.state] || certificate.state) + '</span>' : '') +
+          adminButton('certificate', checking ? 'Checking…' : (certificate ? 'Check again' : 'Check'), checking || busy)
+      ),
+      adminRow(
+        '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16v12H4z"/><path d="M4 9l8 5 8-5"/></svg>',
+        'Open content requests',
+        'The request inbox is not connected to this dashboard, so there is no real open-request count.',
+        '<span class="site-admin-row__badge">Not connected</span>'
+      )
+    ].join('');
+    localizeDOM();
+  }
+  async function runSiteAdmin(action) {
+    var c = editingClient();
+    if (!c || !state.auth || state.adminBusy) return;
+    if (action === 'content') {
+      setTab('cms');
+      if ($('#liveCmsLink')) $('#liveCmsLink').focus();
+      return;
+    }
+    if (action === 'maintenance') {
+      var suspend = c.state !== 'suspended';
+      var question = suspend
+        ? 'Suspend the site? The portal and the public API return errors until it is reactivated.'
+        : 'Reactivate the site? The portal and the published content become available again.';
+      if (!window.confirm(question)) return;
+    }
+    state.adminBusy = action === 'maintenance' ? 'maintenance' : 'certificate';
+    state.adminError = '';
+    state.adminMessage = '';
+    if (action === 'certificate') state.certificateBusy[c.id] = true;
+    renderSiteAdmin();
+    try {
+      if (action === 'maintenance') {
+        var suspendNow = c.state !== 'suspended';
+        await siteApiRequest('/api/admin/sites/' + encodeURIComponent(c.id), 'PATCH', { status: suspendNow ? 'suspended' : 'active' });
+        addLog((suspendNow ? 'Suspended client ' : 'Reactivated client ') + c.name);
+        state.adminMessage = suspendNow ? 'The site is suspended.' : 'The site is active again.';
+        await refresh(true);
+        if (state.editing === c.id) {
+          var updated = editingClient();
+          if (updated) { state.form.state = updated.state; fillEditor(); }
+        }
+      } else {
+        state.certificates[c.id] = await siteApiRequest('/api/admin/sites/' + encodeURIComponent(c.id) + '/certificate', 'GET');
+      }
+    } catch (e) {
+      state.adminError = e.message;
+    } finally {
+      state.adminBusy = '';
+      delete state.certificateBusy[c.id];
+      renderSiteAdmin();
+    }
+  }
+
   function showSaveError(msg) {
     var el = $('#saveError');
     el.classList.remove('hidden');
@@ -2343,6 +2530,8 @@
     $('#editor').addEventListener('click', function (e) {
       var tab = e.target.closest('.editor-tab');
       if (tab) { setTab(tab.dataset.tab); return; }
+      var adminAction = e.target.closest('[data-admin-action]');
+      if (adminAction) { runSiteAdmin(adminAction.dataset.adminAction); return; }
       var plan = e.target.closest('[data-plan-opt]');
       if (plan) {
         readEditorForm();

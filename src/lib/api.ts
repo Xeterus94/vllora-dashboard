@@ -81,6 +81,23 @@ export type MediaList = {
   quota: number;
   delivery: 'cdn' | 'worker';
 };
+export type CertificateReport = {
+  state:
+    | 'active'
+    | 'expiring'
+    | 'expired'
+    | 'none'
+    | 'unknown'
+    | 'unmanaged'
+    | 'unconfigured'
+    | 'error';
+  domain: string;
+  expires_on: string | null;
+  days_left: number | null;
+  pack_status: string | null;
+  hosts: string[];
+  checked_at: string;
+};
 export type AuditEntry = {
   id: number;
   action: string;
