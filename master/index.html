@@ -420,31 +420,32 @@
   </div>
 </div>
 
-<!-- ============================== EDITOR SLIDE-OVER ============================== -->
-<div id="editor" class="fixed inset-0 z-50 hidden">
-  <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" data-close-editor></div>
-  <aside id="editorPanel" role="dialog" aria-modal="true" aria-labelledby="editorTitle" class="slide-in scroll-thin relative flex h-full w-full max-w-lg flex-col overflow-y-auto overscroll-contain bg-white shadow-2xl dark:bg-slate-900">
-    <header class="sticky top-0 z-10 border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
-      <div class="flex items-start justify-between gap-3">
-        <div>
-          <h2 id="editorTitle" tabindex="-1" class="text-base font-semibold text-slate-900 dark:text-white">Edit client</h2>
-          <p id="editorSub" class="mt-0.5 text-xs text-slate-500 dark:text-slate-400"></p>
+<!-- ============================== EDIT CLIENT SHEET ============================== -->
+<div id="editor" class="master-sheet master-sheet--editor hidden">
+  <div class="master-sheet__backdrop" data-close-editor></div>
+  <aside id="editorPanel" role="dialog" aria-modal="true" aria-labelledby="editorTitle" class="master-sheet__panel slide-in">
+    <header class="master-sheet__header">
+      <div class="master-sheet__header-main">
+        <div class="master-sheet__heading">
+          <p class="master-sheet__eyebrow">Vllora Studio</p>
+          <h2 id="editorTitle" tabindex="-1" class="master-sheet__title">Edit client</h2>
+          <p id="editorSub" class="master-sheet__description"></p>
         </div>
-        <button class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200" data-close-editor aria-label="Close editor">
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        <button type="button" class="master-sheet__close" data-close-editor aria-label="Close editor">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
       </div>
-      <div class="mt-3 grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
-        <button data-tab="billing" class="editor-tab flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold">
-          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg> Status &amp; Billing
+      <div class="master-sheet__tabs" role="tablist" aria-label="Client sections">
+        <button id="editorTabBilling" type="button" role="tab" data-tab="billing" aria-controls="tab-billing" class="editor-tab master-sheet__tab">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg> Status &amp; Billing
         </button>
-        <button data-tab="cms" class="editor-tab flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold">
-          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> Site Content (CMS)
+        <button id="editorTabCms" type="button" role="tab" data-tab="cms" aria-controls="tab-cms" class="editor-tab master-sheet__tab">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> Site Content (CMS)
         </button>
       </div>
     </header>
 
-    <div class="flex-1 space-y-4 px-5 py-5">
+    <div id="editorBody" class="master-sheet__body scroll-thin">
       <div id="saveError" class="hidden items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200"></div>
 
       <!-- Tab: billing -->
@@ -469,7 +470,7 @@
           <div class="mb-1 flex items-center justify-between gap-3"><label class="lbl mb-0" for="edSegment">Client segment</label><button type="button" data-open-settings class="text-[11px] font-semibold text-[#6B1C2E] hover:underline dark:text-[#E8CB8A]">Manage segments</button></div>
           <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
             <select id="edSegment" class="field"></select>
-            <button id="edSegmentNewBtn" type="button" class="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-[#D6B46C]/50 px-3 text-xs font-semibold text-[#6B1C2E] transition-colors hover:bg-[#6B1C2E]/5 dark:text-[#E8CB8A] dark:hover:bg-[#D6B46C]/10"><svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>New segment</button>
+            <button id="edSegmentNewBtn" type="button" class="master-sheet__secondary-action"><svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>New segment</button>
           </div>
           <div id="edSegmentNewWrap" class="mt-2 hidden gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
             <input id="edSegmentNew" class="field" maxlength="60" placeholder="e.g. Restaurants" />
@@ -523,7 +524,7 @@
       </div>
 
       <!-- Tab: CMS -->
-      <div id="tab-cms" class="hidden space-y-3">
+      <div id="tab-cms" role="tabpanel" aria-labelledby="editorTabCms" class="hidden space-y-3">
         <div id="liveCms" class="hidden space-y-3">
           <p class="text-sm text-slate-600 dark:text-slate-300">Edit text, services, opening hours and photos in the visual editor. Review the preview before publishing.</p>
           <a id="liveCmsLink" class="btn-primary inline-flex items-center rounded-xl px-4 py-2 text-sm font-semibold" href="/portal-admin/">Open visual editor</a>
@@ -558,66 +559,74 @@
       </div>
     </div>
 
-    <footer id="editorFooter" class="sticky bottom-0 flex flex-wrap items-center gap-2 border-t border-slate-100 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-900">
-        <button id="deleteBtn" class="hidden h-10 items-center gap-1.5 rounded-xl border border-rose-200 px-3 text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-400 dark:hover:bg-rose-500/10">
-          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg> Delete
+    <footer id="editorFooter" class="master-sheet__footer">
+      <button id="deleteBtn" type="button" class="master-sheet__danger hidden">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg> Delete
+      </button>
+      <div class="master-sheet__spacer"></div>
+      <div class="master-sheet__actions">
+        <button type="button" class="master-sheet__cancel" data-close-editor>Cancel</button>
+        <button id="saveBtn" type="button" class="master-sheet__primary">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Save Changes
         </button>
-        <div class="flex-1"></div>
-        <button class="h-10 rounded-xl px-4 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800" data-close-editor>Cancel</button>
-        <button id="saveBtn" class="btn-primary flex h-10 items-center gap-1.5 rounded-xl px-5 text-xs font-semibold transition-all">
-          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Save Changes
-        </button>
-      </footer>
+      </div>
+    </footer>
     </aside>
   </div>
 
-  <!-- ============================== SETTINGS ============================== -->
-  <div id="settings" class="fixed inset-0 z-[60] hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-    <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" data-close-settings></div>
-    <aside class="slide-in absolute inset-y-0 right-0 flex w-full max-w-xl flex-col bg-white shadow-2xl dark:bg-slate-900">
-      <form id="settingsForm" novalidate class="flex min-h-0 flex-1 flex-col">
-        <header class="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-5 sm:px-6 dark:border-slate-800">
-          <div>
-            <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9B7835] dark:text-[#D6B46C]">Vllora Studio</p>
-            <h2 id="settingsTitle" class="mt-1 text-lg font-semibold tracking-tight">Studio settings</h2>
-            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Set your revenue goal and the subscriptions available to clients.</p>
+  <!-- ============================== SETTINGS SHEET ============================== -->
+  <div id="settings" class="master-sheet master-sheet--settings hidden">
+    <div class="master-sheet__backdrop" data-close-settings></div>
+    <aside class="master-sheet__panel slide-in" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <form id="settingsForm" novalidate class="master-sheet__form">
+        <header class="master-sheet__header">
+          <div class="master-sheet__header-main">
+            <div class="master-sheet__heading">
+              <p class="master-sheet__eyebrow">Vllora Studio</p>
+              <h2 id="settingsTitle" tabindex="-1" class="master-sheet__title">Studio settings</h2>
+              <p class="master-sheet__description">Set your revenue goal and the subscriptions available to clients.</p>
+            </div>
+            <button type="button" data-close-settings class="master-sheet__close" aria-label="Close settings">
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+        </header>
+        <div class="master-sheet__body master-sheet__body--sections scroll-thin">
+          <section aria-labelledby="goalSettingsTitle">
+            <h3 id="goalSettingsTitle" class="text-sm font-semibold text-slate-900 dark:text-white">Monthly goal</h3>
+            <p class="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">The target used to track monthly recurring revenue progress.</p>
+            <div class="mt-4 max-w-xs">
+              <label class="lbl" for="settingsGoal">MRR goal (USD)</label>
+              <div class="relative"><span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">$</span><input id="settingsGoal" type="number" min="0.01" step="0.01" inputmode="decimal" required class="field pl-7 tabular-nums" /></div>
+            </div>
+          </section>
+          <section aria-labelledby="plansSettingsTitle" class="border-t border-slate-100 pt-6 dark:border-slate-800">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div><h3 id="plansSettingsTitle" class="text-sm font-semibold text-slate-900 dark:text-white">Available subscriptions</h3><p class="mt-1 max-w-md text-xs leading-relaxed text-slate-500 dark:text-slate-400">These plans and default prices appear when you add or edit a client. Existing contracts are not changed automatically.</p></div>
+              <button id="addPlanSetting" type="button" class="master-sheet__secondary-action"><svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Add subscription</button>
+            </div>
+            <div id="settingsPlans" class="mt-4 space-y-3"></div>
+            <p class="mt-3 text-[11px] leading-relaxed text-slate-400">Removing or renaming a plan does not change existing client subscriptions.</p>
+          </section>
+          <section aria-labelledby="segmentsSettingsTitle" class="border-t border-slate-100 pt-6 dark:border-slate-800">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div><h3 id="segmentsSettingsTitle" class="text-sm font-semibold text-slate-900 dark:text-white">Client segments</h3><p class="mt-1 max-w-md text-xs leading-relaxed text-slate-500 dark:text-slate-400">Segments are available when you add or edit a client and in the dashboard filters. Clients keep their current segment.</p></div>
+              <button id="addSegmentSetting" type="button" class="master-sheet__secondary-action"><svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Add segment</button>
+            </div>
+            <div id="settingsSegments" class="mt-4 space-y-2"></div>
+          </section>
+          <p id="settingsError" role="alert" class="hidden rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"></p>
         </div>
-        <button type="button" data-close-settings class="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200" aria-label="Close settings">
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </button>
-      </header>
-      <div class="scroll-thin flex-1 space-y-7 overflow-y-auto px-5 py-6 sm:px-6">
-        <section aria-labelledby="goalSettingsTitle">
-          <h3 id="goalSettingsTitle" class="text-sm font-semibold text-slate-900 dark:text-white">Monthly goal</h3>
-          <p class="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">The target used to track monthly recurring revenue progress.</p>
-          <div class="mt-4 max-w-xs">
-            <label class="lbl" for="settingsGoal">MRR goal (USD)</label>
-            <div class="relative"><span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">$</span><input id="settingsGoal" type="number" min="0.01" step="0.01" inputmode="decimal" required class="field pl-7 tabular-nums" /></div>
+        <footer class="master-sheet__footer">
+          <span class="master-sheet__note">Settings are saved in this browser.</span>
+          <div class="master-sheet__actions">
+            <button type="button" data-close-settings class="master-sheet__cancel">Cancel</button>
+            <button type="submit" class="master-sheet__primary">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Save settings
+            </button>
           </div>
-        </section>
-        <section aria-labelledby="plansSettingsTitle" class="border-t border-slate-100 pt-6 dark:border-slate-800">
-          <div class="flex flex-wrap items-start justify-between gap-3">
-            <div><h3 id="plansSettingsTitle" class="text-sm font-semibold text-slate-900 dark:text-white">Available subscriptions</h3><p class="mt-1 max-w-md text-xs leading-relaxed text-slate-500 dark:text-slate-400">These plans and default prices appear when you add or edit a client. Existing contracts are not changed automatically.</p></div>
-            <button id="addPlanSetting" type="button" class="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[#D6B46C]/50 px-3 text-xs font-semibold text-[#6B1C2E] transition-colors hover:bg-[#6B1C2E]/5 dark:text-[#E8CB8A] dark:hover:bg-[#D6B46C]/10"><svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Add subscription</button>
-          </div>
-          <div id="settingsPlans" class="mt-4 space-y-3"></div>
-          <p class="mt-3 text-[11px] leading-relaxed text-slate-400">Removing or renaming a plan does not change existing client subscriptions.</p>
-        </section>
-        <section aria-labelledby="segmentsSettingsTitle" class="border-t border-slate-100 pt-6 dark:border-slate-800">
-          <div class="flex flex-wrap items-start justify-between gap-3">
-            <div><h3 id="segmentsSettingsTitle" class="text-sm font-semibold text-slate-900 dark:text-white">Client segments</h3><p class="mt-1 max-w-md text-xs leading-relaxed text-slate-500 dark:text-slate-400">Segments are available when you add or edit a client and in the dashboard filters. Clients keep their current segment.</p></div>
-            <button id="addSegmentSetting" type="button" class="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[#D6B46C]/50 px-3 text-xs font-semibold text-[#6B1C2E] transition-colors hover:bg-[#6B1C2E]/5 dark:text-[#E8CB8A] dark:hover:bg-[#D6B46C]/10"><svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Add segment</button>
-          </div>
-          <div id="settingsSegments" class="mt-4 space-y-2"></div>
-        </section>
-        <p id="settingsError" role="alert" class="hidden rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"></p>
-      </div>
-      <footer class="flex flex-wrap items-center gap-3 border-t border-slate-100 px-5 py-4 sm:px-6 dark:border-slate-800">
-        <span class="mr-auto text-[11px] text-slate-400">Settings are saved in this browser.</span>
-        <button type="button" data-close-settings class="h-10 rounded-lg px-3 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">Cancel</button>
-        <button type="submit" class="btn-primary h-10 rounded-lg px-4 text-xs font-semibold transition-all">Save settings</button>
-      </footer>
-    </form>
+        </footer>
+      </form>
   </aside>
 </div>
 
