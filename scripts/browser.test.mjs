@@ -11,6 +11,7 @@ import {
   png,
   runtime,
 } from './test-runtime.mjs';
+import { portalIcon } from '../shared/portal-brand.ts';
 
 test(
   'Chromium: configurare master, portal mobil, conversie WebP și resetare',
@@ -712,16 +713,26 @@ test(
       /rel="icon" href="[^"]*\/media\/sites\//,
       'the shell should use the client logo for the tab icon',
     );
-    // With no logo and no favicon the platform mark stays the default.
+    // With no logo and no favicon the icon falls back to the site initials in the
+    // site colour, never to the platform mark.
     await env.db
       .prepare('UPDATE sites SET logo_media_id=NULL, favicon_media_id=NULL WHERE domain=?')
       .bind('siteclient.com')
       .run();
-    const defaultPortal = await call(env.mf, tenantOrigin, '/admin/');
-    assert.match(
-      defaultPortal.contents,
-      /rel="icon" href="\.\/assets\/vllora-logo\.svg"/,
+    const initialsPortal = await call(env.mf, tenantOrigin, '/admin/');
+    const initialsIcon = decodeURIComponent(
+      initialsPortal.contents.match(/rel="icon" href="([^"]+)"/)[1],
     );
+    assert.match(initialsIcon, /^data:image\/svg\+xml,/);
+    assert.match(initialsIcon, />BS</, 'the icon should show the site initials');
+    assert.match(initialsIcon, /fill="#6b1c2e"/, 'the icon should use the site colour');
+    assert.doesNotMatch(initialsPortal.contents, /vllora-logo\.svg"/);
+    // Only a portal with no brand information at all keeps the platform mark.
+    const platformPortal = portalIcon(
+      { name: '', primary_color: '' },
+      './assets/vllora-logo.svg',
+    );
+    assert.equal(platformPortal, './assets/vllora-logo.svg');
     // The dedicated favicon is uploaded below, so only the logo is restored here.
     await env.db
       .prepare("UPDATE sites SET logo_media_id=? WHERE domain='siteclient.com'")
