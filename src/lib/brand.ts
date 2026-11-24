@@ -6,6 +6,21 @@ import {
 
 // The Worker serves the same asset below /portal-admin/ and /admin/.
 export const vlloraLogoUrl = './assets/vllora-logo.svg';
+// The tab icon follows the site's logo; the dedicated favicon is only a fallback.
+export const portalIconUrl = (site?: PortalBrand | null) =>
+  site?.logo_url || site?.favicon_url || vlloraLogoUrl;
+
+// The HTML shell is shared, so the brand has to be re-applied on every route.
+export function setTabIcon(href: string) {
+  let link = document.head.querySelector<HTMLLinkElement>('link[rel=icon]');
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'icon';
+    document.head.append(link);
+  }
+  link.removeAttribute('type');
+  link.href = href;
+}
 
 const channels = (hex: string) =>
   [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));

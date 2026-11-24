@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import type { PortalBrand } from '../../shared/portal-brand';
 import { ArrowLeft, ArrowRight, KeyRound, LockKeyhole } from 'lucide-react';
 import { mount, request, type Identity } from '../lib/api';
-import { brandStyle } from '../lib/brand';
+import { brandStyle, portalIconUrl, setTabIcon } from '../lib/brand';
 import { Alert, Field, TenantBrand, VlloraLogo, useAction } from './PortalUI';
 
 const passwordHint =
@@ -34,6 +34,9 @@ export function AuthScreens({
     }
   }, [resetToken]);
   const brand = identity?.site ?? portalBrand;
+  useEffect(() => {
+    if (mount) setTabIcon(portalIconUrl(brand));
+  }, [mount, brand?.logo_url, brand?.favicon_url]);
   const changing = !!identity?.must_change_password && mode !== 'reset';
   const title = changing
     ? 'Setează-ți parola'

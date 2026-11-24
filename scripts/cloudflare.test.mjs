@@ -462,6 +462,7 @@ test(
       accent_color: '#f6e6bc',
       scheme: 'dark',
       logo_url: site.logo_url,
+      favicon_url: null,
     });
     assert.match(tenant.headers.get('cache-control'), /no-store/);
     assert.doesNotMatch(tools.contents, /data-portal-brand/);

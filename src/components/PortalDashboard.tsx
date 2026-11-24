@@ -18,7 +18,7 @@ import {
   type Site,
   type Stats,
 } from '../lib/api';
-import { brandStyle, vlloraLogoUrl } from '../lib/brand';
+import { brandStyle, portalIconUrl, setTabIcon } from '../lib/brand';
 import { Alert, Field, Panel, TenantBrand, useAction } from './PortalUI';
 import { MetricsPanel, Period } from './MetricsPanel';
 import { MediaLibrary } from './MediaLibrary';
@@ -83,9 +83,8 @@ export function PortalDashboard({
     document.title = portalTitle(site.name);
   }, [site.name]);
   useEffect(() => {
-    const link = document.querySelector<HTMLLinkElement>('link[rel=icon]');
-    if (link) link.href = site.favicon_url || vlloraLogoUrl;
-  }, [site.favicon_url]);
+    setTabIcon(portalIconUrl(site));
+  }, [site.logo_url, site.favicon_url]);
   const logout = (all = false) =>
     void action.run(async () => {
       await request(`/auth/${all ? 'sessions/revoke-all' : 'logout'}`, 'POST');

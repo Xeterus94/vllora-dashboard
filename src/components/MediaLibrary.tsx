@@ -227,14 +227,23 @@ export function MediaLibrary({
                       <button
                         type="button"
                         className="button secondary small"
-                        disabled={action.busy || favicon === item.id}
+                        disabled={
+                          action.busy || favicon === item.id || logo === item.id
+                        }
+                        title={
+                          logo === item.id
+                            ? 'Logoul este deja folosit ca iconiță în tab.'
+                            : undefined
+                        }
                         onClick={() =>
                           void action.run(() => onPick(item.id, 'favicon'))
                         }
                       >
                         {favicon === item.id
                           ? 'Favicon actual'
-                          : 'Setează ca favicon'}
+                          : logo === item.id
+                            ? 'Folosit ca iconiță'
+                            : 'Setează ca favicon'}
                       </button>
                     </div>
                   )}
