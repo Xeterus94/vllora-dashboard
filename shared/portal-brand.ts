@@ -6,6 +6,7 @@ export type PortalBrand = {
   accent_color: string;
   scheme: 'light' | 'dark';
   logo_url: string | null;
+  favicon_url?: string | null;
 };
 
 export const portalBrandAttribute = 'data-portal-brand';

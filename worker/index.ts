@@ -191,7 +191,13 @@ async function shell(c: Ctx, path = '/index.html') {
     logo_url: tenant.object_key
       ? publicMediaUrl(c.env, tenant.object_key, '/admin')
       : null,
+    favicon_url: tenant.favicon_key
+      ? publicMediaUrl(c.env, tenant.favicon_key, '/admin')
+      : null,
   };
+  // The tab icon is the site's logo, so the shell renders the client brand and
+  // never flashes the platform logo before /auth/me answers.
+  const icon = brand.logo_url || brand.favicon_url || './assets/vllora-logo.svg';
   // The source asset is shared, but the HTML representation is specific to the host.
   response.headers.delete('ETag');
   response.headers.delete('Content-Length');
@@ -204,11 +210,8 @@ async function shell(c: Ctx, path = '/index.html') {
     })
     .on('link[rel=icon]', {
       element: (element) => {
-        if (tenant.favicon_key)
-          element.setAttribute(
-            'href',
-            publicMediaUrl(c.env, tenant.favicon_key, '/admin'),
-          );
+        element.setAttribute('href', icon);
+        element.removeAttribute('type');
       },
     })
     .on('#root', {

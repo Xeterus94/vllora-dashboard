@@ -704,11 +704,29 @@ test(
       .getByRole('button', { name: 'Logo actual', exact: true })
       .waitFor();
 
+    // The tab icon follows the client logo as soon as one is stored, so the
+    // shell never shows the platform logo for a branded portal.
+    const brandedPortal = await call(env.mf, tenantOrigin, '/admin/');
+    assert.match(
+      brandedPortal.contents,
+      /rel="icon" href="[^"]*\/media\/sites\//,
+      'the shell should use the client logo for the tab icon',
+    );
+    // With no logo and no favicon the platform mark stays the default.
+    await env.db
+      .prepare('UPDATE sites SET logo_media_id=NULL, favicon_media_id=NULL WHERE domain=?')
+      .bind('siteclient.com')
+      .run();
     const defaultPortal = await call(env.mf, tenantOrigin, '/admin/');
     assert.match(
       defaultPortal.contents,
       /rel="icon" href="\.\/assets\/vllora-logo\.svg"/,
     );
+    // The dedicated favicon is uploaded below, so only the logo is restored here.
+    await env.db
+      .prepare("UPDATE sites SET logo_media_id=? WHERE domain='siteclient.com'")
+      .bind(masterResult.item.id)
+      .run();
     const defaultIcon = await call(
       env.mf,
       tenantOrigin,
@@ -716,12 +734,42 @@ test(
     );
     assert.equal(defaultIcon.status, 200);
     assert.equal(defaultIcon.headers.get('content-type'), 'image/svg+xml');
+    // A separate favicon can still be configured, but it must not replace the
+    // logo as the tab icon. Upload one more image and assign it as favicon.
+    await master
+      .getByLabel('Destinația imaginii', { exact: true })
+      .selectOption('favicon');
+    const faviconUpload = master.waitForResponse(
+      (r) => r.url().includes('/media') && r.request().method() === 'POST',
+    );
+    await master
+      .getByLabel('Alege imagini', { exact: true })
+      .setInputFiles({ name: 'icon.png', mimeType: 'image/png', buffer: png });
+    const faviconResult = await (await faviconUpload).json();
+    assert.equal(faviconResult.item.content_type, 'image/webp');
+    assert.notEqual(faviconResult.item.id, masterResult.item.id);
+    assert.equal(
+      await master
+        .getByRole('button', { name: 'Folosit ca iconiță', exact: true })
+        .isDisabled(),
+      true,
+      'the logo item already drives the tab icon, so it cannot be a favicon too',
+    );
     await master
       .getByRole('button', { name: 'Setează ca favicon', exact: true })
       .click();
     await master
       .getByRole('button', { name: 'Favicon actual', exact: true })
       .waitFor();
+    const afterFavicon = await call(env.mf, tenantOrigin, '/admin/');
+    assert.match(
+      afterFavicon.contents,
+      /rel="icon" href="[^"]*\/media\/sites\//,
+    );
+    assert.ok(
+      !afterFavicon.contents.includes(faviconResult.item.url),
+      'the tab icon should stay on the logo, not switch to the favicon',
+    );
 
     await env.db
       .prepare(
@@ -742,6 +790,19 @@ test(
       assert.equal(
         await favicon(client).getAttribute('href'),
         await image.getAttribute('src'),
+      );
+      // The logo drives the tab icon, even when a separate favicon is stored.
+      const stored = await env.db
+        .prepare(
+          "SELECT f.object_key AS favicon_key FROM sites s LEFT JOIN media f ON f.id=s.favicon_media_id AND f.ready=1 WHERE s.domain='siteclient.com'",
+        )
+        .first();
+      assert.ok(stored?.favicon_key, 'the fixture should keep a favicon');
+      assert.ok(
+        !(await favicon(client).getAttribute('href')).includes(
+          stored.favicon_key,
+        ),
+        'the tab icon should be the logo, not the separate favicon',
       );
 
       assert.match(await image.getAttribute('src'), /^\/admin\/media\/sites\//);
