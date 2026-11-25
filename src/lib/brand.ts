@@ -1,14 +1,17 @@
 import type { CSSProperties } from 'react';
 import {
   portalBrandAttribute,
+  portalIcon,
   type PortalBrand,
 } from '../../shared/portal-brand';
 
 // The Worker serves the same asset below /portal-admin/ and /admin/.
 export const vlloraLogoUrl = './assets/vllora-logo.svg';
-// The tab icon follows the site's logo; the dedicated favicon is only a fallback.
+// The tab icon follows the site's logo; the dedicated favicon is only a fallback,
+// and the site initials come next, so a client portal never shows the platform
+// mark while the site has its own brand. The Worker uses the same helper.
 export const portalIconUrl = (site?: PortalBrand | null) =>
-  site?.logo_url || site?.favicon_url || vlloraLogoUrl;
+  site ? portalIcon(site, vlloraLogoUrl) : vlloraLogoUrl;
 
 // The HTML shell is shared, so the brand has to be re-applied on every route.
 export function setTabIcon(href: string) {

@@ -173,15 +173,27 @@ export function LiveSitePreview({
   path,
   select,
   content,
+  compact = false,
+  frameClass = '',
+  onConnection,
 }: {
   domain: string;
   pages: ContentPage[];
   path: string;
   select: (path: string) => void;
   content: SiteContent;
+  // Compact drops the panel chrome for the always-visible split view.
+  compact?: boolean;
+  frameClass?: string;
+  // The compact view reports the handshake so its parent can show one status.
+  onConnection?: (state: string) => void;
 }) {
   const frame = useRef<HTMLIFrameElement>(null);
-  const [connection, connect] = useState('');
+  const [connection, setConnection] = useState('');
+  const connect = (state: string) => {
+    setConnection(state);
+    onConnection?.(state);
+  };
   const [narrow, setNarrow] = useState(false);
   const route = publicPagePath(path) ?? '/';
   const url = new URL(route, `https://${domain}`);
@@ -189,6 +201,45 @@ export function LiveSitePreview({
     url.origin,
     `https://${domain.startsWith('www.') ? domain.slice(4) : `www.${domain}`}`,
   ];
+  // The public CMS shape, never credentials, billing data or session tokens.
+  const payload = (): SiteContent => {
+    const fileUrl = (value: string) => new URL(value, location.origin).href;
+    const file = <T extends { url: string }>(value: T) => ({
+      ...value,
+      url: fileUrl(value.url),
+    });
+    return {
+      ...content,
+      heroMedia: content.heroMedia && file(content.heroMedia),
+      logoMedia: content.logoMedia && file(content.logoMedia),
+      gallery: content.gallery.map(file),
+      documents: content.documents.map(file),
+      images: [
+        ...new Set([
+          ...content.images,
+          ...content.gallery.map((item) => fileUrl(item.url)),
+        ]),
+      ],
+      pages: content.pages?.map((page) => ({
+        ...page,
+        fields: page.fields.map((field) =>
+          field.media ? { ...field, media: file(field.media) } : field,
+        ),
+      })),
+    };
+  };
+  const put = (origin: string) =>
+    frame.current?.contentWindow?.postMessage(
+      { type: 'vllora:preview-content', content: payload() },
+      origin,
+    );
+  // Every keystroke has to reach the frame, not only the first readiness handshake.
+  useEffect(() => {
+    if (!connection) return;
+    const timer = window.setTimeout(() => put(connection.split(' ')[0]), 120);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connection, JSON.stringify(content)]);
   useEffect(() => {
     const alias = domain.startsWith('www.') ? domain.slice(4) : `www.${domain}`;
     const listener = (event: MessageEvent) => {
@@ -200,45 +251,14 @@ export function LiveSitePreview({
       )
         return;
       connect(`${event.origin} ${event.data.path || '/'}`);
-      const fileUrl = (value: string) => new URL(value, location.origin).href;
-      const file = <T extends { url: string }>(value: T) => ({
-        ...value,
-        url: fileUrl(value.url),
-      });
-      // This is the public CMS shape, never credentials, billing data or session tokens.
-      const effective: SiteContent = {
-        ...content,
-        heroMedia: content.heroMedia && file(content.heroMedia),
-        logoMedia: content.logoMedia && file(content.logoMedia),
-        gallery: content.gallery.map(file),
-        documents: content.documents.map(file),
-        images: [
-          ...new Set([
-            ...content.images,
-            ...content.gallery.map((item) => fileUrl(item.url)),
-          ]),
-        ],
-        pages: content.pages?.map((page) => ({
-          ...page,
-          fields: page.fields.map((field) =>
-            field.media ? { ...field, media: file(field.media) } : field,
-          ),
-        })),
-      };
-      frame.current?.contentWindow?.postMessage(
-        { type: 'vllora:preview-content', content: effective },
-        event.origin,
-      );
+      put(event.origin);
     };
     window.addEventListener('message', listener);
     return () => window.removeEventListener('message', listener);
   }, [domain, content]);
-  return (
-    <Panel
-      title="Previzualizare site real"
-      description="Încarcă pagina originală, cu stilurile, animațiile și navigarea ei. Trimiterea formularelor native și ferestrele noi sunt blocate; nu testa rezervări sau plăți pe site-ul real."
-    >
-      <div className="controls">
+  const body = (
+    <>
+      <div className="controls" hidden={compact}>
         <Field label="Pagină de previzualizat">
           <select
             value={route}
@@ -274,7 +294,7 @@ export function LiveSitePreview({
           Deschide pagina publicată
         </a>
       </div>
-      <p className="muted" role="status">
+      <p className="muted" role="status" hidden={compact && !!connection}>
         {connection
           ? 'Varianta nepublicată a fost trimisă paginii conectate.'
           : 'Dacă integrarea de previzualizare lipsește, cadrul arată doar site-ul publicat. Unele site-uri blochează afișarea într-un cadru; în acest caz, deschide pagina publicată separat.'}
@@ -284,9 +304,11 @@ export function LiveSitePreview({
       ) : (
         <iframe
           ref={frame}
-          key={url.href}
+          // One frame per route and per context: the pinned and the full-screen
+          // preview must not share a DOM node, or the second one never reloads.
+          key={`${compact ? 'pinned' : 'full'}:${url.href}`}
           title="Site real — previzualizare"
-          className={`cms-live-frame${narrow ? ' cms-live-narrow' : ''}`}
+          className={`cms-live-frame${narrow ? ' cms-live-narrow' : ''}${frameClass ? ` ${frameClass}` : ''}`}
           src={url.href}
           referrerPolicy="no-referrer"
           sandbox="allow-scripts allow-same-origin"
@@ -301,6 +323,15 @@ export function LiveSitePreview({
           }}
         />
       )}
+    </>
+  );
+  if (compact) return body;
+  return (
+    <Panel
+      title="Previzualizare site real"
+      description="Încarcă pagina originală, cu stilurile, animațiile și navigarea ei. Trimiterea formularelor native și ferestrele noi sunt blocate; nu testa rezervări sau plăți pe site-ul real."
+    >
+      {body}
     </Panel>
   );
 }

@@ -11,6 +11,7 @@ import {
   png,
   runtime,
 } from './test-runtime.mjs';
+import { portalIcon } from '../shared/portal-brand.ts';
 
 test(
   'Chromium: configurare master, portal mobil, conversie WebP și resetare',
@@ -410,15 +411,24 @@ test(
       .getByRole('status')
       .filter({ hasText: 'Fișiere atașate în editor' })
       .waitFor();
+    // Staff edit with the pinned preview: hide it to reach the schematic preview.
+    await master
+      .getByRole('button', { name: 'Ascunde previzualizarea', exact: true })
+      .click();
     await master
       .getByRole('button', { name: 'Previzualizează', exact: true })
       .click();
     await master.getByRole('heading', { name: 'Publicat de master' }).waitFor();
-    await master.getByRole('button', { name: 'Înapoi la editor' }).click();
+    await master
+      .getByRole('button', { name: 'Înapoi la editor', exact: true })
+      .click();
+    await master
+      .getByRole('button', { name: 'Previzualizare alături', exact: true })
+      .click();
     await master.getByRole('button', { name: 'Publică modificările' }).click();
     await master
       .getByRole('status')
-      .filter({ hasText: 'Conținut publicat' })
+      .filter({ hasText: 'Conținut publicat. Se afișează' })
       .waitFor();
     const fromMaster = await call(
       env.mf,
@@ -544,8 +554,30 @@ test(
     const replacement = master.locator('img.cms-slot-image[src^="/media/"]');
     await replacement.evaluate((image) => image.decode());
     await master.getByRole('button', { name: 'Elimină imaginea' }).click();
+    // The pinned frame already shows the draft; go full screen for the page picker.
+    const pinnedFrame = master
+      .locator('.cms-pinned')
+      .frameLocator('iframe[title="Site real — previzualizare"]');
+    // The pinned frame keeps receiving the draft after it first loads, so an edit
+    // made later shows up without reopening the preview.
+    await pinnedFrame
+      .getByRole('heading', { name: 'Titlu editat în master' })
+      .waitFor();
+    assert.equal(await pinnedFrame.locator('#chart').textContent(), '42');
+    assert.equal(
+      await master.locator('.cms-pinned-status').innerText(),
+      'Modificări nepublicate',
+    );
+    // The phone switch narrows the frame without reloading it.
     await master
-      .getByRole('button', { name: 'Previzualizează site-ul real' })
+      .locator('.cms-pinned')
+      .getByRole('button', { name: 'Telefon', exact: true })
+      .click();
+    await master
+      .locator('.cms-pinned .cms-live-narrow')
+      .waitFor();
+    await master
+      .getByRole('button', { name: 'Previzualizare pe tot ecranul' })
       .click();
     const frame = master.frameLocator(
       'iframe[title="Site real — previzualizare"]',
@@ -581,7 +613,7 @@ test(
     await master.getByRole('button', { name: 'Publică modificările' }).click();
     await master
       .getByRole('status')
-      .filter({ hasText: 'Conținut publicat' })
+      .filter({ hasText: 'Conținut publicat. Se afișează' })
       .waitFor();
     const publicAfter = await call(
       env.mf,
@@ -610,9 +642,11 @@ test(
     }
     await master.setViewportSize({ width: 320, height: 640 });
     await staffCards.getByRole('button', { name: 'Editează site-ul' }).first().click();
+    // Below 1100px the split view starts hidden so the fields stay above the fold.
     await master
-      .getByRole('button', { name: 'Previzualizează', exact: true })
+      .getByRole('button', { name: 'Previzualizare alături', exact: true })
       .waitFor();
+    assert.equal(await master.locator('.cms-pinned').count(), 0);
     // Staff detail page exposes the same administration block.
     const staffAdministration = master
       .locator('.panel')
@@ -712,16 +746,26 @@ test(
       /rel="icon" href="[^"]*\/media\/sites\//,
       'the shell should use the client logo for the tab icon',
     );
-    // With no logo and no favicon the platform mark stays the default.
+    // With no logo and no favicon the icon falls back to the site initials in the
+    // site colour, never to the platform mark.
     await env.db
       .prepare('UPDATE sites SET logo_media_id=NULL, favicon_media_id=NULL WHERE domain=?')
       .bind('siteclient.com')
       .run();
-    const defaultPortal = await call(env.mf, tenantOrigin, '/admin/');
-    assert.match(
-      defaultPortal.contents,
-      /rel="icon" href="\.\/assets\/vllora-logo\.svg"/,
+    const initialsPortal = await call(env.mf, tenantOrigin, '/admin/');
+    const initialsIcon = decodeURIComponent(
+      initialsPortal.contents.match(/rel="icon" href="([^"]+)"/)[1],
     );
+    assert.match(initialsIcon, /^data:image\/svg\+xml,/);
+    assert.match(initialsIcon, />BS</, 'the icon should show the site initials');
+    assert.match(initialsIcon, /fill="#6b1c2e"/, 'the icon should use the site colour');
+    assert.doesNotMatch(initialsPortal.contents, /vllora-logo\.svg"/);
+    // Only a portal with no brand information at all keeps the platform mark.
+    const platformPortal = portalIcon(
+      { name: '', primary_color: '' },
+      './assets/vllora-logo.svg',
+    );
+    assert.equal(platformPortal, './assets/vllora-logo.svg');
     // The dedicated favicon is uploaded below, so only the logo is restored here.
     await env.db
       .prepare("UPDATE sites SET logo_media_id=? WHERE domain='siteclient.com'")
@@ -968,7 +1012,7 @@ test(
     await client.getByRole('button', { name: 'Publică modificările' }).click();
     await client
       .getByRole('status')
-      .filter({ hasText: 'Conținut publicat' })
+      .filter({ hasText: 'Conținut publicat. Se afișează' })
       .waitFor();
     const publicEditor = await call(
       env.mf,
