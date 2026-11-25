@@ -132,10 +132,14 @@ export function SiteEditor({
   onDirty,
   staff = false,
   onPublished,
+  mediaAllowed = true,
 }: {
   site: Site;
   onPublished?: (data: SiteContent) => void;
   staff?: boolean;
+  // Without the media permission the API refuses every upload, so the pickers
+  // are hidden and the library is never requested.
+  mediaAllowed?: boolean;
   onDirty: (dirty: boolean) => void;
 }) {
   const editorPath = `${staff ? adminSite(site.id) : '/portal'}/content`;
@@ -198,18 +202,19 @@ export function SiteEditor({
         if (active) setLoadError(message(error));
       },
     );
-    request<MediaList>(mediaPath).then(
-      (result) => {
-        if (active) setMedia(result.items);
-      },
-      () => {
-        /* Upload is still available if listing fails. */
-      },
-    );
+    if (mediaAllowed)
+      request<MediaList>(mediaPath).then(
+        (result) => {
+          if (active) setMedia(result.items);
+        },
+        () => {
+          /* Upload is still available if listing fails. */
+        },
+      );
     return () => {
       active = false;
     };
-  }, [attempt, editorPath, mediaPath, staff]);
+  }, [attempt, editorPath, mediaPath, staff, mediaAllowed]);
   useEffect(() => {
     onDirty(dirty);
     return () => onDirty(false);
@@ -411,16 +416,23 @@ export function SiteEditor({
     return (
       <div className="cms-files stack">
         <div className="controls">
-          <FilePicker
-            label={label}
-            onFiles={(files) => upload(slot, files)}
-            multiple={!singleImage(slot)}
-            disabled={disabled}
-            accept={
-              slot === 'documents' ? '.pdf,application/pdf' : 'image/*,.ico'
-            }
-          />
-          {!!options.length && (
+          {mediaAllowed ? (
+            <FilePicker
+              label={label}
+              onFiles={(files) => upload(slot, files)}
+              multiple={!singleImage(slot)}
+              disabled={disabled}
+              accept={
+                slot === 'documents' ? '.pdf,application/pdf' : 'image/*,.ico'
+              }
+            />
+          ) : (
+            <span className="cms-note">
+              Pozele se schimbă de echipa Vllora — contul tău nu are acces la
+              biblioteca media.
+            </span>
+          )}
+          {mediaAllowed && !!options.length && (
             <select
               aria-label={`Alege din bibliotecă: ${label}`}
               value=""

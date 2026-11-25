@@ -33,6 +33,11 @@ import {
 } from './metrics';
 import { hashPassword } from './password';
 import {
+  allPermissions,
+  readPermissions,
+  storedPermissions,
+} from '../shared/permissions';
+import {
   portfolioDetails,
   portfolioList,
   putPortfolio,
@@ -482,7 +487,7 @@ admin.post('/sites/:id/users', async (c) => {
     await c.env.DB.batch([
       stmt(
         c.env,
-        `INSERT INTO users(id,username,name,email,role,client_id,password_hash,created_at) VALUES(?,?,?,?,'client_admin',?,?,?)`,
+        `INSERT INTO users(id,username,name,email,role,client_id,password_hash,created_at,permissions) VALUES(?,?,?,?,'client_admin',?,?,?,?)`,
         id,
         login,
         text(b.name ?? login, 100, 'Nume'),
@@ -490,6 +495,7 @@ admin.post('/sites/:id/users', async (c) => {
         site.id,
         await hashPassword(c.env, pass),
         Date.now(),
+        JSON.stringify(readPermissions(b.permissions, allPermissions)),
       ),
       audit(c.env, 'client_created', actor(c), site.id),
     ]);
@@ -522,9 +528,26 @@ admin.patch('/users/:id', async (c) => {
   const u = await client(c),
     b = await json(c, 4096),
     e = b.email === undefined ? u.email : email(b.email),
-    name = b.name === undefined ? u.name : text(b.name, 100, 'Nume');
+    name = b.name === undefined ? u.name : text(b.name, 100, 'Nume'),
+    grants =
+      b.permissions === undefined
+        ? null
+        : JSON.stringify(
+            readPermissions(b.permissions, storedPermissions(u.permissions)),
+          );
   await c.env.DB.batch([
     stmt(c.env, 'UPDATE users SET email=?,name=? WHERE id=?', e, name, u.id),
+    ...(grants
+      ? [
+          stmt(
+            c.env,
+            'UPDATE users SET permissions=? WHERE id=?',
+            grants,
+            u.id,
+          ),
+          audit(c.env, 'client_permissions_changed', actor(c), u.client_id),
+        ]
+      : []),
     stmt(
       c.env,
       'DELETE FROM password_resets WHERE user_id=? AND email IS NOT ?',
@@ -533,7 +556,14 @@ admin.patch('/users/:id', async (c) => {
     ),
     audit(c.env, 'client_updated', actor(c), u.client_id),
   ]);
-  return c.json({ user: userView({ ...u, email: e, name }) });
+  return c.json({
+    user: userView({
+      ...u,
+      email: e,
+      name,
+      permissions: grants ?? u.permissions,
+    }),
+  });
 });
 admin.post('/users/:id/reset-password', async (c) => {
   const u = await client(c),

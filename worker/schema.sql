@@ -35,6 +35,7 @@ CREATE TABLE site_hosts (host TEXT PRIMARY KEY COLLATE NOCASE, site_id TEXT NOT 
 INSERT INTO site_hosts SELECT domain,id FROM sites;
 CREATE INDEX site_hosts_site ON site_hosts(site_id);
 ALTER TABLE users ADD COLUMN email TEXT COLLATE NOCASE;
+ALTER TABLE users ADD COLUMN permissions TEXT;
 CREATE INDEX users_email ON users(email,client_id);
 CREATE TABLE password_resets (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
  host TEXT NOT NULL, email TEXT NOT NULL, password_version INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_at INTEGER);
