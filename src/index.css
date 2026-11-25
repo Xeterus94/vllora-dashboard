@@ -743,6 +743,38 @@ th {
 .cms-preview-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: .85rem; }
 .cms-preview-gallery { display: grid; grid-template-columns: repeat(auto-fill,minmax(68px,1fr)); gap: 5px; }
 .cms-preview-gallery img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 5px; }
+/* Split workspace: the real page stays next to the fields while you edit. */
+.cms-workspace { display: grid; gap: 18px; align-items: start; }
+.cms-workspace-split { grid-template-columns: minmax(0, 1fr) minmax(340px, 0.85fr); }
+.cms-workspace-split > .cms-grid { grid-template-columns: minmax(0, 1fr); }
+.cms-workspace-split > .cms-grid .cms-preview { display: none; }
+.cms-workspace[hidden] { display: none; }
+.cms-pinned {
+  position: sticky;
+  top: 14px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  min-width: 0;
+}
+.cms-pinned-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cms-pinned-bar .controls { margin-inline-start: auto; gap: 6px; }
+.cms-pinned-status { display: inline-flex; align-items: center; gap: 7px; font-size: .82rem; color: var(--muted); }
+.cms-pinned-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good, #2f9e63); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good, #2f9e63) 22%, transparent); }
+.cms-pinned-status[data-dirty='true'] .cms-pinned-dot { background: var(--warn, #c98a00); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn, #c98a00) 22%, transparent); }
+.cms-pinned-note { margin: 0; font-size: .78rem; color: var(--muted); }
+.cms-pinned .cms-live-frame { height: clamp(320px, 62vh, 900px); border-radius: 10px; }
+.cms-pinned .cms-live-frame.cms-live-narrow { max-width: 360px; }
+.cms-pinned-narrow .cms-live-frame { height: clamp(380px, 70vh, 900px); }
+@media (max-width: 1100px) {
+  .cms-workspace-split { grid-template-columns: minmax(0, 1fr); }
+  .cms-pinned { position: sticky; top: 8px; z-index: 2; order: -1; }
+  .cms-pinned .cms-live-frame { height: clamp(240px, 42vh, 520px); }
+}
 @media (max-width: 850px) {
   .cms-grid { grid-template-columns: minmax(0, 1fr); }
   .cms-grid:not(.cms-preview-only) .cms-preview { display: none; }

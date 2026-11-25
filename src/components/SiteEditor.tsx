@@ -9,8 +9,11 @@ import {
   ImagePlus,
   LayoutTemplate,
   MapPin,
+  Monitor,
+  PanelRight,
   Plus,
   Save,
+  Smartphone,
   Trash2,
 } from 'lucide-react';
 import {
@@ -148,6 +151,16 @@ export function SiteEditor({
   const [busyLabel, setBusyLabel] = useState('');
   const [live, setLive] = useState(false),
     [pagePath, setPagePath] = useState('/');
+  // The pinned preview keeps the editor and the real page side by side, which
+  // is the default for staff: you always see the field you edit and its effect.
+  // Side by side needs width; on phones the preview opens on demand so the
+  // fields stay above the fold.
+  const wide = () =>
+    typeof window === 'undefined' ||
+    window.matchMedia('(min-width: 1101px)').matches;
+  const [pinned, setPinned] = useState(staff && wide()),
+    [narrow, setNarrow] = useState(false),
+    [previewLive, setPreviewLive] = useState(false);
   const action = useAction();
   const dirty =
     !!data && JSON.stringify(data.content) !== JSON.stringify(draft);
@@ -518,38 +531,59 @@ export function SiteEditor({
             <button
               type="button"
               className="button secondary"
-              aria-pressed={live}
+              aria-pressed={pinned}
+              title={
+                pinned
+                  ? 'Ascunde previzualizarea și păstrează doar editorul.'
+                  : 'Vezi site-ul lângă câmpuri, în timp ce editezi.'
+              }
               onClick={() => {
-                setLive(!live);
+                setPinned(!pinned);
+                setLive(false);
                 setPreview(false);
               }}
             >
-              <Eye size={17} />{' '}
-              {live ? 'Înapoi la editare' : 'Previzualizează site-ul real'}
+              <PanelRight size={17} />{' '}
+              {pinned ? 'Ascunde previzualizarea' : 'Previzualizare alături'}
             </button>
           )}
           <button
             type="button"
             className="button secondary"
             aria-pressed={preview}
+            title="Machetă simplă a paginii, fără site-ul real."
             onClick={() => {
               setLive(false);
               setPreview((value) => !value);
             }}
           >
-            <Eye size={17} /> {preview ? 'Înapoi la editor' : 'Previzualizează'}
+            <Eye size={17} />{' '}
+            {preview ? 'Înapoi la editor' : 'Previzualizează'}
           </button>
+          {staff && (
+            <button
+              type="button"
+              className="button secondary"
+              aria-pressed={live}
+              title="Site-ul real pe tot ecranul, cu modificările nepublicate."
+              onClick={() => {
+                setLive(!live);
+                setPreview(false);
+              }}
+            >
+              <Eye size={17} />{' '}
+              {live ? 'Înapoi la editare' : 'Previzualizare pe tot ecranul'}
+            </button>
+          )}
         </div>
       </header>
       <p className="muted cms-info">
-        Previzualizarea de conținut este schematică.{' '}
+        Editezi pe secțiuni; previzualizarea alăturată arată site-ul real cu
+        modificările nepublicate.{' '}
         {staff &&
-          'Previzualizarea site-ului real folosește designul original și arată modificările nepublicate numai pe paginile conectate.'}
-        Modificările apar public doar în secțiunile conectate la CMS. Fișierele
-        încărcate nu sunt private. Pozele noi se comprimă automat în WebP.
-        Importul completează câmpurile goale, corectează linkurile vechi
-        confirmate de manifest și păstrează imaginile ca linkuri către site-ul
-        sursă.
+          'Previzualizarea apare doar pe paginile conectate la CMS. '}
+        Publicarea face modificările vizibile pe site. Fișierele încărcate nu
+        sunt private, iar pozele noi se comprimă automat în WebP.
       </p>
       {staff && site.status === 'suspended' && (
         <p className="muted">
@@ -564,8 +598,15 @@ export function SiteEditor({
           path={pagePath}
           select={setPagePath}
           content={draft}
+          frameClass={narrow ? 'cms-live-narrow' : ''}
         />
       )}
+      {/* Side by side: the page updates from the draft while you type, so the
+          field you are editing and its result are always in view together. */}
+      <div
+        hidden={live}
+        className={`cms-workspace${pinned ? ' cms-workspace-split' : ''}`}
+      >
       <div
         hidden={live}
         className={`cms-grid${preview ? ' cms-preview-only' : ''}`}
@@ -894,6 +935,68 @@ export function SiteEditor({
           </div>
         </form>
         <ContentPreview site={site} content={draft} />
+      </div>
+      {staff && pinned && !live && (
+        <aside
+          className={`cms-pinned${narrow ? ' cms-pinned-narrow' : ''}`}
+          aria-label="Previzualizare site în timp real"
+        >
+          <div className="cms-pinned-bar">
+            <span
+              className="cms-pinned-status"
+              role="status"
+              data-dirty={dirty}
+            >
+              <span className="cms-pinned-dot" aria-hidden="true" />
+              {dirty ? 'Modificări nepublicate' : 'Conținut publicat'}
+            </span>
+            <div className="controls">
+              <button
+                type="button"
+                className="button secondary small"
+                aria-pressed={!narrow}
+                onClick={() => setNarrow(false)}
+              >
+                <Monitor size={15} /> Desktop
+              </button>
+              <button
+                type="button"
+                className="button secondary small"
+                aria-pressed={narrow}
+                onClick={() => setNarrow(true)}
+              >
+                <Smartphone size={15} /> Telefon
+              </button>
+            </div>
+          </div>
+          {site.status === 'suspended' && (
+            <p className="cms-pinned-note">
+              Site suspendat: previzualizarea poate afișa pagina publicată
+              veche.
+            </p>
+          )}
+          {previewLive ? (
+            <p className="cms-pinned-note cms-pinned-note--ok">
+              Modificările apar aici în timp ce editezi.
+            </p>
+          ) : (
+            <p className="cms-pinned-note">
+              Vezi site-ul publicat. Ca să apară și modificările nepublicate,
+              site-ul trebuie să încarce integrarea de previzualizare.
+            </p>
+          )}
+          <LiveSitePreview
+            compact
+            domain={site.domain}
+            pages={draft.pages ?? []}
+            path={pagePath}
+            select={setPagePath}
+            content={draft}
+            frameClass={narrow ? 'cms-live-narrow' : ''}
+            onConnection={(state) => setPreviewLive(!!state)}
+          />
+        </aside>
+      )}
       </div>
     </section>
   );

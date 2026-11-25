@@ -411,15 +411,24 @@ test(
       .getByRole('status')
       .filter({ hasText: 'Fișiere atașate în editor' })
       .waitFor();
+    // Staff edit with the pinned preview: hide it to reach the schematic preview.
+    await master
+      .getByRole('button', { name: 'Ascunde previzualizarea', exact: true })
+      .click();
     await master
       .getByRole('button', { name: 'Previzualizează', exact: true })
       .click();
     await master.getByRole('heading', { name: 'Publicat de master' }).waitFor();
-    await master.getByRole('button', { name: 'Înapoi la editor' }).click();
+    await master
+      .getByRole('button', { name: 'Înapoi la editor', exact: true })
+      .click();
+    await master
+      .getByRole('button', { name: 'Previzualizare alături', exact: true })
+      .click();
     await master.getByRole('button', { name: 'Publică modificările' }).click();
     await master
       .getByRole('status')
-      .filter({ hasText: 'Conținut publicat' })
+      .filter({ hasText: 'Conținut publicat. Se afișează' })
       .waitFor();
     const fromMaster = await call(
       env.mf,
@@ -545,8 +554,30 @@ test(
     const replacement = master.locator('img.cms-slot-image[src^="/media/"]');
     await replacement.evaluate((image) => image.decode());
     await master.getByRole('button', { name: 'Elimină imaginea' }).click();
+    // The pinned frame already shows the draft; go full screen for the page picker.
+    const pinnedFrame = master
+      .locator('.cms-pinned')
+      .frameLocator('iframe[title="Site real — previzualizare"]');
+    // The pinned frame keeps receiving the draft after it first loads, so an edit
+    // made later shows up without reopening the preview.
+    await pinnedFrame
+      .getByRole('heading', { name: 'Titlu editat în master' })
+      .waitFor();
+    assert.equal(await pinnedFrame.locator('#chart').textContent(), '42');
+    assert.equal(
+      await master.locator('.cms-pinned-status').innerText(),
+      'Modificări nepublicate',
+    );
+    // The phone switch narrows the frame without reloading it.
     await master
-      .getByRole('button', { name: 'Previzualizează site-ul real' })
+      .locator('.cms-pinned')
+      .getByRole('button', { name: 'Telefon', exact: true })
+      .click();
+    await master
+      .locator('.cms-pinned .cms-live-narrow')
+      .waitFor();
+    await master
+      .getByRole('button', { name: 'Previzualizare pe tot ecranul' })
       .click();
     const frame = master.frameLocator(
       'iframe[title="Site real — previzualizare"]',
@@ -582,7 +613,7 @@ test(
     await master.getByRole('button', { name: 'Publică modificările' }).click();
     await master
       .getByRole('status')
-      .filter({ hasText: 'Conținut publicat' })
+      .filter({ hasText: 'Conținut publicat. Se afișează' })
       .waitFor();
     const publicAfter = await call(
       env.mf,
@@ -611,9 +642,11 @@ test(
     }
     await master.setViewportSize({ width: 320, height: 640 });
     await staffCards.getByRole('button', { name: 'Editează site-ul' }).first().click();
+    // Below 1100px the split view starts hidden so the fields stay above the fold.
     await master
-      .getByRole('button', { name: 'Previzualizează', exact: true })
+      .getByRole('button', { name: 'Previzualizare alături', exact: true })
       .waitFor();
+    assert.equal(await master.locator('.cms-pinned').count(), 0);
     // Staff detail page exposes the same administration block.
     const staffAdministration = master
       .locator('.panel')
@@ -979,7 +1012,7 @@ test(
     await client.getByRole('button', { name: 'Publică modificările' }).click();
     await client
       .getByRole('status')
-      .filter({ hasText: 'Conținut publicat' })
+      .filter({ hasText: 'Conținut publicat. Se afișează' })
       .waitFor();
     const publicEditor = await call(
       env.mf,
