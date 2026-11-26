@@ -90,6 +90,8 @@ Testele pornesc un Workerd izolat cu baze efemere; nu porni aplicația separat. 
 
 ### `/admin` pe site-uri de client găzduite în Pages
 
+Ghid pas cu pas, cu prompt gata de copiat pentru agentul care lucrează pe site-ul clientului: [docs/prompt-admin.md](docs/prompt-admin.md).
+
 Pentru un hostname partajat `*.pages.dev` (de exemplu `frizeriata.pages.dev`) nu poți crea o rută de zonă Workers `/admin*` pe acel hostname. Ai două opțiuni:
 
 - Folosește un domeniu propriu cu DNS proxied și configurează ruta `/admin*` pentru `vllora-dashboard`, conform pașilor de mai sus.
