@@ -33,7 +33,26 @@ Adaugă atribute doar elementelor pe care vrei să le controleze editorul. Păst
 </template>
 ```
 
-Câmpuri text: `siteName`, `heroTitle`, `heroSubtitle`, `announcement`, `aboutTitle`, `aboutText`, `bookingLabel`, `phone`, `whatsapp`, `email`, `address`. Linkuri: `bookingUrl`, `mapsUrl`, `facebook`, `instagram`, `phone`, `whatsapp`, `email`. Liste: `services` (`name`, `description`, `price`, `duration`), `hours` (`day`, `time`), `images` (elemente `img` cu `data-vllora-item="url"`), `documents` (link cu `data-vllora-item="url"`; în interior, `span` cu `data-vllora-item="name"`). Pune atributele de text pe elemente-frunză, nu pe containere cu iconițe sau alte elemente.
+Câmpuri text: `siteName`, `heroTitle`, `heroSubtitle`, `announcement`, `aboutTitle`, `aboutText`, `bookingLabel`, `phone`, `whatsapp`, `email`, `address`. Linkuri: `bookingUrl`, `mapsUrl`, `facebook`, `instagram`, `phone`, `whatsapp`, `email`. Liste: `services` (`name`, `description`, `price`, `duration`), `hours` (`day`, `time`), `products` (vezi mai jos), `images` (elemente `img` cu `data-vllora-item="url"`), `documents` (link cu `data-vllora-item="url"`; în interior, `span` cu `data-vllora-item="name"`). Pune atributele de text pe elemente-frunză, nu pe containere cu iconițe sau alte elemente.
+
+Lista `products` randează cardurile unui magazin. Câmpurile disponibile în șablon: `name`, `description`, `price` (prețul afișat, deja redus dacă există discount), `comparePrice` (prețul întreg, de tăiat cu `<s>`), `discountLabel` (ex. `−10%`), `discount` (procentul, ca text), `bestseller` (bifă booleană) și `image`. Un element cu `data-vllora-item` primește textul, un `src` dacă e imagine și un `href` dacă e link; pentru `bestseller` pune eticheta în `data-vllora-label`, iar elementul dispare complet când produsul nu e bestseller. Orice câmp lipsă sau gol își elimină elementul, deci `s` și badge-urile de discount nu rămân goale.
+
+```html
+<div data-vllora-list="products" data-vllora-template="product"></div>
+<template id="product">
+  <article class="card">
+    <img data-vllora-item="image" alt="" />
+    <span data-vllora-item="bestseller" data-vllora-label="Bestseller"></span>
+    <span data-vllora-item="discountLabel"></span>
+    <h3 data-vllora-item="name"></h3>
+    <p data-vllora-item="description"></p>
+    <b data-vllora-item="price"></b>
+    <s data-vllora-item="comparePrice"></s>
+  </article>
+</template>
+```
+
+Magazinul stochează prețul întreg și un procent întreg (0–90); prețul afișat e calculat la cent, cu zecimalele formatului folosit la introducere (`69 lei` cu `10%` → `62.10 lei`). Pentru import, publică produsele în manifest la `content.products` sau lasă marcajul **Product / ItemList JSON-LD** pe pagină; editorul le preia cu **Importă de pe site** fără să descarce imaginile.
 
 Dacă o valoare sau listă este goală, rămâne conținutul de rezervă; adaugă `data-vllora-empty="replace"` pe elementele de text/listă care trebuie golite explicit. Dacă site-ul folosește CSP, permite originea API în `connect-src` și originea imaginilor din răspuns în `img-src`. Scriptul nu conține parole sau tokenuri și nu introduce HTML din CMS.
 

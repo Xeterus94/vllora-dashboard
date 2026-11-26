@@ -4,9 +4,12 @@ import {
   companyFieldSpec,
   type CompanyField,
   type CompanyData,
+  type CmsProduct,
+  discountMax,
   documentLimit,
   galleryLimit,
   hoursLimit,
+  productLimit,
   servicesLimit,
   type CmsTextField,
   type CmsFile,
@@ -124,12 +127,13 @@ const mediaId = (value: unknown) => {
 };
 type Stored = Omit<
   SiteContent,
-  'heroMedia' | 'logoMedia' | 'gallery' | 'documents' | 'pages'
+  'heroMedia' | 'logoMedia' | 'gallery' | 'documents' | 'pages' | 'products'
 > & {
   heroMedia: string | null;
   logoMedia: string | null;
   gallery: string[];
   documents: string[];
+  products: (Omit<CmsProduct, 'image'> & { image: string | null })[];
   pages?: StoredPages;
 };
 function normalizeInput(body: Body): Stored {
@@ -176,6 +180,37 @@ function normalizeInput(body: Body): Stored {
         time: text(row.time, 120, 'Interval'),
       };
     }),
+    products: items(body.products ?? [], productLimit, 'Produse').map(
+      (value) => {
+        const row = record(value),
+          discount = Number(row.discount ?? 0);
+        if (
+          !Number.isInteger(discount) ||
+          discount < 0 ||
+          discount > discountMax
+        )
+          return fail(
+            400,
+            `Discountul trebuie să fie un număr întreg între 0 și ${discountMax}.`,
+          );
+        return {
+          name: text(row.name, 160, 'Nume produs'),
+          description: text(
+            row.description ?? '',
+            2000,
+            'Descriere produs',
+            true,
+          ),
+          price: text(row.price, 40, 'Preț', true),
+          comparePrice: text(row.comparePrice ?? '', 40, 'Preț tăiat', true),
+          discount,
+          bestseller: row.bestseller === true,
+          category: text(row.category ?? '', 80, 'Categorie', true),
+          imageUrl: cmsUrl(row.imageUrl ?? ''),
+          image: row.image == null ? null : mediaId(row.image),
+        };
+      },
+    ),
   };
 }
 
@@ -197,6 +232,7 @@ async function resolveContent(
         ...(data.documents ?? []),
         data.heroMedia,
         data.logoMedia,
+        ...(data.products ?? []).map((product) => product.image),
         ...(data.pages ?? []).flatMap((page) =>
           page.fields.map((field) => field.media),
         ),
@@ -267,6 +303,21 @@ async function resolveContent(
       .filter((file): file is CmsFile => file !== null),
     services: data.services ?? [],
     hours: data.hours ?? [],
+    products: (data.products ?? []).map((product) => {
+      const file = product.image ? find(product.image, 'image') : null;
+      return {
+        ...product,
+        name: product.name ?? '',
+        description: product.description ?? '',
+        price: product.price ?? '',
+        comparePrice: product.comparePrice ?? '',
+        discount: product.discount ?? 0,
+        bestseller: product.bestseller === true,
+        category: product.category ?? '',
+        imageUrl: product.imageUrl ?? '',
+        image: file,
+      };
+    }),
     ...(data.pages
       ? {
           pages: data.pages.map((page) => ({

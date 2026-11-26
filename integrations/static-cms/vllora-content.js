@@ -23,6 +23,62 @@
   const previewOrigin = new URL(
     localPreview ? configuredPreview : https(configuredPreview) || api,
   ).origin;
+  // Mirrors priceCents/discountedPrice from shared/site-content.ts. The shop
+  // owner stores one regular price and one whole percent; the site shows the
+  // reduced price and strikes the regular one, so nothing can drift apart.
+  const priceCents = (price) => {
+    if (typeof price !== 'string') return null;
+    const parts = price.replace(/\u00a0/g, ' ').trim().match(/^(\d[\d.,\s]*?)([^\d]*)$/);
+    if (!parts) return null;
+    const number = parts[1].replace(/\s/g, '');
+    if (!/^\d[\d.,]*$/.test(number)) return null;
+    const lastDot = number.lastIndexOf('.'), lastComma = number.lastIndexOf(',');
+    let whole = number, fraction = '';
+    const separator = Math.max(lastDot, lastComma);
+    if (separator > -1) {
+      const tail = number.slice(separator + 1),
+        head = number.slice(0, separator).replace(/[.,]/g, '');
+      if (tail.length <= 2) { whole = head; fraction = tail; }
+      else if (tail.length === 3) whole = head + tail;
+      else return null;
+    }
+    if (!/^\d+$/.test(whole)) return null;
+    return Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
+  };
+  const deal = (product) => {
+    // An uploaded photo arrives as a media object, a site photo as a URL string.
+    const image =
+      product.image && typeof product.image === 'object'
+        ? product.image.url
+        : product.image;
+    const discount = Number(product.discount) || 0,
+      cents = priceCents(product.price);
+    const photo = https(image) ? image : https(product.imageUrl) ? product.imageUrl : '';
+    if (!discount || discount < 1 || discount > 90 || cents === null) {
+      // No deal: drop the empty deal keys so their elements disappear instead
+      // of leaving an empty struck price or an empty badge.
+      const plain = { ...product, image: photo };
+      for (const key of ['comparePrice', 'discountLabel', 'discount'])
+        if (!plain[key]) delete plain[key];
+      return plain;
+    }
+    const reduced = Math.round((cents * (100 - discount)) / 100);
+    if (reduced <= 0 || reduced >= cents) return product;
+    const text = (reduced / 100).toFixed(2),
+      [whole, fraction] = text.split('.'),
+      decimals = /[.,]\d{1,2}(?:[^\d]*)$/.test(product.price.trim()),
+      comma = /,\d{1,2}(?:[^\d]*)$/.test(product.price.trim()),
+      currency = (product.price.match(/[^\d.,\s]*\s*$/) || [''])[0].trim(),
+      shown = decimals || fraction !== '00' ? whole + (comma ? ',' : '.') + fraction : whole;
+    return {
+      ...product,
+      image: photo,
+      comparePrice: product.price,
+      price: shown + (currency ? ' ' + currency : ''),
+      discountLabel: '−' + discount + '%',
+      discount: String(discount),
+    };
+  };
   const apply = (content) => {
     if (!content || typeof content !== 'object') return;
     for (const node of document.querySelectorAll('[data-vllora-field]')) {
@@ -85,7 +141,8 @@
     }
     for (const list of document.querySelectorAll('[data-vllora-list]')) {
       const key = list.dataset.vlloraList;
-      if (!['services', 'hours', 'images', 'documents'].includes(key)) continue;
+      if (!['services', 'hours', 'images', 'documents', 'products'].includes(key))
+        continue;
       const rows = content[key];
       const template = document.getElementById(
         list.dataset.vlloraTemplate || '',
@@ -97,12 +154,30 @@
       )
         continue;
       const fragment = document.createDocumentFragment();
-      for (const value of rows.slice(0, 40)) {
-        const item = typeof value === 'string' ? { url: value } : value;
+      for (const value of rows.slice(0, 200)) {
+        let item = typeof value === 'string' ? { url: value } : value;
         if (!item || typeof item !== 'object') continue;
+        if (key === 'products') item = deal(item);
         const row = template.content.cloneNode(true);
         for (const element of row.querySelectorAll('[data-vllora-item]')) {
           const field = item[element.dataset.vlloraItem];
+          // Flags are booleans: a false flag removes its badge, a true one writes
+          // the label from the template (data-vllora-label) or a default.
+          if (typeof field === 'boolean') {
+            if (!field) {
+              element.remove();
+              continue;
+            }
+            element.textContent =
+              element.dataset.vlloraLabel || element.textContent.trim();
+            continue;
+          }
+          // Anything missing or empty removes its element, so a product without
+          // a deal never shows an empty struck price or an empty badge.
+          if (field === undefined || field === null || field === '') {
+            element.remove();
+            continue;
+          }
           if (
             element instanceof HTMLAnchorElement ||
             element instanceof HTMLImageElement

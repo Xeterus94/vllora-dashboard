@@ -1004,6 +1004,73 @@ test(
       },
     );
 
+    await t.test('produse: discount, bestseller și poză din bibliotecă', async () => {
+      const shop = must(
+        await adminCall('/sites', send({ domain: 'shop-products.com' })),
+        201,
+      ).json.site;
+      // Each save needs the current revision, exactly like the editor does.
+      let revision = '',
+        products = [];
+      const put = async (rows) => {
+        const site = await adminCall(`/sites/${shop.id}/content`);
+        revision = must(site, 200).json.revision;
+        products = rows;
+        return adminCall(`/sites/${shop.id}/content`, {
+          method: 'PUT',
+          body: { content: { siteName: 'Magazin', products }, revision },
+        });
+      };
+      const save = must(
+        await put([
+          {
+            name: 'Amestec gazon premium 1 kg',
+            description: 'Pentru un gazon des',
+            price: '69 lei',
+            discount: 10,
+            bestseller: true,
+            category: 'Gazon',
+            imageUrl: 'https://shop-products.com/poze/gazon.webp',
+          },
+          {
+            name: 'Îngrășământ',
+            description: '',
+            price: '85 lei',
+            discount: 0,
+            bestseller: false,
+            category: '',
+            imageUrl: '',
+          },
+        ]),
+        200,
+      ).json;
+      const [first, second] = save.content.products;
+      assert.equal(first.discount, 10);
+      assert.equal(first.bestseller, true);
+      assert.equal(first.comparePrice, '');
+      assert.equal(second.bestseller, false);
+      // The public payload carries the regular price; the site derives the deal.
+      const publicShop = must(
+        await call(mf, platform, '/api/content?site=shop-products.com'),
+        200,
+      ).json;
+      const published = publicShop.content.products;
+      assert.equal(published.length, 2);
+      assert.equal(published[0].price, '69 lei');
+      assert.equal(published[0].discount, 10);
+      assert.equal(published[0].imageUrl, 'https://shop-products.com/poze/gazon.webp');
+      // A percent outside 0..90 is refused instead of silently clamped.
+      must(await put([{ name: 'X', price: '69', discount: 91 }]), 400);
+      must(await put([{ name: 'X', price: '69', discount: -5 }]), 400);
+      // The product photo must belong to this site's media library.
+      must(
+        await put([{ name: 'X', price: '69', discount: 0, image: { id: 'm_000000000000000000000000' } }]),
+        400,
+      );
+      // Rows without a name are refused by the shared limits.
+      must(await put([{ name: '', price: '69' }]), 400);
+    });
+
     await t.test('permisiunile clientului limitează portalul', async () => {
       // Earlier subtests delete their sites, so this one needs its own.
       const host = 'http://permutations-client.com',
