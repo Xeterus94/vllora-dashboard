@@ -17,12 +17,15 @@ import {
   Trash2,
 } from 'lucide-react';
 import {
+  discountMax,
+  discountedPrice,
   documentLimit,
   companyFields,
   companyFieldSpec,
   fillFromSite,
   galleryLimit,
   hoursLimit,
+  productLimit,
   servicesLimit,
   type CmsFile,
   type CmsTextField,
@@ -51,6 +54,7 @@ const sections = [
   ['intro', 'Prima pagină'],
   ['brand', 'Nume și culori'],
   ['services', 'Servicii și prețuri'],
+  ['products', 'Produse (magazin)'],
   ['media', 'Galerie și fișiere'],
   ['contact', 'Program și contact'],
   ['pages', 'Toate paginile'],
@@ -305,6 +309,39 @@ export function SiteEditor({
         throw new Error('Alege o imagine.');
       setMedia((old) => [item, ...old]);
       changePage(path, { ...field, value: '', media: item });
+    });
+  };
+  // Uploaded files plus every image already attached to a product, so a file
+  // that is not in the first page of the library can still be reselected.
+  const productLibrary = [
+    ...new Map(
+      [
+        ...media.filter((file) => file.content_type.startsWith('image/')),
+        ...(draft?.products ?? [])
+          .map((product) => product.image)
+          .filter((file): file is CmsFile => !!file),
+      ].map((file) => [file.id, file]),
+    ).values(),
+  ];
+  const uploadProductImage = (index: number, file: File) => {
+    setBusyLabel('Se încarcă poza produsului…');
+    void action.run(async () => {
+      if (!file.type.startsWith('image/'))
+        throw new Error('Alege o imagine pentru produs.');
+      const { item } = await uploadMedia(mediaPath, file, 'gallery');
+      setMedia((old) => [item, ...old]);
+      setDraft(
+        (previous) =>
+          previous && {
+            ...previous,
+            products: update(previous.products, index, {
+              ...previous.products[index],
+              image: item,
+              imageUrl: '',
+            }),
+          },
+      );
+      setNotice('');
     });
   };
   const field = (
@@ -698,6 +735,53 @@ export function SiteEditor({
                 </fieldset>
                 {picker('logoMedia', 'Atașează sigla site-ului')}
                 {field('logoUrl', 'Siglă din link (rezervă)', { url: true })}
+                <div className="cms-brand-preview" aria-hidden="true">
+                  <span
+                    className="cms-brand-mark"
+                    style={{
+                      background: hexColor(draft.primaryColor)
+                        ? draft.primaryColor
+                        : 'var(--brand-primary)',
+                      color: hexColor(draft.accentColor)
+                        ? draft.accentColor
+                        : '#fff',
+                    }}
+                  >
+                    {draft.logoMedia ? (
+                      <img src={draft.logoMedia.url} alt="" />
+                    ) : (
+                      (draft.siteName || site.name)
+                        .split(/\s+/)
+                        .slice(0, 2)
+                        .map((word) => word[0]?.toUpperCase() ?? '')
+                        .join('')
+                    )}
+                  </span>
+                  <span className="stack">
+                    <strong style={{ color: draft.primaryColor || undefined }}>
+                      {draft.siteName || site.name}
+                    </strong>
+                    <span
+                      className="cms-brand-swatch"
+                      style={{
+                        background: `linear-gradient(90deg, ${
+                          hexColor(draft.primaryColor)
+                            ? draft.primaryColor
+                            : '#6b1c2e'
+                        }, ${
+                          hexColor(draft.secondaryColor)
+                            ? draft.secondaryColor
+                            : '#895c29'
+                        }, ${
+                          hexColor(draft.accentColor) ? draft.accentColor : '#f6e6bc'
+                        })`,
+                      }}
+                    />
+                    <small className="muted">
+                      Așa arată numele, sigla și paleta înainte de a publica.
+                    </small>
+                  </span>
+                </div>
                 <div className="form-grid">
                   {(
                     [
@@ -814,6 +898,210 @@ export function SiteEditor({
                   }
                 >
                   <Plus size={16} /> Adaugă serviciu
+                </button>
+              </Panel>
+            )}
+            {section === 'products' && (
+              <Panel
+                title="Produse"
+                description="Fiecare produs are nume, descriere, preț, poză și, opțional, un discount. Site-ul calculează prețul redus și taie prețul vechi; discountul de aici nu modifică prețul de bază."
+              >
+                {!draft.products.length && (
+                  <p className="cms-note">
+                    Nu există încă produse. Apasă „Importă de pe site” ca să le
+                    preia din magazinul existent, sau adaugă-le manual.
+                  </p>
+                )}
+                {draft.products.map((item, index) => {
+                  const reduced = discountedPrice(item.price, item.discount);
+                  return (
+                    <div key={index} className="cms-entry stack cms-product">
+                      <div className="section-heading">
+                        <strong>Produs {index + 1}</strong>
+                        <RowActions
+                          name={`produsul ${index + 1}`}
+                          index={index}
+                          length={draft.products.length}
+                          onRemove={() =>
+                            edit({ products: remove(draft.products, index) })
+                          }
+                          onMove={(step) =>
+                            edit({
+                              products: move(draft.products, index, step),
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="cms-product-body">
+                        <div className="cms-product-image">
+                          {item.image || item.imageUrl ? (
+                            <img
+                              src={item.image?.url || item.imageUrl}
+                              alt=""
+                              loading="lazy"
+                            />
+                          ) : (
+                            <span className="cms-note">Fără poză</span>
+                          )}
+                          <FilePicker
+                            label="Schimbă poza"
+                            inputLabel={`Încarcă poza produsului ${index + 1}`}
+                            accept="image/*"
+                            disabled={action.busy}
+                            onFiles={(files) => {
+                              const file = files[0];
+                              if (file) uploadProductImage(index, file);
+                            }}
+                          />
+                          {!!productLibrary.length && (
+                            <select
+                              aria-label={`Alege poza din bibliotecă: produsul ${index + 1}`}
+                              value=""
+                              onChange={(e) => {
+                                const file = productLibrary.find(
+                                  (candidate: CmsFile) =>
+                                    candidate.id === e.target.value,
+                                );
+                                if (file)
+                                  edit({
+                                    products: update(draft.products, index, {
+                                      ...item,
+                                      image: file,
+                                      imageUrl: '',
+                                    }),
+                                  });
+                              }}
+                            >
+                              <option value="">Din bibliotecă…</option>
+                              {productLibrary.map((file) => (
+                                <option key={file.id} value={file.id}>
+                                  {file.name}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                        <div className="stack">
+                          <div className="form-grid three">
+                            {(
+                              [
+                                ['name', 'Nume produs', 160],
+                                ['price', 'Preț întreg', 40],
+                                ['category', 'Categorie', 80],
+                              ] as const
+                            ).map(([key, label, length]) => (
+                              <Field key={key} label={`${label} ${index + 1}`}>
+                                <input
+                                  maxLength={length}
+                                  value={item[key]}
+                                  onChange={(e) =>
+                                    edit({
+                                      products: update(
+                                        draft.products,
+                                        index,
+                                        { ...item, [key]: e.target.value },
+                                      ),
+                                    })
+                                  }
+                                />
+                              </Field>
+                            ))}
+                          </div>
+                          <Field label={`Descriere produs ${index + 1}`}>
+                            <textarea
+                              rows={3}
+                              maxLength={2000}
+                              value={item.description}
+                              onChange={(e) =>
+                                edit({
+                                  products: update(draft.products, index, {
+                                    ...item,
+                                    description: e.target.value,
+                                  }),
+                                })
+                              }
+                            />
+                          </Field>
+                          <div className="cms-product-deal">
+                            <label className="cms-check">
+                              <input
+                                type="checkbox"
+                                checked={item.bestseller}
+                                onChange={(e) =>
+                                  edit({
+                                    products: update(draft.products, index, {
+                                      ...item,
+                                      bestseller: e.target.checked,
+                                    }),
+                                  })
+                                }
+                              />
+                              <span>Bestseller</span>
+                            </label>
+                            <label className="cms-discount">
+                              <span>Discount</span>
+                              <input
+                                type="number"
+                                min={0}
+                                max={discountMax}
+                                step={1}
+                                value={item.discount}
+                                onChange={(e) => {
+                                  const value = Math.round(
+                                    Number(e.target.value),
+                                  );
+                                  edit({
+                                    products: update(draft.products, index, {
+                                      ...item,
+                                      discount: Number.isFinite(value)
+                                        ? Math.min(
+                                            discountMax,
+                                            Math.max(0, value),
+                                          )
+                                        : 0,
+                                    }),
+                                  });
+                                }}
+                              />
+                              <span>%</span>
+                            </label>
+                            <p className="cms-note cms-product-price">
+                              {item.discount > 0
+                                ? reduced
+                                  ? `Se afișează ${reduced.price}, cu ${reduced.compare} tăiat.`
+                                  : 'Discountul se aplică doar dacă prețul întreg este un număr, de exemplu 69 sau 69,00.'
+                                : 'Fără discount: se afișează doar prețul întreg.'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                <button
+                  type="button"
+                  className="button secondary"
+                  disabled={draft.products.length >= productLimit}
+                  onClick={() =>
+                    edit({
+                      products: [
+                        ...draft.products,
+                        {
+                          name: '',
+                          description: '',
+                          price: '',
+                          comparePrice: '',
+                          discount: 0,
+                          bestseller: false,
+                          category: '',
+                          imageUrl: '',
+                          image: null,
+                        },
+                      ],
+                    })
+                  }
+                >
+                  <Plus size={16} /> Adaugă produs
                 </button>
               </Panel>
             )}
@@ -1107,6 +1395,40 @@ function ContentPreview({
                 <strong>{item.price}</strong>
               </div>
             ))}
+          </div>
+        )}
+        {!!content.products.length && (
+          <div className="cms-preview-copy">
+            <h4>Produse</h4>
+            <div className="cms-preview-products">
+              {content.products.slice(0, 6).map((product, i) => {
+                const reduced = discountedPrice(product.price, product.discount);
+                const image = product.image?.url || product.imageUrl;
+                return (
+                  <div className="cms-preview-product" key={i}>
+                    {image ? (
+                      <img src={image} alt="" loading="lazy" />
+                    ) : (
+                      <span className="cms-preview-product-empty" />
+                    )}
+                    {product.bestseller && (
+                      <span className="cms-preview-badge">Bestseller</span>
+                    )}
+                    {product.discount > 0 && (
+                      <span className="cms-preview-badge cms-preview-badge--deal">
+                        −{product.discount}%
+                      </span>
+                    )}
+                    <strong>{product.name || `Produs ${i + 1}`}</strong>
+                    <small className="muted">{product.category}</small>
+                    <span className="cms-preview-price">
+                      <b>{reduced?.price ?? product.price}</b>
+                      {reduced && <s>{reduced.compare}</s>}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
         {!!images.length && (

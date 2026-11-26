@@ -220,6 +220,11 @@ export function LiveSitePreview({
           ...content.gallery.map((item) => fileUrl(item.url)),
         ]),
       ],
+      // A product image can be an uploaded file or a plain URL from the site.
+      products: content.products.map((product) => ({
+        ...product,
+        image: product.image && file(product.image),
+      })),
       pages: content.pages?.map((page) => ({
         ...page,
         fields: page.fields.map((field) =>

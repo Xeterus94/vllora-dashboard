@@ -171,6 +171,41 @@ Rapoartele acceptă `days=7`, `30`, `90` sau `365`, inclusiv ziua UTC curentă. 
 
 Din editorul client sau master, **Importă de pe site** preia o propunere din HTML-ul public ori din `/.well-known/vllora-content.json`, numai pentru câmpurile/listele goale. Nu publică automat, nu descarcă imaginile în R2 și nu încearcă să ruleze JavaScript-ul site-ului; programul și serviciile pot fi descrise în manifest. **Nume și culori** controlează identitatea publică a site-ului; brandingul portalului de autentificare rămâne separat. Vezi [marcajele și formatul manifestului](integrations/static-cms/README.md).
 
+### Importul textelor din toate paginile
+
+**Importă de pe site** are două trepte. La deschiderea editorului, masterul cere inventarul de pagini; dacă site-ul publică manifestul CMS v2, primești toate paginile cu câmpurile lor. Dacă manifestul lipsește, importul propune **prima pagină** citind textele vizibile din HTML-ul public: titluri `h2`–`h4`, paragrafe, elemente de listă, citate și butoane. Fiecare text devine un câmp cu id stabil (`titlu-1`, `text-2`, `buton-1`), deci a doua importare actualizează aceleași câmpuri în loc să le dubleze, iar câmpurile editate nu sunt suprascrise.
+
+Titlul principal (`h1`) și valorile marcate deja cu `data-vllora-field` / `data-cms` merg în câmpurile principale ale site-ului, ca înainte; textele adunate în pagini nu le dublează. Pe site, câmpurile de pagină se aplică pe elementele marcate cu `data-vllora-text="id"` — vezi [ghidul adaptorului](integrations/static-cms/README.md). Pentru toate paginile, inclusiv cele generate din JavaScript, este nevoie de manifestul v2; scanarea HTML nu execută codul site-ului.
+
+### Produse (magazine online)
+
+Editorul are o secțiune **Produse (magazin)** în care fiecare produs are nume, descriere, categorie, preț întreg, poză și două opțiuni: **Bestseller** (bifă) și **Discount** (procent întreg, 0–90). Poza se încarcă din biblioteca site-ului sau se alege dintr-o poză existentă.
+
+Proprietarul magazinului salvează **un singur preț** și un procent; site-ul calculează prețul redus. De exemplu, `69 lei` cu `10%` apare ca **62.10 lei**, cu `69 lei` tăiat, iar discountul nu rescrie prețul de bază — dacă îl scoateți, revine `69 lei`. Rotunjirea se face la cent, iar zecimalele urmează formatul prețului introdus (`69,00` → `62,10`). Calculul e identic în editor (`shared/site-content.ts`), în previzualizarea din portal și în adaptorul public (`integrations/static-cms/vllora-content.js`), deci cele trei nu pot afișa sume diferite.
+
+Pentru un magazin existent, **Importă de pe site** preia produsele din manifest (`content.products`) sau din marcajul **Product / ItemList JSON-LD** al paginii și le adaugă în editor; rândurile editate nu sunt suprascrise (potrivire pe nume), iar cele existente se completează doar dacă lista e goală. Importul aduce numele, descrierea, prețul și URL-ul pozei — nu descarcă imaginile în R2; pentru stocare, alege poza din bibliotecă.
+
+Pe site, lista se randează din `<template>`, cu câmpurile `name`, `description`, `price`, `comparePrice`, `discountLabel`, `discount`, `bestseller` (bifa scrie eticheta din `data-vllora-label`) și `image` (obiect de media sau URL):
+
+```html
+<div data-vllora-list="products" data-vllora-template="product">
+  <!-- cardurile existente rămân ca rezervă -->
+</div>
+<template id="product">
+  <article class="card">
+    <img data-vllora-item="image" alt="" />
+    <span data-vllora-item="bestseller" data-vllora-label="Bestseller"></span>
+    <span data-vllora-item="discountLabel"></span>
+    <h3 data-vllora-item="name"></h3>
+    <p data-vllora-item="description"></p>
+    <b data-vllora-item="price"></b>
+    <s data-vllora-item="comparePrice"></s>
+  </article>
+</template>
+```
+
+Un câmp lipsă sau gol își elimină elementul, iar `s` și badge-urile dispar complet la produsele fără discount, ca să nu rămână un preț tăiat gol.
+
 ### Drepturi pe contul de client
 
 Fiecare cont de client primește explicit ce poate face în portal: **conținut** (editare și publicare), **bibliotecă media** (încărcare și ștergere), **statistici și rapoarte**, **notițe către echipă** și **accesul contului** (recuperarea parolei, deconectarea de pe toate dispozitivele). În panoul master → **Acces client** alegi un preset — **Administrator** (toate), **Editor** (conținut, media, statistici) sau **Doar citire** (doar statistici) — care completează bifele, apoi poți schimba orice bifă în parte; eticheta **Personalizat** apare când combinația nu corespunde unui preset. Aceleași bife sunt disponibile și la editarea unui cont existent, iar sub fiecare cont apare un rezumat al drepturilor.

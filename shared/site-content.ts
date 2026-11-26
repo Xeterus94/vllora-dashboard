@@ -53,6 +53,80 @@ export type CmsService = {
   duration: string;
 };
 export type CmsHours = { day: string; time: string };
+// A shop row. The shop owner keeps the regular price; the discount is a whole
+// percent, so the effective price is derived everywhere from these two values
+// and the site never has to store a second, drifting price.
+export type CmsProduct = {
+  name: string;
+  description: string;
+  price: string;
+  comparePrice: string;
+  discount: number;
+  bestseller: boolean;
+  category: string;
+  imageUrl: string;
+  image: CmsFile | null;
+};
+export const productLimit = 200;
+export const discountMax = 90;
+export const productFields = [
+  'name',
+  'description',
+  'price',
+  'comparePrice',
+  'discount',
+  'bestseller',
+  'category',
+  'imageUrl',
+] as const;
+// "69 lei" -> 6900, "1.234,50 lei" -> 123450, "12,50" -> 1250. Returns null
+// when the text is not a plain price, so a site can show its own text untouched.
+export function priceCents(value: string): number | null {
+  const raw = value.replace(/\u00a0/g, ' ').trim();
+  const parts = raw.match(/^(\d[\d.,\s]*?)([^\d]*)$/);
+  if (!parts || !/^[A-Za-z€$\s./]{0,12}$/.test(parts[2])) return null;
+  const number = parts[1].replace(/\s/g, '');
+  if (!/^\d[\d.,]*$/.test(number)) return null;
+  const lastDot = number.lastIndexOf('.'),
+    lastComma = number.lastIndexOf(',');
+  let whole = number,
+    fraction = '';
+  const separator = Math.max(lastDot, lastComma);
+  if (separator > -1) {
+    const tail = number.slice(separator + 1),
+      head = number.slice(0, separator).replace(/[.,]/g, '');
+    // Three digits after the last separator is a thousands group, not a decimal.
+    if (tail.length <= 2) {
+      whole = head;
+      fraction = tail;
+    } else if (tail.length === 3) whole = head + tail;
+    else return null;
+  }
+  if (!/^\d+$/.test(whole)) return null;
+  return Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
+}
+// Rounds to the nearest cent and keeps the decimals the price already had:
+// "69" with 10% -> "62,10"; "69.00" -> "62.10"; "12,50" with 20% -> "10,00".
+export function discountedPrice(
+  price: string,
+  discount: number,
+  currency = 'lei',
+): { price: string; compare: string } | null {
+  const cents = priceCents(price);
+  if (cents === null || !Number.isInteger(discount) || !discount) return null;
+  if (discount < 0 || discount > discountMax) return null;
+  const reduced = Math.round((cents * (100 - discount)) / 100);
+  if (reduced <= 0 || reduced >= cents) return null;
+  const decimals = /[.,]\d{1,2}(?:[^\d]*)$/.test(price.trim()),
+    dot = /,\d{1,2}(?:[^\d]*)$/.test(price.trim());
+  const text = (reduced / 100).toFixed(2),
+    [whole, fraction] = text.split('.');
+  const shown =
+    decimals || fraction !== '00'
+      ? `${whole}${dot ? ',' : '.'}${fraction}`
+      : whole;
+  return { price: `${shown} ${currency}`, compare: price };
+}
 export type SiteContent = Record<CmsTextField, string> & {
   images: string[];
   heroMedia: CmsFile | null;
@@ -61,6 +135,7 @@ export type SiteContent = Record<CmsTextField, string> & {
   documents: CmsFile[];
   services: CmsService[];
   hours: CmsHours[];
+  products: CmsProduct[];
   pages?: ContentPage[];
 };
 export type EditorData = { content: SiteContent; revision: string };
@@ -75,6 +150,7 @@ export type SiteImport = {
   images: string[];
   services: CmsService[];
   hours: CmsHours[];
+  products: CmsProduct[];
   pages?: ContentPage[];
 };
 
@@ -125,6 +201,28 @@ export function fillFromSite(draft: SiteContent, source: SiteImport) {
   }
   if (!draft.services.length) next.services = source.services;
   if (!draft.hours.length) next.hours = source.hours;
+  if (source.products?.length) {
+    // Never overwrite an edited row: match on the name, keep what exists and
+    // append what the site has but the editor does not.
+    const known = new Set(
+      draft.products.map((product) => product.name.trim().toLowerCase()),
+    );
+    const added = source.products.filter(
+      (product) => !known.has(product.name.trim().toLowerCase()),
+    );
+    if (added.length)
+      next.products = [
+        ...draft.products,
+        ...added
+          .slice(0, Math.max(0, productLimit - draft.products.length))
+          .map((product) => ({
+            ...product,
+            image: null,
+            discount: product.discount ?? 0,
+            bestseller: product.bestseller === true,
+          })),
+      ];
+  }
   if (source.pages?.length) next.pages = mergePages(draft.pages ?? [], source.pages);
   return next;
 }

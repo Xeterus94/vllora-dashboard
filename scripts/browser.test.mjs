@@ -1187,6 +1187,10 @@ test(
       <a data-vllora-link="bookingUrl" href="https://example.org/booking">Rezervă</a>
       <div data-vllora-list="services" data-vllora-template="service"><p>Rezervă existentă</p></div>
       <template id="service"><p data-vllora-item="name"></p></template>
+      <div data-vllora-list="products" data-vllora-template="produ"><p>Card existent</p></div>
+      <template id="produ"><article class="card"><img data-vllora-item="image" alt=""><b data-vllora-item="name"></b>
+        <span data-vllora-item="price"></span><s data-vllora-item="comparePrice"></s>
+        <i data-vllora-item="discountLabel"></i><em data-vllora-item="bestseller" data-vllora-label="Bestseller"></em></article></template>
       <footer><div data-vllora-field="companyName"></div><div data-vllora-field="companyCui"></div></footer>
       </main><script defer src="/vllora-content.js" data-api="https://cms.example.org/api/content"></script>`;
     const adapter = await readFile(
@@ -1213,6 +1217,16 @@ test(
             companyCui: 'RO12345678',
             logoUrl: 'https://img.example.org/logo.webp',
             services: [{ name: 'Tuns actualizat' }],
+            products: [
+              {
+                name: 'Amestec gazon',
+                price: '69 lei',
+                discount: 10,
+                bestseller: true,
+                image: { url: 'https://img.example.org/gazon.webp' },
+              },
+              { name: 'Îngrășământ', price: '85 lei', discount: 0 },
+            ],
             bookingUrl: 'javascript:void(0)',
           },
         },
@@ -1224,6 +1238,22 @@ test(
       .getByRole('heading', { name: '<em>Text literal</em>' })
       .waitFor();
     await publicSite.getByText('Tuns actualizat', { exact: true }).waitFor();
+    // A discounted product shows the reduced price and strikes the regular one.
+    const deal = publicSite.locator('.card').first();
+    await deal.getByText('62.10 lei', { exact: true }).waitFor();
+    assert.equal(await deal.locator('s').innerText(), '69 lei');
+    assert.equal(await deal.locator('i').innerText(), '−10%');
+    assert.equal(await deal.locator('em').innerText(), 'Bestseller');
+    assert.equal(
+      await deal.locator('img').getAttribute('src'),
+      'https://img.example.org/gazon.webp',
+    );
+    // Without a discount the struck price and the badge are removed, not empty.
+    const plain = publicSite.locator('.card').nth(1);
+    assert.equal(await plain.locator('s').count(), 0);
+    assert.equal(await plain.locator('i').count(), 0);
+    assert.equal(await plain.locator('em').count(), 0);
+    assert.equal(await plain.getByText('85 lei', { exact: true }).count(), 1);
     assert.equal(await publicSite.locator('h1 em').count(), 0);
     await publicSite.getByText('Nume nou', { exact: true }).waitFor();
     await publicSite
