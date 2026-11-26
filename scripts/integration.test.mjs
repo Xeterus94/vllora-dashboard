@@ -15,7 +15,8 @@ const platform = 'http://localhost',
   first = 'http://siteclient.com',
   second = 'http://other-client.com';
 const admin = '/api/admin';
-const portal = '/admin/api/portal';
+const portal = '/admin/api/portal',
+  denied = 'Nu ai permisiunea necesară pentru această acțiune.';
 const settings = {
   profile: 'ecommerce',
   selected: [
@@ -1002,5 +1003,96 @@ test(
         must(await adminCall(`/sites/${other.id}`, { method: 'DELETE' }), 200);
       },
     );
+
+    await t.test('permisiunile clientului limitează portalul', async () => {
+      // Earlier subtests delete their sites, so this one needs its own.
+      const host = 'http://permutations-client.com',
+        fresh = must(
+          await adminCall('/sites', send({ domain: 'permutations-client.com' })),
+          201,
+        ).json.site;
+      const created = must(
+        await adminCall(
+          `/sites/${fresh.id}/users`,
+          send({
+            username: 'perm.viewer',
+            name: 'Vizitator',
+            email: 'viewer@example.com',
+            permissions: ['stats'],
+          }),
+        ),
+        201,
+      ).json;
+      assert.deepEqual(created.user.permissions, ['stats']);
+      const viewerId = created.user.id,
+        temp = created.temporary_password,
+        login = must(
+          await call(
+            mf,
+            host,
+            '/admin/api/auth/login',
+            send({ username: 'perm.viewer', password: temp }),
+          ),
+          200,
+        ),
+        cookie = must(
+          await call(
+            mf,
+            host,
+            '/admin/api/auth/change-password',
+            send(
+              { current_password: temp, new_password: 'ViewerOnly1!' },
+              { cookie: login.cookie },
+            ),
+          ),
+          200,
+        ).cookie,
+        asViewer = (path, o = {}) =>
+          call(mf, host, `${portal}${path}`, { ...o, cookie }),
+        forbidden = async (path, o) =>
+          assert.equal(
+            must(await asViewer(path, o), 403).json.error,
+            denied,
+            path,
+          ),
+        grant = async (permissions) =>
+          must(
+            await adminCall(`/users/${viewerId}`, {
+              method: 'PATCH',
+              body: { permissions },
+            }),
+            200,
+          ).json.user.permissions;
+
+      must(await asViewer('/stats?days=30'), 200);
+      must(await asViewer('/metrics?days=30'), 200);
+      await forbidden('/content');
+      await forbidden('/content', {
+        method: 'PUT',
+        body: { content: {}, revision: 'x' },
+      });
+      await forbidden('/media');
+      await forbidden('/site', { method: 'PATCH', body: { notes: 'x' } });
+
+      // Granted and revoked again, without signing the client out.
+      // The stored list comes back in the canonical order of the catalogue.
+      assert.deepEqual(await grant(['stats', 'content']), ['content', 'stats']);
+      must(await asViewer('/content'), 200);
+      await forbidden('/media');
+      assert.deepEqual(await grant(['stats']), ['stats']);
+      await forbidden('/content');
+
+      // Garbage keeps what is stored; the full set restores the old behaviour.
+      assert.deepEqual(await grant('toate'), ['stats']);
+      await forbidden('/content');
+      assert.equal((await grant(['content', 'media', 'stats'])).length, 3);
+      must(await asViewer('/content'), 200);
+      must(await asViewer('/media'), 200);
+      assert.ok(
+        must(await adminCall('/audit'), 200).json.entries.some(
+          (x) => x.action === 'client_permissions_changed',
+        ),
+      );
+    });
   },
 );

@@ -40,8 +40,27 @@ export function PortalDashboard({
     }>(),
     [error, setError] = useState(''),
     [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'overview' | 'editor' | 'media' | 'account'>(
-    'overview',
+  const granted = identity.user.permissions ?? [];
+  type PortalTab = 'overview' | 'editor' | 'media' | 'account';
+  const catalogue: [PortalTab, string, typeof LayoutDashboard][] = [
+    ['overview', 'Prezentare', LayoutDashboard],
+    ['editor', 'Editează site-ul', LayoutTemplate],
+    ['media', 'Bibliotecă media', Images],
+    ['account', 'Cont și notițe', UserRound],
+  ];
+  // A tab appears only when the matching permission is granted; the API enforces
+  // the same set, so hiding is a convenience, not the protection.
+  const allowedTabs = catalogue.filter(([id]) =>
+    id === 'overview'
+      ? granted.includes('stats')
+      : id === 'editor'
+        ? granted.includes('content')
+        : id === 'media'
+          ? granted.includes('media')
+          : granted.includes('notes') || granted.includes('access'),
+  );
+  const [tab, setTab] = useState<PortalTab>(
+    allowedTabs[0]?.[0] ?? 'account',
   );
   const [editorDirty, setEditorDirty] = useState(false);
   const canLeaveEditor = () =>
@@ -53,13 +72,19 @@ export function PortalDashboard({
     let active = true;
     const load = async () => {
       try {
+        // Without the stats permission the API refuses, so do not ask at all.
+        const canSeeStats = identity.user.permissions?.includes('stats');
         const [stats, report, { site: newSite }] = await Promise.all([
-          request<Stats>(`/portal/stats?days=${days}`),
-          request<BusinessReport>(`/portal/metrics?days=${days}`),
+          canSeeStats
+            ? request<Stats>(`/portal/stats?days=${days}`)
+            : Promise.resolve(null),
+          canSeeStats
+            ? request<BusinessReport>(`/portal/metrics?days=${days}`)
+            : Promise.resolve(null),
           request<{ site: Site }>('/portal/me'),
         ]);
         if (active) {
-          setReport({ stats, report });
+          if (stats && report) setReport({ stats, report });
           setSite(newSite);
           setError('');
         }
@@ -123,14 +148,7 @@ export function PortalDashboard({
           <span className="badge">{identity.user.name}</span>
         </div>
         <nav className="tabs portal-tabs" aria-label="Portal">
-          {(
-            [
-              ['overview', 'Prezentare', LayoutDashboard],
-              ['editor', 'Editează site-ul', LayoutTemplate],
-              ['media', 'Bibliotecă media', Images],
-              ['account', 'Cont și notițe', UserRound],
-            ] as const
-          ).map(([id, label, Icon]) => (
+          {allowedTabs.map(([id, label, Icon]) => (
             <button
               key={id}
               aria-current={tab === id ? 'page' : undefined}
@@ -173,12 +191,16 @@ export function PortalDashboard({
           </>
         )}
         {tab === 'editor' && (
-          <SiteEditor site={site} onDirty={setEditorDirty} />
+          <SiteEditor
+            site={site}
+            onDirty={setEditorDirty}
+            mediaAllowed={granted.includes('media')}
+          />
         )}
         {tab === 'media' && (
           <MediaLibrary onChange={() => setRefresh((v) => v + 1)} />
         )}
-        {tab === 'account' && (
+        {tab === 'account' && granted.includes('notes') && (
           <>
             <Panel title="Notițe către echipă">
               <form
@@ -218,19 +240,21 @@ export function PortalDashboard({
                 </div>
               </form>
             </Panel>
-            <Panel
-              title="Sesiunile contului"
-              description={identity.user.email || identity.user.username}
-            >
-              <button
-                className="button secondary"
-                disabled={action.busy}
-                onClick={() => logout(true)}
-              >
-                Deconectează toate dispozitivele
-              </button>
-            </Panel>
           </>
+        )}
+        {tab === 'account' && granted.includes('access') && (
+          <Panel
+            title="Sesiunile contului"
+            description={identity.user.email || identity.user.username}
+          >
+            <button
+              className="button secondary"
+              disabled={action.busy}
+              onClick={() => logout(true)}
+            >
+              Deconectează toate dispozitivele
+            </button>
+          </Panel>
         )}
       </main>
     </div>

@@ -15,6 +15,15 @@ import {
 } from 'lucide-react';
 import { profileSettings, type MetricSettings } from '../../shared/metrics';
 import {
+  permissionIds,
+  permissions,
+  presetFor,
+  presetIds,
+  presets,
+  type Permission,
+  type PresetId,
+} from '../../shared/permissions';
+import {
   adminSite,
   adminUser,
   ApiError,
@@ -120,7 +129,12 @@ function Accounts({
   reload: () => Promise<void>;
 }) {
   const [secret, setSecret] = useState<{ name: string; value: string }>(),
-    [editing, setEditing] = useState('');
+    [editing, setEditing] = useState(''),
+    [editedGrants, setEditedGrants] = useState<Permission[]>([]);
+  // New accounts start as Administrator, which is what they could do before.
+  const [grants, setGrants] = useState<Permission[]>([
+    ...presets.admin.permissions,
+  ]);
   const action = useAction(),
     path = adminSite(detail.site.id);
   const create = (e: FormEvent<HTMLFormElement>) => {
@@ -136,6 +150,7 @@ function Accounts({
           username: data.get('username'),
           name: data.get('name') || data.get('username'),
           email: data.get('email'),
+          permissions: grants,
         },
       );
       setSecret({
@@ -143,6 +158,7 @@ function Accounts({
         value: result.temporary_password,
       });
       form.reset();
+      setGrants([...presets.admin.permissions]);
       await reload();
     });
   };
@@ -177,6 +193,11 @@ function Accounts({
             <input name="email" type="email" maxLength={254} />
           </Field>
         </div>
+        <Permissions
+          value={grants}
+          onChange={setGrants}
+          idPrefix="new-user"
+        />
         <div>
           <button className="button primary" disabled={action.busy}>
             <KeyRound size={16} /> Generează acces
@@ -197,14 +218,26 @@ function Accounts({
                       ? ' · parolă temporară activă'
                       : ''}
                   </p>
+                  <p className="permission-summary">
+                    {presetFor(user.permissions) === 'custom'
+                      ? 'Drepturi personalizate'
+                      : presets[presetFor(user.permissions) as PresetId].label}
+                    {' · '}
+                    {user.permissions.length
+                      ? user.permissions
+                          .map((id) => permissions[id])
+                          .join(', ')
+                      : 'fără nicio acțiune'}
+                  </p>
                 </div>
                 <div className="controls">
                   <button
                     className="button secondary small"
                     disabled={action.busy}
-                    onClick={() =>
-                      setEditing(editing === user.id ? '' : user.id)
-                    }
+                    onClick={() => {
+                      setEditedGrants([...user.permissions]);
+                      setEditing(editing === user.id ? '' : user.id);
+                    }}
                   >
                     Editează
                   </button>
@@ -258,6 +291,7 @@ function Accounts({
                       await request(adminUser(user.id), 'PATCH', {
                         name: data.get('name'),
                         email: data.get('email'),
+                        permissions: editedGrants,
                       });
                       setEditing('');
                       await reload();
@@ -280,6 +314,11 @@ function Accounts({
                       maxLength={254}
                     />
                   </Field>
+                  <Permissions
+                    value={editedGrants}
+                    onChange={setEditedGrants}
+                    idPrefix={`user-${user.id}`}
+                  />
                   <button className="button primary" disabled={action.busy}>
                     Salvează contul
                   </button>
@@ -294,6 +333,70 @@ function Accounts({
     </Panel>
   );
 }
+// Presets fill the checkboxes; any checkbox can still be changed afterwards, and
+// the label switches to "Personalizat" as soon as the set no longer matches one.
+function Permissions({
+  value,
+  onChange,
+  idPrefix,
+}: {
+  value: Permission[];
+  onChange: (next: Permission[]) => void;
+  idPrefix: string;
+}) {
+  const chosen = presetFor(value);
+  const toggle = (id: Permission) =>
+    onChange(
+      value.includes(id)
+        ? value.filter((item) => item !== id)
+        : [...permissionIds].filter((item) => item === id || value.includes(item)),
+    );
+  return (
+    <fieldset className="permissions">
+      <legend className="lbl">Ce poate face în portal</legend>
+      <div className="permission-presets" role="group" aria-label="Preseturi">
+        {presetIds.map((id) => (
+          <button
+            key={id}
+            type="button"
+            className="button secondary small"
+            aria-pressed={chosen === id}
+            title={presets[id].description}
+            onClick={() => onChange([...presets[id].permissions])}
+          >
+            {presets[id].label}
+          </button>
+        ))}
+        {chosen === 'custom' && (
+          <span className="badge" aria-live="polite">
+            Personalizat
+          </span>
+        )}
+      </div>
+      <div className="permission-rows">
+        {permissionIds.map((id) => {
+          const input = `${idPrefix}-${id}`;
+          return (
+            <label key={id} htmlFor={input} className="permission-row">
+              <input
+                id={input}
+                type="checkbox"
+                checked={value.includes(id)}
+                onChange={() => toggle(id)}
+              />
+              <span>{permissions[id]}</span>
+            </label>
+          );
+        })}
+      </div>
+      <p className="permission-hint">
+        Fără „Editează conținutul” nu poate publica, iar fără „Bibliotecă media”
+        nu poate încărca poze. Serverul refuză acțiunile lipsă, nu doar ecranul.
+      </p>
+    </fieldset>
+  );
+}
+
 type CertificateState = CertificateReport['state'];
 const certificateLabels: Record<CertificateState, string> = {
   active: 'Certificat valid',

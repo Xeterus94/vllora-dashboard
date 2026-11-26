@@ -767,6 +767,7 @@ th {
 .cms-pinned-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good, #2f9e63); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good, #2f9e63) 22%, transparent); }
 .cms-pinned-status[data-dirty='true'] .cms-pinned-dot { background: var(--warn, #c98a00); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn, #c98a00) 22%, transparent); }
 .cms-pinned-note { margin: 0; font-size: .78rem; color: var(--muted); }
+.cms-note { font-size: .82rem; color: var(--muted); }
 .cms-pinned .cms-live-frame { height: clamp(320px, 62vh, 900px); border-radius: 10px; }
 .cms-pinned .cms-live-frame.cms-live-narrow { max-width: 360px; }
 .cms-pinned-narrow .cms-live-frame { height: clamp(380px, 70vh, 900px); }
@@ -788,6 +789,18 @@ th {
 .cms-company { margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
 .cms-company legend { padding: 0 5px; font-weight: 600; }
 .cms-company-footer { background: var(--subtle); }
+
+/* Client permissions: a preset fills the checkboxes, each one stays editable. */
+.permissions { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin: 0; min-width: 0; }
+.permissions legend { padding: 0 6px; font-weight: 600; }
+.permission-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-bottom: 10px; }
+.permission-presets .button[aria-pressed='true'] { background: var(--brand-primary); color: var(--brand-ink); border-color: transparent; }
+.permission-rows { display: grid; gap: 6px; }
+.permission-row { display: flex; align-items: flex-start; gap: 9px; font-size: .9rem; padding: 5px 6px; border-radius: 8px; }
+.permission-row:hover { background: var(--subtle); }
+.permission-row input { margin-top: 2px; width: 17px; height: 17px; accent-color: var(--brand-primary); flex: 0 0 auto; }
+.permission-hint { margin: 9px 0 0; font-size: .78rem; color: var(--muted); }
+.permission-summary { margin: 3px 0 0; font-size: .78rem; color: var(--muted); }
 
 /* Site administration rows used by the staff site detail page. */
 .admin-rows { display: grid; gap: 9px; }

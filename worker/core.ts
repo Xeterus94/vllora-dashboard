@@ -1,5 +1,6 @@
 import type { Context } from 'hono';
 import { HTTPException } from 'hono/http-exception';
+import { storedPermissions } from '../shared/permissions';
 
 export interface Env {
   DB: D1Database;
@@ -61,6 +62,7 @@ export interface User {
   password_hash: string;
   password_version: number;
   must_change_password: number;
+  permissions?: string | null;
   created_at: number;
 }
 export type Bindings = {
@@ -184,6 +186,8 @@ export const userView = (user: User) => ({
   role: user.role,
   client_id: user.client_id,
   must_change_password: Boolean(user.must_change_password),
+  permissions:
+    user.role === 'client_admin' ? storedPermissions(user.permissions) : [],
 });
 export async function readBytes(input: Request | Response, limit: number) {
   if (Number(input.headers.get('content-length')) > limit)

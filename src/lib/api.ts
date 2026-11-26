@@ -1,5 +1,6 @@
 import type { CompanyData } from '../../shared/site-content';
 import type { PortalBrand } from '../../shared/portal-brand';
+import type { Permission } from '../../shared/permissions';
 import type { MetricId, MetricSettings } from '../../shared/metrics';
 import { webImage, type MediaPurpose } from './web-image';
 
@@ -25,6 +26,7 @@ export type User = {
   role: 'super_admin' | 'client_admin';
   client_id: string | null;
   must_change_password: boolean;
+  permissions: Permission[];
 };
 export type Identity = {
   user: User;

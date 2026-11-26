@@ -7,6 +7,7 @@ import {
   type PortalBrand,
 } from '../shared/portal-brand';
 import { PORTAL_ADMIN_PATH } from '../shared/portal-paths';
+import { storedPermissions, type Permission } from '../shared/permissions';
 import { admin } from './admin';
 import { auth, bootstrap, requireRole } from './auth';
 import {
@@ -120,16 +121,25 @@ portal.use('*', async (c, next) => {
   await next();
 });
 const tenantId = (c: Parameters<typeof range>[0]) => c.get('user').client_id!;
+// The client UI hides these, but the API is what actually refuses.
+const allow = (c: Ctx, permission: Permission) => {
+  const granted = storedPermissions(c.get('user').permissions);
+  if (!granted.includes(permission))
+    return fail(403, 'Nu ai permisiunea necesară pentru această acțiune.');
+};
 portal.get('/me', (c) =>
   c.json({ site: siteView(c.env, c.get('tenant')!, false, '/admin') }),
 );
-portal.get('/stats', async (c) =>
-  c.json(await trafficStats(c.env, tenantId(c), range(c))),
-);
-portal.get('/metrics', async (c) =>
-  c.json(await businessReport(c.env, tenantId(c), range(c))),
-);
+portal.get('/stats', async (c) => {
+  allow(c, 'stats');
+  return c.json(await trafficStats(c.env, tenantId(c), range(c)));
+});
+portal.get('/metrics', async (c) => {
+  allow(c, 'stats');
+  return c.json(await businessReport(c.env, tenantId(c), range(c)));
+});
 portal.patch('/site', async (c) => {
+  allow(c, 'notes');
   const notes = text((await json(c, 8192)).notes, 3000, 'Notițe', true),
     id = tenantId(c);
   await c.env.DB.batch([
@@ -143,14 +153,30 @@ portal.patch('/site', async (c) => {
   ]);
   return c.json({ notes });
 });
-portal.get('/content', (c) => editorContent(c, tenantId(c)));
-portal.post('/content/import', (c) => inspectSite(c, c.get('tenant')!));
-portal.put('/content', (c) => publishContent(c, tenantId(c)));
-portal.get('/media', (c) => listMedia(c, tenantId(c), '/admin'));
-portal.post('/media', (c) => upload(c, tenantId(c), '/admin'));
-portal.delete('/media/:id', (c) =>
-  removeImage(c, tenantId(c), c.req.param('id')),
-);
+portal.get('/content', (c) => {
+  allow(c, 'content');
+  return editorContent(c, tenantId(c));
+});
+portal.post('/content/import', (c) => {
+  allow(c, 'content');
+  return inspectSite(c, c.get('tenant')!);
+});
+portal.put('/content', (c) => {
+  allow(c, 'content');
+  return publishContent(c, tenantId(c));
+});
+portal.get('/media', (c) => {
+  allow(c, 'media');
+  return listMedia(c, tenantId(c), '/admin');
+});
+portal.post('/media', (c) => {
+  allow(c, 'media');
+  return upload(c, tenantId(c), '/admin');
+});
+portal.delete('/media/:id', (c) => {
+  allow(c, 'media');
+  return removeImage(c, tenantId(c), c.req.param('id'));
+});
 api.route('/portal', portal);
 worker.route('/api', api);
 worker.get('/track.js', (c) => {

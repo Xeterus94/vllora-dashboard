@@ -1115,6 +1115,70 @@ test(
       .waitFor();
     await login(client, 'client.ui', 'NewClientUi1!');
     await client.getByRole('heading', { name: 'Bluebird Studio' }).waitFor();
+
+    // A client granted only "Doar citire" gets the overview and nothing else,
+    // and the API backs that up: hidden actions are refused, not just invisible.
+    const staffCookie = (await master.context().cookies())
+      .map((c) => `${c.name}=${c.value}`)
+      .join('; ');
+    const sites = (
+      await call(env.mf, masterOrigin, '/api/admin/sites', {
+        cookie: staffCookie,
+      })
+    ).json.sites;
+    const bluebird = sites.find((s) => s.domain === 'siteclient.com');
+    const viewer = (
+      await call(env.mf, masterOrigin, `/api/admin/sites/${bluebird.id}/users`, {
+        method: 'POST',
+        cookie: staffCookie,
+        body: {
+          username: 'client.reader',
+          name: 'Doar Citire',
+          email: 'reader@example.com',
+          permissions: ['stats'],
+        },
+      })
+    ).json;
+    const readerWatch = await browser.newPage({
+      viewport: { width: 1200, height: 900 },
+    });
+    t.after(() => readerWatch.close());
+    await readerWatch.goto(`${tenantOrigin}/admin/`);
+    await login(readerWatch, 'client.reader', viewer.temporary_password);
+    await readerWatch
+      .getByRole('heading', { name: 'Setează-ți parola' })
+      .waitFor();
+    await readerWatch
+      .getByLabel('Parola temporară', { exact: true })
+      .fill(viewer.temporary_password);
+    await readerWatch
+      .getByLabel('Parolă nouă', { exact: false })
+      .fill('ClientReader1!');
+    await readerWatch
+      .getByLabel('Confirmă parola', { exact: true })
+      .fill('ClientReader1!');
+    await readerWatch.getByRole('button', { name: 'Salvează parola' }).click();
+    await readerWatch
+      .getByRole('heading', { name: 'Bluebird Studio' })
+      .waitFor();
+    assert.deepEqual(
+      (await readerWatch.locator('.portal-tabs button').allTextContents()).map(
+        (label) => label.trim(),
+      ),
+      ['Prezentare'],
+    );
+    // The same page refuses the hidden work when asked directly.
+    assert.equal(
+      await readerWatch.evaluate(
+        async () =>
+          (
+            await fetch('/admin/api/portal/media', {
+              headers: { Accept: 'application/json' },
+            })
+          ).status,
+      ),
+      403,
+    );
     // Exercise the public-site adapter separately; it must not inject markup or unsafe links.
     const publicSite = await browser.newPage();
     t.after(() => publicSite.close());
