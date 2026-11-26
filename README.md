@@ -171,6 +171,12 @@ Rapoartele acceptă `days=7`, `30`, `90` sau `365`, inclusiv ziua UTC curentă. 
 
 Din editorul client sau master, **Importă de pe site** preia o propunere din HTML-ul public ori din `/.well-known/vllora-content.json`, numai pentru câmpurile/listele goale. Nu publică automat, nu descarcă imaginile în R2 și nu încearcă să ruleze JavaScript-ul site-ului; programul și serviciile pot fi descrise în manifest. **Nume și culori** controlează identitatea publică a site-ului; brandingul portalului de autentificare rămâne separat. Vezi [marcajele și formatul manifestului](integrations/static-cms/README.md).
 
+### Importul textelor din toate paginile
+
+**Importă de pe site** are două trepte. La deschiderea editorului, masterul cere inventarul de pagini; dacă site-ul publică manifestul CMS v2, primești toate paginile cu câmpurile lor. Dacă manifestul lipsește, importul propune **prima pagină** citind textele vizibile din HTML-ul public: titluri `h2`–`h4`, paragrafe, elemente de listă, citate și butoane. Fiecare text devine un câmp cu id stabil (`titlu-1`, `text-2`, `buton-1`), deci a doua importare actualizează aceleași câmpuri în loc să le dubleze, iar câmpurile editate nu sunt suprascrise.
+
+Titlul principal (`h1`) și valorile marcate deja cu `data-vllora-field` / `data-cms` merg în câmpurile principale ale site-ului, ca înainte; textele adunate în pagini nu le dublează. Pe site, câmpurile de pagină se aplică pe elementele marcate cu `data-vllora-text="id"` — vezi [ghidul adaptorului](integrations/static-cms/README.md). Pentru toate paginile, inclusiv cele generate din JavaScript, este nevoie de manifestul v2; scanarea HTML nu execută codul site-ului.
+
 ### Produse (magazine online)
 
 Editorul are o secțiune **Produse (magazin)** în care fiecare produs are nume, descriere, categorie, preț întreg, poză și două opțiuni: **Bestseller** (bifă) și **Discount** (procent întreg, 0–90). Poza se încarcă din biblioteca site-ului sau se alege dintr-o poză existentă.

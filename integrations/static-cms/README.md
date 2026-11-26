@@ -120,6 +120,8 @@ Site-urile cu adaptor propriu trebuie să citească aceste patru chei noi din `c
 
 ## Toate paginile în master (manifest CMS v2)
 
+Fără manifest, **Importă de pe site** propune totuși prima pagină, citind textele vizibile din HTML: titluri (`h1`–`h4`), paragrafe, elemente de listă, citate și butoane. Fiecare text devine un câmp cu id stabil (`titlu-1`, `text-2`, `buton-1`), deci o a doua importare actualizează aceleași câmpuri în loc să le dubleze, iar rândurile editate nu sunt suprascrise. Pe site, aceste câmpuri se aplică pe elementele marcate cu `data-vllora-text` (vezi mai jos). Pentru celelalte pagini, generează manifestul v2 — scanarea automată citește doar prima pagină.
+
 În master, deschide **Conținut site (CMS) → Deschide editorul vizual → Toate paginile**. La deschidere, editorul caută automat inventarul v2 și precompletează câmpurile noi cu valorile originale. Importul nu suprascrie câmpurile deja conectate și modificate, inclusiv imaginile eliminate. Nimic nu apare public până la **Publică modificările**. Importul v1 și fallbackul primei pagini rămân disponibile.
 
 ### Leagă designul și datele de editor

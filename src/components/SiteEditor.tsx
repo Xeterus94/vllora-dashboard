@@ -735,6 +735,53 @@ export function SiteEditor({
                 </fieldset>
                 {picker('logoMedia', 'Atașează sigla site-ului')}
                 {field('logoUrl', 'Siglă din link (rezervă)', { url: true })}
+                <div className="cms-brand-preview" aria-hidden="true">
+                  <span
+                    className="cms-brand-mark"
+                    style={{
+                      background: hexColor(draft.primaryColor)
+                        ? draft.primaryColor
+                        : 'var(--brand-primary)',
+                      color: hexColor(draft.accentColor)
+                        ? draft.accentColor
+                        : '#fff',
+                    }}
+                  >
+                    {draft.logoMedia ? (
+                      <img src={draft.logoMedia.url} alt="" />
+                    ) : (
+                      (draft.siteName || site.name)
+                        .split(/\s+/)
+                        .slice(0, 2)
+                        .map((word) => word[0]?.toUpperCase() ?? '')
+                        .join('')
+                    )}
+                  </span>
+                  <span className="stack">
+                    <strong style={{ color: draft.primaryColor || undefined }}>
+                      {draft.siteName || site.name}
+                    </strong>
+                    <span
+                      className="cms-brand-swatch"
+                      style={{
+                        background: `linear-gradient(90deg, ${
+                          hexColor(draft.primaryColor)
+                            ? draft.primaryColor
+                            : '#6b1c2e'
+                        }, ${
+                          hexColor(draft.secondaryColor)
+                            ? draft.secondaryColor
+                            : '#895c29'
+                        }, ${
+                          hexColor(draft.accentColor) ? draft.accentColor : '#f6e6bc'
+                        })`,
+                      }}
+                    />
+                    <small className="muted">
+                      Așa arată numele, sigla și paleta înainte de a publica.
+                    </small>
+                  </span>
+                </div>
                 <div className="form-grid">
                   {(
                     [

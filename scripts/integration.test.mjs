@@ -1004,6 +1004,32 @@ test(
       },
     );
 
+    await t.test('importul propune textele paginii ca pagini CMS', async () => {
+      const shop = must(
+        await adminCall('/sites', send({ domain: 'copy-import.com' })),
+        201,
+      ).json.site;
+      const result = must(
+        await adminCall(`/sites/${shop.id}/content/import?pages=1`, {
+          method: 'POST',
+        }),
+        200,
+      ).json;
+      // The test runtime answers the public page with fixture HTML, so the only
+      // guarantee here is the shape: no crash, a list, stable field ids.
+      assert.ok(Array.isArray(result.pages));
+      for (const page of result.pages) {
+        assert.equal(page.path, '/');
+        assert.ok(page.fields.length <= 40);
+        const ids = page.fields.map((field) => field.id);
+        assert.equal(new Set(ids).size, ids.length, 'ids must be unique');
+        for (const field of page.fields) {
+          assert.equal(field.kind, 'text');
+          assert.ok(field.value.length >= 3);
+        }
+      }
+    });
+
     await t.test('produse: discount, bestseller și poză din bibliotecă', async () => {
       const shop = must(
         await adminCall('/sites', send({ domain: 'shop-products.com' })),

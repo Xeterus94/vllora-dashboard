@@ -13,7 +13,7 @@ import { absolute, discoveredColor, discovery, external } from './branding';
 import { fail, rate, type Ctx } from './core';
 import { fieldText } from './site-content';
 import { normalizePages, pagePayloadLimit } from './site-pages';
-import type { ContentPage } from '../shared/site-pages';
+import type { ContentPage, PageField } from '../shared/site-pages';
 
 const clean = (value: unknown, limit = 1200) =>
   typeof value === 'string'
@@ -142,6 +142,15 @@ async function readHtml(bytes: Uint8Array) {
   const explicit: string[] = [],
     gallery: string[] = [],
     jsonLd: Record<string, unknown>[] = [];
+  // Visible copy, so a site without CMS markup still lands in the page editor.
+  // Only short text nodes are kept and everything is re-cleaned by normalize.
+  const copy: { label: string; value: string }[] = [];
+  const remember = (label: string, value: string | null | undefined) => {
+    const text = (value ?? '').replace(/\s+/g, ' ').trim();
+    if (!text || text.length < 3 || text.length > 600) return;
+    if (copy.some((row) => row.value === text)) return;
+    if (copy.length < 120) copy.push({ label, value: text });
+  };
   const capture = (
     selector: string,
     getKey: (el: Element) => string | null,
@@ -181,6 +190,18 @@ async function readHtml(bytes: Uint8Array) {
     email: 'email',
     adresa: 'address',
     address: 'address',
+  };
+  const copyOf = (label: string) => {
+    let value = '';
+    return {
+      element(el: Element) {
+        value = '';
+        el.onEndTag(() => remember(label, value));
+      },
+      text(chunk: { text: string }) {
+        value += chunk.text;
+      },
+    };
   };
   const rewriter = new HTMLRewriter();
   for (const { selector, handler } of [
@@ -238,6 +259,12 @@ async function readHtml(bytes: Uint8Array) {
         if (src && explicit.length < galleryLimit * 2) explicit.push(src);
       },
     })
+    // Independent buffer per element: the capture handlers above keep their own
+    // state, so nothing here can swallow a title.
+    // h1 is captured above into heroTitle; here only the remaining headings.
+    .on('h2, h3, h4', copyOf('Titlu'))
+    .on('p:not([data-cms]), li, blockquote', copyOf('Text'))
+    .on('a[href], button', copyOf('Buton'))
     .on('script[type="application/ld+json"]', {
       text(t) {
         if (jsonLd.length >= productLimit) return;
@@ -271,7 +298,38 @@ async function readHtml(bytes: Uint8Array) {
     )
     .arrayBuffer();
   if (jsonLd.length) raw.jsonLdProducts = jsonLd;
-  return { basic, raw, images: explicit.length ? explicit : gallery };
+  return {
+    basic,
+    raw,
+    images: explicit.length ? explicit : gallery,
+    copy: copy.slice(0, 40),
+  };
+}
+
+// Turns detected copy into CMS page fields. Ids stay stable for the same label so
+// a second import updates the same fields instead of duplicating them.
+export function pageFromCopy(
+  path: string,
+  title: string,
+  copy: { label: string; value: string }[],
+): ContentPage | null {
+  const fields: PageField[] = [],
+    used = new Set<string>();
+  for (const row of copy.slice(0, 40)) {
+    const base = (row.label === 'Titlu' ? 'titlu' : row.label === 'Buton' ? 'buton' : 'text')
+      .toLowerCase();
+    let index = 1,
+      id = `${base}-${index}`;
+    while (used.has(id)) id = `${base}-${++index}`;
+    used.add(id);
+    fields.push({
+      id,
+      label: `${row.label} ${index}`.replace(/\s+/, ' '),
+      kind: 'text',
+      value: row.value,
+    });
+  }
+  return fields.length ? { path, title, fields } : null;
 }
 
 // Product / ItemList JSON-LD is the most common machine-readable shop markup.
@@ -365,9 +423,17 @@ export async function inspectSite(
     .catch(() => null);
   if (c.req.query('pages') === '1') {
     const manifest = await manifestRequest;
-    return c.json(
-      manifest?.pages ? manifest : normalize({}, origin, 'manifest'),
-    );
+    if (manifest?.pages)
+      return c.json({ ...normalize({}, origin, 'manifest'), pages: manifest.pages });
+    // No CMS manifest: propose the home page copy so the editor is not empty.
+    const home = await external(origin, 512 * 1024, 'text/html', hosts)
+      .then((file) => readHtml(file.bytes))
+      .catch(() => null);
+    const page = home ? pageFromCopy('/', 'Prima pagină', home.copy) : null;
+    return c.json({
+      ...normalize({}, origin, 'manifest'),
+      pages: page ? [page] : [],
+    });
   }
   const [manifest, html, brand] = await Promise.all([
     manifestRequest,

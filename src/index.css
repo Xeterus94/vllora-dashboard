@@ -743,6 +743,12 @@ th {
 .cms-preview-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: .85rem; }
 .cms-preview-gallery { display: grid; grid-template-columns: repeat(auto-fill,minmax(68px,1fr)); gap: 5px; }
 .cms-preview-gallery img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 5px; }
+/* Identity preview: name, logo and palette in one glance, before publishing. */
+.cms-brand-preview { display: flex; gap: 12px; align-items: center; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--subtle); }
+.cms-brand-preview .stack { gap: 5px; min-width: 0; }
+.cms-brand-mark { display: grid; place-items: center; width: 52px; height: 52px; flex: 0 0 auto; border-radius: 12px; font-weight: 800; font-size: 1.05rem; overflow: hidden; }
+.cms-brand-mark img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.cms-brand-swatch { display: block; height: 8px; width: 140px; border-radius: 999px; }
 /* Product rows: the photo, the price and the deal stay in one glance. */
 .cms-product-body { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 14px; align-items: start; }
 .cms-product-image { display: grid; gap: 6px; }
