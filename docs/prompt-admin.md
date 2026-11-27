@@ -110,3 +110,11 @@ ecranul de login dar autentificarea eșuează, contul nu a fost generat din
   **Acces client** dacă vrei un client „Doar citire”.
 - Suspendarea site-ului (**Modul de mentenanță**) oprește și `/admin`, nu doar
   partea publică.
+- Tot ce făcea un panou propriu al site-ului (`#/admin` cu parolă în cod,
+  produse, poze, recenzii) se face din `/admin`: **Produse (magazin)** și
+  **Recenzii**. După ce portalul e legat, șterge panoul vechi din codul site-ului
+  și endpoint-urile lui publice, ca să nu rămână o a doua cale de administrare.
+  Fără sesiune, scrierile în portal răspund `401`, deci nu există port deschis.
+- Pozele de produs se urcă direct din portal (**Încarcă poză**, JPG/PNG/WebP,
+  maximum 5 MB, redimensionate automat în WebP) și sunt servite din
+  `/media/sites/...`; nu mai e nevoie de un folder de imagini în site.

@@ -17,7 +17,6 @@ import {
   Trash2,
 } from 'lucide-react';
 import {
-  discountMax,
   discountedPrice,
   documentLimit,
   companyFields,
@@ -25,7 +24,6 @@ import {
   fillFromSite,
   galleryLimit,
   hoursLimit,
-  productLimit,
   servicesLimit,
   type CmsFile,
   type CmsTextField,
@@ -48,6 +46,7 @@ import { Alert, Field, Panel, useAction } from './PortalUI';
 import { CompanyFields } from './CompanyFields';
 import { FilePicker } from './FilePicker';
 import { LiveSitePreview, PageFields } from './SitePages';
+import { ProductsPanel, ReviewsPanel } from './ShopEditor';
 import { mergePages, type PageField } from '../../shared/site-pages';
 
 const sections = [
@@ -55,6 +54,7 @@ const sections = [
   ['brand', 'Nume și culori'],
   ['services', 'Servicii și prețuri'],
   ['products', 'Produse (magazin)'],
+  ['reviews', 'Recenzii'],
   ['media', 'Galerie și fișiere'],
   ['contact', 'Program și contact'],
   ['pages', 'Toate paginile'],
@@ -328,7 +328,8 @@ export function SiteEditor({
     void action.run(async () => {
       if (!file.type.startsWith('image/'))
         throw new Error('Alege o imagine pentru produs.');
-      const { item } = await uploadMedia(mediaPath, file, 'gallery');
+      // JPG/PNG/WebP up to 5 MB; resized and converted to WebP before upload.
+      const { item } = await uploadMedia(mediaPath, file, 'shop');
       setMedia((old) => [item, ...old]);
       setDraft(
         (previous) =>
@@ -902,208 +903,19 @@ export function SiteEditor({
               </Panel>
             )}
             {section === 'products' && (
-              <Panel
-                title="Produse"
-                description="Fiecare produs are nume, descriere, preț, poză și, opțional, un discount. Site-ul calculează prețul redus și taie prețul vechi; discountul de aici nu modifică prețul de bază."
-              >
-                {!draft.products.length && (
-                  <p className="cms-note">
-                    Nu există încă produse. Apasă „Importă de pe site” ca să le
-                    preia din magazinul existent, sau adaugă-le manual.
-                  </p>
-                )}
-                {draft.products.map((item, index) => {
-                  const reduced = discountedPrice(item.price, item.discount);
-                  return (
-                    <div key={index} className="cms-entry stack cms-product">
-                      <div className="section-heading">
-                        <strong>Produs {index + 1}</strong>
-                        <RowActions
-                          name={`produsul ${index + 1}`}
-                          index={index}
-                          length={draft.products.length}
-                          onRemove={() =>
-                            edit({ products: remove(draft.products, index) })
-                          }
-                          onMove={(step) =>
-                            edit({
-                              products: move(draft.products, index, step),
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="cms-product-body">
-                        <div className="cms-product-image">
-                          {item.image || item.imageUrl ? (
-                            <img
-                              src={item.image?.url || item.imageUrl}
-                              alt=""
-                              loading="lazy"
-                            />
-                          ) : (
-                            <span className="cms-note">Fără poză</span>
-                          )}
-                          <FilePicker
-                            label="Schimbă poza"
-                            inputLabel={`Încarcă poza produsului ${index + 1}`}
-                            accept="image/*"
-                            disabled={action.busy}
-                            onFiles={(files) => {
-                              const file = files[0];
-                              if (file) uploadProductImage(index, file);
-                            }}
-                          />
-                          {!!productLibrary.length && (
-                            <select
-                              aria-label={`Alege poza din bibliotecă: produsul ${index + 1}`}
-                              value=""
-                              onChange={(e) => {
-                                const file = productLibrary.find(
-                                  (candidate: CmsFile) =>
-                                    candidate.id === e.target.value,
-                                );
-                                if (file)
-                                  edit({
-                                    products: update(draft.products, index, {
-                                      ...item,
-                                      image: file,
-                                      imageUrl: '',
-                                    }),
-                                  });
-                              }}
-                            >
-                              <option value="">Din bibliotecă…</option>
-                              {productLibrary.map((file) => (
-                                <option key={file.id} value={file.id}>
-                                  {file.name}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                        </div>
-                        <div className="stack">
-                          <div className="form-grid three">
-                            {(
-                              [
-                                ['name', 'Nume produs', 160],
-                                ['price', 'Preț întreg', 40],
-                                ['category', 'Categorie', 80],
-                              ] as const
-                            ).map(([key, label, length]) => (
-                              <Field key={key} label={`${label} ${index + 1}`}>
-                                <input
-                                  maxLength={length}
-                                  value={item[key]}
-                                  onChange={(e) =>
-                                    edit({
-                                      products: update(
-                                        draft.products,
-                                        index,
-                                        { ...item, [key]: e.target.value },
-                                      ),
-                                    })
-                                  }
-                                />
-                              </Field>
-                            ))}
-                          </div>
-                          <Field label={`Descriere produs ${index + 1}`}>
-                            <textarea
-                              rows={3}
-                              maxLength={2000}
-                              value={item.description}
-                              onChange={(e) =>
-                                edit({
-                                  products: update(draft.products, index, {
-                                    ...item,
-                                    description: e.target.value,
-                                  }),
-                                })
-                              }
-                            />
-                          </Field>
-                          <div className="cms-product-deal">
-                            <label className="cms-check">
-                              <input
-                                type="checkbox"
-                                checked={item.bestseller}
-                                onChange={(e) =>
-                                  edit({
-                                    products: update(draft.products, index, {
-                                      ...item,
-                                      bestseller: e.target.checked,
-                                    }),
-                                  })
-                                }
-                              />
-                              <span>Bestseller</span>
-                            </label>
-                            <label className="cms-discount">
-                              <span>Discount</span>
-                              <input
-                                type="number"
-                                min={0}
-                                max={discountMax}
-                                step={1}
-                                value={item.discount}
-                                onChange={(e) => {
-                                  const value = Math.round(
-                                    Number(e.target.value),
-                                  );
-                                  edit({
-                                    products: update(draft.products, index, {
-                                      ...item,
-                                      discount: Number.isFinite(value)
-                                        ? Math.min(
-                                            discountMax,
-                                            Math.max(0, value),
-                                          )
-                                        : 0,
-                                    }),
-                                  });
-                                }}
-                              />
-                              <span>%</span>
-                            </label>
-                            <p className="cms-note cms-product-price">
-                              {item.discount > 0
-                                ? reduced
-                                  ? `Se afișează ${reduced.price}, cu ${reduced.compare} tăiat.`
-                                  : 'Discountul se aplică doar dacă prețul întreg este un număr, de exemplu 69 sau 69,00.'
-                                : 'Fără discount: se afișează doar prețul întreg.'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                <button
-                  type="button"
-                  className="button secondary"
-                  disabled={draft.products.length >= productLimit}
-                  onClick={() =>
-                    edit({
-                      products: [
-                        ...draft.products,
-                        {
-                          name: '',
-                          description: '',
-                          price: '',
-                          comparePrice: '',
-                          discount: 0,
-                          bestseller: false,
-                          category: '',
-                          imageUrl: '',
-                          image: null,
-                        },
-                      ],
-                    })
-                  }
-                >
-                  <Plus size={16} /> Adaugă produs
-                </button>
-              </Panel>
+              <ProductsPanel
+                products={draft.products}
+                library={productLibrary}
+                busy={action.busy}
+                onChange={(products) => edit({ products })}
+                onUpload={uploadProductImage}
+              />
+            )}
+            {section === 'reviews' && (
+              <ReviewsPanel
+                reviews={draft.reviews}
+                onChange={(reviews) => edit({ reviews })}
+              />
             )}
             {section === 'media' && (
               <>

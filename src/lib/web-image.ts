@@ -1,17 +1,36 @@
-export type MediaPurpose = 'gallery' | 'logo' | 'favicon';
+export type MediaPurpose = 'gallery' | 'logo' | 'favicon' | 'shop';
 const maxInput = 32 * 1024 * 1024,
   maxOutput = 8 * 1024 * 1024;
 const settings = {
   gallery: [2000, 0.82],
+  // Shop photos are picked from a phone or a folder, so they are capped and
+  // re-encoded smaller: the photo is only ever shown as a card thumbnail.
+  shop: [1600, 0.85],
   logo: [1024, 0.95],
   favicon: [256, 0.95],
 } as const;
+const shopInput = 5 * 1024 * 1024,
+  shopTypes = ['image/jpeg', 'image/png', 'image/webp'];
+const mb = (bytes: number) => `${Math.round(bytes / (1024 * 1024))} MB`;
 export async function webImage(
   file: File,
   purpose: MediaPurpose = 'gallery',
 ): Promise<File> {
-  if (!file.size || file.size > maxInput)
-    throw new Error('Alege o imagine mai mică de 32 MB.');
+  const limit = purpose === 'shop' ? shopInput : maxInput;
+  if (!file.size || file.size > limit)
+    throw new Error(
+      purpose === 'shop'
+        ? `Poza produsului poate avea cel mult ${mb(shopInput)}.`
+        : 'Alege o imagine mai mică de 32 MB.',
+    );
+  // Only the formats the shop accepts; anything else is refused before upload.
+  if (
+    purpose === 'shop' &&
+    file.type &&
+    !shopTypes.includes(file.type) &&
+    !/\.(?:jpe?g|png|webp)$/i.test(file.name)
+  )
+    throw new Error('Poza produsului trebuie să fie JPG, PNG sau WebP.');
   const url = URL.createObjectURL(file);
   const image = new Image();
   const canvas = document.createElement('canvas');

@@ -5,7 +5,11 @@ import {
   type CompanyField,
   type CompanyData,
   type CmsProduct,
+  type CmsReview,
   discountMax,
+  featuresLimit,
+  reviewLimit,
+  stockMax,
   documentLimit,
   galleryLimit,
   hoursLimit,
@@ -134,6 +138,7 @@ type Stored = Omit<
   gallery: string[];
   documents: string[];
   products: (Omit<CmsProduct, 'image'> & { image: string | null })[];
+  reviews: CmsReview[];
   pages?: StoredPages;
 };
 function normalizeInput(body: Body): Stored {
@@ -193,6 +198,15 @@ function normalizeInput(body: Body): Stored {
             400,
             `Discountul trebuie să fie un număr întreg între 0 și ${discountMax}.`,
           );
+        const stock =
+          row.stock === undefined || row.stock === null || row.stock === ''
+            ? null
+            : Number(row.stock);
+        if (
+          stock !== null &&
+          (!Number.isInteger(stock) || stock < 0 || stock > stockMax)
+        )
+          return fail(400, 'Stocul trebuie să fie un număr întreg pozitiv.');
         return {
           name: text(row.name, 160, 'Nume produs'),
           description: text(
@@ -204,10 +218,35 @@ function normalizeInput(body: Body): Stored {
           price: text(row.price, 40, 'Preț', true),
           comparePrice: text(row.comparePrice ?? '', 40, 'Preț tăiat', true),
           discount,
+          // A product is visible unless it was explicitly hidden.
+          active: row.active !== false,
           bestseller: row.bestseller === true,
           category: text(row.category ?? '', 80, 'Categorie', true),
+          subcategory: text(row.subcategory ?? '', 80, 'Subcategorie', true),
+          stock,
+          unit: text(row.unit ?? '', 40, 'Unitate', true),
+          badge: text(row.badge ?? '', 40, 'Etichetă', true),
+          season: text(row.season ?? '', 40, 'Sezon', true),
+          features: items(row.features ?? [], featuresLimit, 'Caracteristici')
+            .map((feature) => text(feature, 120, 'Caracteristică', true))
+            .filter(Boolean),
           imageUrl: cmsUrl(row.imageUrl ?? ''),
           image: row.image == null ? null : mediaId(row.image),
+        };
+      },
+    ),
+    reviews: items(body.reviews ?? [], reviewLimit, 'Recenzii').map(
+      (value) => {
+        const row = record(value),
+          rating = Number(row.rating);
+        if (!Number.isInteger(rating) || rating < 1 || rating > 5)
+          return fail(400, 'Nota recenziei trebuie să fie între 1 și 5.');
+        return {
+          name: text(row.name, 80, 'Nume recenzie'),
+          rating,
+          location: text(row.location ?? '', 80, 'Localitate', true),
+          text: text(row.text, 1500, 'Text recenzie', true),
+          date: text(row.date ?? '', 10, 'Data', true),
         };
       },
     ),
@@ -313,11 +352,19 @@ async function resolveContent(
         comparePrice: product.comparePrice ?? '',
         discount: product.discount ?? 0,
         bestseller: product.bestseller === true,
+        active: product.active !== false,
         category: product.category ?? '',
+        subcategory: product.subcategory ?? '',
+        stock: product.stock ?? null,
+        unit: product.unit ?? '',
+        badge: product.badge ?? '',
+        season: product.season ?? '',
+        features: product.features ?? [],
         imageUrl: product.imageUrl ?? '',
         image: file,
       };
     }),
+    reviews: data.reviews ?? [],
     ...(data.pages
       ? {
           pages: data.pages.map((page) => ({

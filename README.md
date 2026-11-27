@@ -179,7 +179,9 @@ Titlul principal (`h1`) și valorile marcate deja cu `data-vllora-field` / `data
 
 ### Produse (magazine online)
 
-Editorul are o secțiune **Produse (magazin)** în care fiecare produs are nume, descriere, categorie, preț întreg, poză și două opțiuni: **Bestseller** (bifă) și **Discount** (procent întreg, 0–90). Poza se încarcă din biblioteca site-ului sau se alege dintr-o poză existentă.
+Editorul are o secțiune **Produse (magazin)** cu lista produselor (poză, nume, preț, preț vechi tăiat, stoc, etichetă, stare) și un formular complet pentru fiecare: **Nume**, **Categorie** (listă fixă: Semințe & Plante, Unelte Grădină, Irigații, Curte & Decor, Casă & Întreținere), **Subcategorie**, **Preț întreg (lei)**, **Stoc**, **Unitate / ambalaj**, **Imagine**, **Etichetă (badge)**, **Sezon**, **Descriere**, **Caracteristici** (separate cu `|`), **Discount (%)** 0–90, **Bestseller** și **Vizibil pe site**. Lista se filtrează după categorie și după nume, iar fiecare rând are butoane pentru **Editează**, **Ascunde / Publică** și **Șterge**. Produsele ascunse rămân salvate, dar adaptorul public le scoate din magazin.
+
+**Încarcă poză** ia o poză de pe calculator: numai **JPG, PNG sau WebP, maximum 5 MB**. Browserul o redimensionează la 1600 px pe latura lungă și o convertește în WebP înainte de urcare (sub ~1 MB în mod normal), apoi poza se salvează în biblioteca site-ului și se trece singură în câmpul **Imagine** — apare imediat și în listă, și în formular, și în previzualizarea alăturată. Poza se poate schimba (alegi alta) sau șterge (butonul **Șterge poza**), iar alternativa este alegerea unei poze deja urcate din **bibliotecă**.
 
 Proprietarul magazinului salvează **un singur preț** și un procent; site-ul calculează prețul redus. De exemplu, `69 lei` cu `10%` apare ca **62.10 lei**, cu `69 lei` tăiat, iar discountul nu rescrie prețul de bază — dacă îl scoateți, revine `69 lei`. Rotunjirea se face la cent, iar zecimalele urmează formatul prețului introdus (`69,00` → `62,10`). Calculul e identic în editor (`shared/site-content.ts`), în previzualizarea din portal și în adaptorul public (`integrations/static-cms/vllora-content.js`), deci cele trei nu pot afișa sume diferite.
 
@@ -204,7 +206,25 @@ Pe site, lista se randează din `<template>`, cu câmpurile `name`, `description
 </template>
 ```
 
-Un câmp lipsă sau gol își elimină elementul, iar `s` și badge-urile dispar complet la produsele fără discount, ca să nu rămână un preț tăiat gol.
+Un câmp lipsă sau gol își elimină elementul, iar `s` și badge-urile dispar complet la produsele fără discount, ca să nu rămână un preț tăiat gol. Produsele cu **Vizibil pe site** debifat nu ajung în listă.
+
+### Recenzii
+
+Secțiunea **Recenzii** afișează recenziile locale (nume, notă din 5 stele, localitate, text, dată) și permite **ștergerea** lor; recenziile Google se încarcă automat pe site și nu se editează din portal. Ștergerea se publică împreună cu restul conținutului. Pe site, lista se randează din `<template>` cu `name`, `rating`, `stars` (`★★★★☆`), `location`, `text` și `date`:
+
+```html
+<div data-vllora-list="reviews" data-vllora-template="review"></div>
+<template id="review">
+  <blockquote>
+    <b data-vllora-item="name"></b>
+    <small data-vllora-item="location"></small>
+    <span data-vllora-item="stars" aria-hidden="true"></span>
+    <p data-vllora-item="text"></p>
+  </blockquote>
+</template>
+```
+
+Importul preia recenziile din manifest (`content.reviews`) sau din marcajul **Review JSON-LD** al paginii (autor, notă, text, dată) și le adaugă fără să le dubleze.
 
 ### Drepturi pe contul de client
 
