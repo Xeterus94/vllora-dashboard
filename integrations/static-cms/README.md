@@ -139,7 +139,9 @@ Fără manifest, **Importă de pe site** propune totuși prima pagină, citind t
 <script defer src="/vllora-content.js" data-api="https://dashboard.example.com/api/content"></script>
 ```
 
-3. Generează `/.well-known/vllora-content.json` din folderul public final, înainte de deploy. Rulează `node integrations/static-cms/build-manifest.mjs /cale/catre/site-output` din checkoutul dashboardului după `npm ci`, de exemplu într-un workflow GitHub Actions cu ambele proiecte. Scriptul citește textele, adresele imaginilor și valorile marcate din HTML, păstrează `content` din vechiul manifest și nu accesează rețeaua. Nu rula pe un director care conține pagini sau date private. Dacă paginile sau câmpurile sunt generate în browser, generează manifestul din aceleași date publice pe care le folosește aplicația și aplică valorile în componentele originale; scanarea HTML nu execută codul site-ului.
+3. Aceleași marcaje fac posibilă și **editarea direct în previzualizare**: când portalul pornește modul de editare, scriptul conturează elementele marcate la hover, iar un clic trimite portalului elementul ales (`data-vllora-text`, `data-vllora-image` sau `data-vllora-background`, împreună cu pagina curentă). Portalul deschide câmpul potrivit, iar valoarea publicată se aplică apoi pe același element. Nu e nevoie de alt cod pe site; o pagină fără marcaje rămâne doar de citit în previzualizare.
+
+4. Generează `/.well-known/vllora-content.json` din folderul public final, înainte de deploy. Rulează `node integrations/static-cms/build-manifest.mjs /cale/catre/site-output` din checkoutul dashboardului după `npm ci`, de exemplu într-un workflow GitHub Actions cu ambele proiecte. Scriptul citește textele, adresele imaginilor și valorile marcate din HTML, păstrează `content` din vechiul manifest și nu accesează rețeaua. Nu rula pe un director care conține pagini sau date private. Dacă paginile sau câmpurile sunt generate în browser, generează manifestul din aceleași date publice pe care le folosește aplicația și aplică valorile în componentele originale; scanarea HTML nu execută codul site-ului.
 
 Format minim, dacă îl generezi din aplicație:
 

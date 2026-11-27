@@ -65,7 +65,7 @@ Testele pornesc un Workerd izolat cu baze efemere; nu porni aplicația separat. 
    ```
 
 2. În `wrangler.jsonc` completează `database_id`. Dacă folosești KV, adaugă `"kv_namespaces": [{"binding":"BRAND_CACHE","id":"ID_UL_TĂU"}]`. Setează `APP_ORIGIN` și `MASTER_API_BASE` la originea HTTPS reală a platformei și configurează domeniul personalizat în Cloudflare (sau adaugă `routes: [{ pattern: "portal.domeniu.ro", custom_domain: true }]` în configurație). Lasă `assets.run_worker_first: true`: fără el, hostname-ul poate să nu fie verificat înainte de servirea shell-ului.
-3. Aplică `npm run db:init` **înainte de deploy**, după backup pentru o bază existentă. Migrațiile numerotate din `worker/migrations/` se aplică în ordine (cea mai recentă, `0008_user_permissions.sql`, adaugă drepturile pe cont); `worker/schema.sql` este echivalentul pentru o **bază goală**. Pentru o instalare externă care are deja tabele dar nu are istoricul Wrangler, compară schema și aplică doar migrările lipsă (nu rula schema completă peste datele existente).
+3. Aplică `npm run db:init` **înainte de deploy**, după backup pentru o bază existentă. Migrațiile numerotate din `worker/migrations/` se aplică în ordine (cele mai recente sunt `0008_user_permissions.sql` (drepturile pe cont) și `0009_site_type.sql` (tipul site-ului)); `worker/schema.sql` este echivalentul pentru o **bază goală**. Pentru o instalare externă care are deja tabele dar nu are istoricul Wrangler, compară schema și aplică doar migrările lipsă (nu rula schema completă peste datele existente).
 4. Configurează secretele cu `npx wrangler secret put NUME` (niciun secret nu se pune în Git):
 
    | Secret | Utilizare |
@@ -167,9 +167,33 @@ Rapoartele acceptă `days=7`, `30`, `90` sau `365`, inclusiv ziua UTC curentă. 
 
 În `/admin/` → **Editează site-ul**, clientul poate edita prima pagină, secțiunea „Despre”, lista de servicii și prețuri, programul, contactul și galeria. Butoanele cu agrafă aleg imagini sau PDF-uri de pe dispozitiv, iar fișierele din bibliotecă pot fi refolosite. Previzualizarea din portal reprezintă conținutul, nu designul exact al site-ului public. Schimbările de text și referințele de media intră în conținutul public la **Publică modificările**; fișierele încărcate în bibliotecă sunt publice prin link chiar înainte de publicare. Un PDF este servit ca descărcare, nu redat în portal.
 
-În panoul master, alege clientul → **Conținut site (CMS)** → **Deschide editorul vizual**, sau din `/portal-admin/` → client → **Editează site-ul**. Editorul și previzualizarea site-ului real stau alături pe ecrane late (**Previzualizare alături**, cu comutator **Desktop/Telefon**), iar fiecare modificare ajunge în cadru în timp ce tastați — nu doar la prima încărcare; indicatorul arată dacă există modificări nepublicate. Sub 1100px previzualizarea pornește închisă, ca câmpurile să rămână vizibile, iar **Previzualizare pe tot ecranul** o deschide pe tot ecranul. Ambele panouri folosesc aceeași înregistrare CMS și verifică versiunea la publicare; modificarea facturării nu rescrie conținutul. Nu este necesară o migrare nouă. `GET /api/content?site=domeniu-client.ro` furnizează și `heroMedia`, `gallery`, `documents`, `services` și `hours`; `images` rămâne disponibil pentru site-urile care folosesc câmpul de galerie vechi. Un site static trebuie să citească aceste date ca să reflecte schimbările: vezi [adaptorul pentru pagina publică](integrations/static-cms/README.md). Site-ul nu este modificat automat, iar editorul nu rescrie codul HTML/CSS sau logica de programare.
+În panoul master, alege clientul → **Conținut site (CMS)** → **Deschide editorul vizual**, sau din `/portal-admin/` → client → **Editează site-ul** sau, din `/admin/`, butonul **Editează site-ul**.
+
+Editorul se deschide pe **previzualizarea mare** a site-ului real: cadrul ocupă toată lățimea, cu comutator **Desktop/Telefon** și bara de sus care arată dacă există **Modificări nepublicate**. Butonul **Editează în pagină** transformă previzualizarea în editor: treci cu mouse-ul peste un text și apare conturul, apeși pe el, îl corectezi direct în cadru și textul intră în câmpul corespunzător (inclusiv textele paginilor colectate din site). Pentru formulare complete — liste de servicii, program, produse, contact, pagini — butonul **Editor pe secțiuni** revine la editorul cu câmpuri, unde fiecare modificare ajunge în cadru în timp ce tastați, nu doar la prima încărcare. Pe ecrane late poți ține ambele alături (**Previzualizare alături**, doar peste 1100px, ca să nu înghesuie câmpurile), iar **Previzualizare pe tot ecranul** deschide cadrul pe tot ecranul. Aceeași previzualizare afișează și rezultatul **Importă de pe site**, înainte de publicare. Ambele panouri folosesc aceeași înregistrare CMS și verifică versiunea la publicare; modificarea facturării nu rescrie conținutul. Nu este necesară o migrare nouă. `GET /api/content?site=domeniu-client.ro` furnizează și `heroMedia`, `gallery`, `documents`, `services` și `hours`; `images` rămâne disponibil pentru site-urile care folosesc câmpul de galerie vechi. Un site static trebuie să citească aceste date ca să reflecte schimbările: vezi [adaptorul pentru pagina publică](integrations/static-cms/README.md). Site-ul nu este modificat automat, iar editorul nu rescrie codul HTML/CSS sau logica de programare.
 
 Din editorul client sau master, **Importă de pe site** preia o propunere din HTML-ul public ori din `/.well-known/vllora-content.json`, numai pentru câmpurile/listele goale. Nu publică automat, nu descarcă imaginile în R2 și nu încearcă să ruleze JavaScript-ul site-ului; programul și serviciile pot fi descrise în manifest. **Nume și culori** controlează identitatea publică a site-ului; brandingul portalului de autentificare rămâne separat. Vezi [marcajele și formatul manifestului](integrations/static-cms/README.md).
+
+### Tipul site-ului decide portalul
+
+La **Adaugă site** alegi **Tipul site-ului**, iar alegerea modelează tot portalul: un barbershop nu are produse, un magazin online nu are program de rezervări. Tipurile disponibile sunt **Prezentare** (implicit), **Programări**, **Magazin online**, **Restaurant**, **Hotel**, **Imobiliare**, **Publicistică** și **Portofoliu**. Tipul se salvează pe site (`sites.site_type`, migrarea `0009_site_type.sql`) și se poate schimba oricând din **Configurare**; la schimbare se mută și profilul de KPI-uri, dacă nu trimiți explicit alte metrici.
+
+Secțiunile editorului vin dintr-un blueprint (`shared/site-type.ts`), deci diferă între tipuri:
+
+| Tip | Secțiuni în editor |
+| --- | --- |
+| Prezentare | Prima pagină, Nume și culori, Servicii și prețuri, Recenzii, Galerie și fișiere, Contact, Toate paginile (master) |
+| Programări (barbershop) | + **Program și rezervări** |
+| Magazin online | **Produse (magazin)** în locul serviciilor, fără program |
+| Restaurant | Program, meniu și rezervări |
+| Hotel / Imobiliare / Publicistică / Portofoliu | Servicii (camere, anunțuri, articole, proiecte) cu etichete proprii |
+
+Regula de siguranță: blueprintul ascunde doar ce e gol. Dacă un site are deja servicii sau program, secțiunea reapare chiar dacă tipul nu o prevede, ca să nu se piardă date. **Toate paginile** rămâne exclusiv în master; clientul poate edita textul paginilor existente, dar nu poate inventa pagini sau câmpuri noi.
+
+La import, tipul se **detectează automat** din conținutul public: două sau mai multe produse → magazin online, două sau mai multe servicii → programări, două sau mai multe intervale de program → restaurant, altfel prezentare. Detectarea propune tipul în editor; nu îl impune peste o alegere explicită.
+
+### Importul automat în casetele tipului de site
+
+**Importă de pe site** nu mai pune totul într-o listă generică: fiecare valoare ajunge în caseta (secțiunea) ei. Titlul și subtitlul intră în **Prima pagină**, serviciile în **Servicii și prețuri**, programul în **Program și rezervări**, produsele în **Produse (magazin)**, recenziile în **Recenzii**, imaginile și PDF-urile în **Galerie și fișiere**, datele de contact în **Contact**, iar textele celorlalte pagini în **Toate paginile**. După import, editorul deschide exact secțiunea în care s-a scris și arată câte valori au fost preluate din manifest și câte au fost detectate în HTML; nimic nu se publică automat.
 
 ### Importul textelor din toate paginile
 

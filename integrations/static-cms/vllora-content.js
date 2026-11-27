@@ -244,17 +244,66 @@
     window.VLLORA_PAGE_CMS = detail;
     document.dispatchEvent(new CustomEvent('vllora:page-content', { detail }));
   };
+  // Inline editing: the portal turns this on, the page only reports which
+  // field was clicked and lets the portal own the form and the draft.
+  let inlineOn = false;
+  // Pinned by the first handshake from the portal; the page origin in the
+  // dataset is not the portal origin, so it cannot be used as a target.
+  let inlineChannel = '';
+  const hintStyle = document.createElement('style');
+  hintStyle.textContent =
+    '[data-vllora-field]:hover,[data-vllora-text]:hover{outline:2px dashed ' +
+    'rgba(107,28,46,.55);outline-offset:2px;border-radius:4px;cursor:text}';
+  const markInline = (on) => {
+    inlineOn = on;
+    if (on) document.head.append(hintStyle);
+    else hintStyle.remove();
+  };
+  document.addEventListener(
+    'click',
+    (event) => {
+      if (!inlineOn) return;
+      const element = event.target instanceof Element ? event.target : null;
+      const node = element?.closest('[data-vllora-field],[data-vllora-text]');
+      if (!node) return;
+      // The page must not navigate or submit while the portal edits it.
+      event.preventDefault();
+      event.stopPropagation();
+      const text = node.getAttribute('data-vllora-text');
+      const target = text
+        ? { source: 'page', page: location.pathname, id: text }
+        : { source: 'text', field: node.getAttribute('data-vllora-field') };
+      if (inlineChannel)
+        window.parent.postMessage(
+          { type: 'vllora:inline-pick', target },
+          inlineChannel,
+        );
+    },
+    true,
+  );
   let draftApplied = false;
   if (window.parent !== window) {
+    // The parent is the portal preview. Its origin is not known in advance (the
+    // page is also opened directly), so the first handshake from the parent
+    // pins the channel; every later message must come from that same origin.
+    let channel = '';
     window.addEventListener('message', (event) => {
-      if (event.source !== window.parent || event.origin !== previewOrigin)
+      if (event.source !== window.parent || !event.origin) return;
+      const type = event.data?.type;
+      const known = ['vllora:preview-ping', 'vllora:preview-content', 'vllora:inline-enable'];
+      if (!known.includes(type)) return;
+      // Never read a channel another frame already claimed.
+      if (channel && event.origin !== channel) return;
+      if (!channel) channel = event.origin;
+      inlineChannel = channel;
+      const reply = (data) => window.parent.postMessage(data, channel);
+      if (type === 'vllora:inline-enable') {
+        markInline(event.data.on === true);
         return;
-      if (event.data?.type === 'vllora:preview-ping')
-        window.parent.postMessage(
-          { type: 'vllora:preview-ready', path: location.pathname },
-          previewOrigin,
-        );
-      if (event.data?.type === 'vllora:preview-content') {
+      }
+      if (type === 'vllora:preview-ping')
+        reply({ type: 'vllora:preview-ready', path: location.pathname });
+      if (type === 'vllora:preview-content') {
         draftApplied = true;
         apply(event.data.content);
       }

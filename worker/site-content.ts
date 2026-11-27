@@ -424,13 +424,44 @@ export async function publishContent(c: Ctx, site: string) {
   for (const key of companyFields)
     if (!Object.hasOwn(input, key) && old[key] !== undefined)
       input[key] = old[key];
+  // Only the master editor manages the page inventory. Everyone allowed to edit
+  // content can still change the text of a page that already exists, which is
+  // what inline editing in the preview writes; unknown pages are dropped so a
+  // client cannot invent routes on the site.
+  const pagesFor = (value: unknown) => {
+    if (c.get('user').role === 'super_admin') return normalizePages(value);
+    if (!Array.isArray(value) || !old.pages) return old.pages;
+    const edited = new Map(
+      value.flatMap((page: Body) =>
+        page && typeof page === 'object' && Array.isArray(page.fields)
+          ? [[String(page.path), page.fields as Body[]] as const]
+          : [],
+      ),
+    );
+    return old.pages.map((page) => {
+      const fields = edited.get(page.path);
+      if (!fields) return page;
+      const values = new Map(
+        fields.flatMap((field) =>
+          field && typeof field === 'object' && typeof field.id === 'string'
+            ? [[field.id, field] as const]
+            : [],
+        ) as [string, Body][],
+      );
+      return {
+        ...page,
+        fields: page.fields.map((field) => {
+          const patch = values.get(field.id);
+          return patch && typeof patch.value === 'string'
+            ? { ...field, value: patch.value }
+            : field;
+        }),
+      };
+    });
+  };
   const next = JSON.stringify({
     ...normalizeInput(input),
-    // Only the master editor manages page inventory; other editors preserve it.
-    pages:
-      c.get('user').role === 'super_admin' && Object.hasOwn(input, 'pages')
-        ? normalizePages(input.pages)
-        : old.pages,
+    pages: Object.hasOwn(input, 'pages') ? pagesFor(input.pages) : old.pages,
   });
   const content = await resolveContent(
     c.env,

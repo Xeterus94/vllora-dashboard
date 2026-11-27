@@ -947,3 +947,35 @@ th {
 .cms-live-narrow { max-width: 390px; }
 .cms-slot-image { display: block; width: min(100%, 280px); max-height: 180px; object-fit: contain; object-position: left center; }
 .cms-product-flags .badge-quiet { background: var(--subtle); color: var(--muted); }
+
+/* The preview is the main surface: a tall frame of the real site, with the
+   inline editor docked under it. */
+.cms-big { display: grid; gap: 8px; }
+.cms-big[hidden] { display: none; }
+.cms-big-bar {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel, #fff);
+}
+.cms-big-mode { font-size: .84rem; color: var(--muted); }
+.cms-big-mode.is-editing { color: var(--brand-primary); font-weight: 600; }
+.cms-big .cms-live-frame { width: 100%; height: min(78vh, 900px); border-radius: 12px; }
+.cms-big-dirty {
+  position: sticky; bottom: 8px; justify-self: start;
+  font-size: .74rem; font-weight: 700; color: #92400e; background: #fef3c7;
+  border-radius: 999px; padding: 3px 10px;
+}
+.cms-big[data-inline='true'] .cms-live-frame { box-shadow: 0 0 0 2px rgba(107, 28, 46, .45); }
+.cms-inline-bar {
+  position: sticky; bottom: 0; display: grid; gap: 8px; padding: 12px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--panel, #fff);
+  box-shadow: 0 12px 30px rgba(20, 12, 8, .18); z-index: 5;
+}
+.cms-inline-bar-head { display: flex; align-items: center; gap: 8px; }
+.cms-inline-bar-head strong { flex: 1 1 auto; }
+.cms-inline-bar input, .cms-inline-bar textarea { width: 100%; }
+.cms-extra-mark { font-size: .68rem; font-weight: 600; opacity: .7; }
+
+.cms-detect {
+  margin: 0; padding: 10px 12px; border-radius: 10px; font-size: .86rem;
+  border: 1px solid #fcd34d; background: #fffbeb; color: #78350f;
+}

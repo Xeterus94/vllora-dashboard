@@ -6,6 +6,15 @@ import {
   type PageField,
 } from '../../shared/site-pages';
 import type { SiteContent } from '../../shared/site-content';
+import {
+  inlineKind,
+  inlineLabel,
+  inlineLimit,
+  inlineMessages,
+  isInlineLink,
+  isInlineText,
+  type InlineField,
+} from '../../shared/site-inline';
 import { FilePicker } from './FilePicker';
 import { Field, Panel } from './PortalUI';
 
@@ -167,6 +176,102 @@ export function PageFields({
   );
 }
 
+// The editing band that sits over the preview while "Editează în pagină" is on.
+// It edits one field at a time and writes straight into the draft, so the page
+// and the form never hold two different values.
+function InlineEditor({
+  field,
+  content,
+  change,
+  close,
+}: {
+  field: InlineField;
+  content: SiteContent;
+  change: (field: InlineField, value: string) => void;
+  close: () => void;
+}) {
+  const text = field.source === 'text' ? field.field : undefined;
+  const page = field.source === 'page' ? field : undefined;
+  const current = page
+    ? (content.pages
+        ?.find((item) => item.path === page.page)
+        ?.fields.find((item) => item.id === page.id)?.value ?? '')
+    : text
+      ? content[text]
+      : '';
+  const [value, setValue] = useState(current);
+  const input = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
+  useEffect(() => {
+    setValue(current);
+    // Focus without scrolling the page inside the frame.
+    input.current?.focus({ preventScroll: true });
+  }, [field, current]);
+  const label = page
+    ? `Text din pagina ${page.page}`
+    : text
+      ? inlineLabel(text)
+      : 'Câmp';
+  const commit = () => {
+    if (value !== current) change(field, value);
+    close();
+  };
+  const kind = text ? inlineKind(text) : 'text';
+  return (
+    <div className="cms-inline-bar" role="dialog" aria-label={`Editează: ${label}`}>
+      <div className="cms-inline-bar-head">
+        <strong>{label}</strong>
+        {text && isInlineLink(text) && (
+          <small className="muted">Adresă HTTPS</small>
+        )}
+        <button
+          type="button"
+          className="text-button"
+          onClick={close}
+          aria-label="Închide editorul din previzualizare"
+        >
+          ✕
+        </button>
+      </div>
+      {kind === 'line' && !page ? (
+        <input
+          ref={input}
+          value={value}
+          maxLength={text ? inlineLimit(text) : 1200}
+          onChange={(event) => setValue(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') commit();
+            if (event.key === 'Escape') close();
+          }}
+        />
+      ) : (
+        <textarea
+          ref={input}
+          rows={kind === 'url' ? 2 : 3}
+          value={value}
+          maxLength={text ? inlineLimit(text) : 6000}
+          onChange={(event) => setValue(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') close();
+            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey))
+              commit();
+          }}
+        />
+      )}
+      <div className="controls">
+        <button type="button" className="button primary small" onClick={commit}>
+          Aplică
+        </button>
+        <button type="button" className="button secondary small" onClick={close}>
+          Renunță
+        </button>
+        {value !== current && (
+          <span className="muted">Se publică împreună cu restul paginii.</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function LiveSitePreview({
   domain,
   pages,
@@ -176,6 +281,8 @@ export function LiveSitePreview({
   compact = false,
   frameClass = '',
   onConnection,
+  inline = false,
+  change,
 }: {
   domain: string;
   pages: ContentPage[];
@@ -187,9 +294,13 @@ export function LiveSitePreview({
   frameClass?: string;
   // The compact view reports the handshake so its parent can show one status.
   onConnection?: (state: string) => void;
+  // Click a text in the page and edit it in place.
+  inline?: boolean;
+  change?: (field: InlineField, value: string) => void;
 }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [connection, setConnection] = useState('');
+  const [selected, setSelected] = useState<InlineField | null>(null);
   const connect = (state: string) => {
     setConnection(state);
     onConnection?.(state);
@@ -238,6 +349,15 @@ export function LiveSitePreview({
       { type: 'vllora:preview-content', content: payload() },
       origin,
     );
+  // While the inline mode is on, the page knows it may report clicks.
+  const sendMode = () => {
+    const origin = connection.split(' ')[0];
+      if (!origin) return;
+    frame.current?.contentWindow?.postMessage(
+      { type: inlineMessages.enable, on: inline },
+      origin,
+    );
+  };
   // Every keystroke has to reach the frame, not only the first readiness handshake.
   useEffect(() => {
     if (!connection) return;
@@ -251,16 +371,37 @@ export function LiveSitePreview({
       if (
         event.source !== frame.current?.contentWindow ||
         ![`https://${domain}`, `https://${alias}`].includes(event.origin) ||
-        event.origin === location.origin ||
-        event.data?.type !== 'vllora:preview-ready'
+        event.origin === location.origin
       )
         return;
-      connect(`${event.origin} ${event.data.path || '/'}`);
-      put(event.origin);
+      const type = event.data?.type;
+      if (type === 'vllora:preview-ready') {
+        connect(`${event.origin} ${event.data.path || '/'}`);
+        put(event.origin);
+        return;
+      }
+      // A click in the page names the field under the pointer.
+      if (type !== inlineMessages.pick) return;
+      const target = event.data?.target as Partial<InlineField> | undefined;
+      if (!target || !inline) return;
+      if (target.source === 'text' && isInlineText(target.field))
+        setSelected({ source: 'text', field: target.field });
+      else if (
+        target.source === 'page' &&
+        typeof target.page === 'string' &&
+        typeof target.id === 'string' &&
+        target.page.startsWith('/') &&
+        target.id
+      )
+        setSelected({ source: 'page', page: target.page, id: target.id });
     };
     window.addEventListener('message', listener);
     return () => window.removeEventListener('message', listener);
-  }, [domain, content]);
+  }, [domain, content, inline]);
+  useEffect(() => {
+    sendMode();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inline, connection]);
   const body = (
     <>
       <div className="controls" hidden={compact}>
@@ -326,6 +467,14 @@ export function LiveSitePreview({
                   origin,
                 );
           }}
+        />
+      )}
+      {inline && change && selected && (
+        <InlineEditor
+          field={selected}
+          content={content}
+          change={change}
+          close={() => setSelected(null)}
         />
       )}
     </>

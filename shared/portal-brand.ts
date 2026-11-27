@@ -1,4 +1,32 @@
 // Only these public display fields are sent in the unauthenticated portal shell.
+// The type is the behaviour of the portal: a barbershop gets bookings and a
+// price list, a shop gets stock and orders, a presentation site gets neither.
+export type SiteType = keyof typeof siteTypes;
+export const siteTypes = {
+  presentation: 'Prezentare / servicii',
+  appointments: 'Programări (barbershop, salon)',
+  ecommerce: 'Magazin online',
+  restaurant: 'Restaurant / cafenea',
+  hotel: 'Hotel / pensiune',
+  real_estate: 'Imobiliare',
+  publishing: 'Blog / publicație',
+  portfolio: 'Portofoliu / agenție',
+} as const;
+export const defaultSiteType: SiteType = 'presentation';
+export const isSiteType = (value: unknown): value is SiteType =>
+  typeof value === 'string' && Object.hasOwn(siteTypes, value);
+// The metric profile follows the site type, so a new site does not start with
+// shop KPIs just because nobody chose a profile.
+export const profileForType: Record<SiteType, string> = {
+  presentation: 'services',
+  appointments: 'appointments',
+  ecommerce: 'ecommerce',
+  restaurant: 'restaurant',
+  hotel: 'hotel',
+  real_estate: 'real_estate',
+  publishing: 'publishing',
+  portfolio: 'portfolio',
+};
 export type PortalBrand = {
   name: string;
   primary_color: string;
