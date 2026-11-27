@@ -47,7 +47,28 @@ test(
   'portal integrat cu D1, R2 și un furnizor de email simulat',
   { timeout: 90000 },
   async (t) => {
-    const env = await runtime();
+    // Only one fixture host is answered; everything else goes to the mail
+    // recorder, so the rest of the suite keeps its email assertions.
+    const env = await runtime({
+      outbound: async (request, mail) => {
+        const url = new URL(request.url);
+        if (url.hostname !== 'detect-type.ro') return mail(request);
+        if (url.pathname === '/.well-known/vllora-content.json')
+          return Response.json({
+            version: 2,
+            content: {
+              siteName: 'Magazin detectat',
+              products: [
+                { name: 'Gazon', price: '69 lei' },
+                { name: 'Unelte', price: '120 lei' },
+              ],
+            },
+          });
+        return new Response('<h1>Magazin detectat</h1>', {
+          headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        });
+      },
+    });
     t.after(() => env.close());
     const { mf, db, received } = env;
     const p = (path, o) => call(mf, platform, path, o),
@@ -140,6 +161,14 @@ test(
             send({
               domain: 'other-client.com',
               name: 'Al doilea site & <Nord> "RO"',
+              metrics: {
+                profile: 'custom',
+                selected: ['visitors', 'pageviews'],
+                primary: null,
+                targets: {},
+                ready: [],
+                currency: 'RON',
+              },
             }),
           ),
           201,
@@ -621,10 +650,124 @@ test(
         assert.equal(revised.content.heroTitle, shared.content.heroTitle);
         assert.equal(revised.content.companyCui, shared.content.companyCui);
         assert.equal(shared.content.documents[0].name, 'preturi.pdf');
+        const auditBefore = (
+          await db
+            .prepare(
+              "SELECT COUNT(*) AS n FROM audit_log WHERE action='site_content_published'",
+            )
+            .first()
+        ).n;
+        // Inline editing in the preview: a client may rewrite the text of a
+        // page that already exists, but never invent a route or a field.
+        const masterLoaded = must(
+          await adminCall(`/sites/${site.id}/content`),
+          200,
+        ).json;
+        const withPages = must(
+          await adminCall(`/sites/${site.id}/content`, {
+            method: 'PUT',
+            body: {
+              revision: masterLoaded.revision,
+              content: {
+                ...masterLoaded.content,
+                pages: [
+                  {
+                    path: '/',
+                    title: 'Prima pagină',
+                    fields: [
+                      { id: 'titlu-1', label: 'Titlu', kind: 'text', value: 'Titlu vechi' },
+                    ],
+                  },
+                ],
+              },
+            },
+          }),
+          200,
+        ).json;
+        assert.equal(withPages.content.pages[0].fields[0].value, 'Titlu vechi');
+        const clientPublish = (content, revision) =>
+          a(path, {
+            cookie: client,
+            method: 'PUT',
+            body: { content, revision },
+          });
+        const paged = must(
+          await clientPublish(
+            {
+              pages: [
+                {
+                  path: '/',
+                  title: 'Prima pagină',
+                  fields: [
+                    {
+                      id: 'titlu-1',
+                      label: 'Titlu',
+                      kind: 'text',
+                      value: 'Scris din previzualizare',
+                    },
+                  ],
+                },
+                {
+                  path: '/pagina-inventata/',
+                  title: 'Inventată',
+                  fields: [
+                    { id: 'x', label: 'X', kind: 'text', value: 'Nu are voie' },
+                  ],
+                },
+              ],
+            },
+            withPages.revision,
+          ),
+          200,
+        ).json;
+        assert.equal(
+          paged.content.pages[0].fields[0].value,
+          'Scris din previzualizare',
+        );
+        assert.deepEqual(
+          paged.content.pages.map((page) => page.path),
+          ['/'],
+          'a client cannot add pages',
+        );
+        const fromClient = must(await a(path, { cookie: client }), 200).json;
+        assert.equal(
+          fromClient.content.pages[0].fields[0].value,
+          'Scris din previzualizare',
+        );
+        // The master keeps full control over the page inventory.
+        const masterPages = must(
+          await adminCall(`/sites/${site.id}/content`, {
+            method: 'PUT',
+            body: {
+              revision: fromClient.revision,
+              content: {
+                ...fromClient.content,
+                pages: [
+                  ...fromClient.content.pages,
+                  {
+                    path: '/pagina-inventata/',
+                    title: 'Inventată',
+                    fields: [
+                      { id: 'x', label: 'X', kind: 'text', value: 'De la master' },
+                    ],
+                  },
+                ],
+              },
+            },
+          }),
+          200,
+        ).json;
+        assert.deepEqual(
+          masterPages.content.pages.map((page) => page.path),
+          ['/', '/pagina-inventata/'],
+        );
+        // My page edits moved the revision on, so the last client write loads
+        // the current content first, exactly like the editor does.
+        const latest = must(await a(path, { cookie: client }), 200).json;
         must(
           await publish(
-            { ...revised.content, heroTitle: 'Editat din nou' },
-            revised.revision,
+            { ...latest.content, heroTitle: 'Editat din nou' },
+            latest.revision,
           ),
           200,
         );
@@ -651,16 +794,16 @@ test(
             .documents,
           [],
         );
-        assert.equal(
-          (
-            await db
-              .prepare(
-                "SELECT COUNT(*) AS n FROM audit_log WHERE action='site_content_published'",
-              )
-              .first()
-          ).n,
-          3,
-        );
+        // Every publish above is audited once: the editor saves, the inline page
+        // fix from the client and the master's writes, plus this last one.
+        const auditCount = () =>
+          db
+            .prepare(
+              "SELECT COUNT(*) AS n FROM audit_log WHERE action='site_content_published'",
+            )
+            .first()
+            .then((row) => row.n);
+        assert.equal(await auditCount(), auditBefore + 4);
       },
     );
 
@@ -1203,6 +1346,71 @@ test(
         401,
       );
       must(await adminCall(`/sites/${shop.id}`, { method: 'DELETE' }), 200);
+    });
+
+    await t.test('tipul site-ului decide portalul și importul îl detectează', async () => {
+      // A barbershop and a shop must not share the same portal.
+      const barber = must(
+        await adminCall('/sites', send({ domain: 'barber-type.ro', site_type: 'appointments' })),
+        201,
+      ).json;
+      assert.equal(barber.site.site_type, 'appointments');
+      // Creating a site only returns the site; its KPI profile is read back.
+      const barberDetail = must(await adminCall(`/sites/${barber.site.id}`), 200).json;
+      assert.equal(barberDetail.site.site_type, 'appointments');
+      assert.equal(barberDetail.settings.profile, 'appointments');
+      assert.ok(barberDetail.settings.selected.includes('booking_confirmed'));
+      const shop = must(
+        await adminCall('/sites', send({ domain: 'shop-type.ro', site_type: 'ecommerce' })),
+        201,
+      ).json;
+      assert.equal(shop.site.site_type, 'ecommerce');
+      assert.equal(
+        must(await adminCall(`/sites/${shop.site.id}`), 200).json.settings.profile,
+        'ecommerce',
+      );
+      // The default stays a presentation site, so older calls keep working.
+      const plain = must(
+        await adminCall('/sites', send({ domain: 'plain-type.ro' })),
+        201,
+      ).json;
+      assert.equal(plain.site.site_type, 'presentation');
+      // An unknown type is refused instead of silently falling back.
+      must(await adminCall('/sites', send({ domain: 'bad-type.ro', site_type: 'spaceship' })), 400);
+
+      // Changing the type moves the KPI profile with it.
+      const changed = must(
+        await adminCall(`/sites/${plain.site.id}`, {
+          method: 'PATCH',
+          body: { site_type: 'restaurant' },
+        }),
+        200,
+      ).json;
+      assert.equal(changed.site.site_type, 'restaurant');
+      assert.equal(changed.settings.profile, 'restaurant');
+      must(
+        await adminCall(`/sites/${plain.site.id}`, {
+          method: 'PATCH',
+          body: { site_type: 'spaceship' },
+        }),
+        400,
+      );
+
+      // The public page decides what the site is: products first, then services.
+      const detected = must(
+        await adminCall('/sites', send({ domain: 'detect-type.ro' })),
+        201,
+      ).json.site;
+      const scanned = must(
+        await adminCall(`/sites/${detected.id}/content/import`, {
+          method: 'POST',
+        }),
+        200,
+      ).json;
+      assert.equal(scanned.siteType, 'ecommerce');
+      assert.equal(scanned.products.length, 2);
+      for (const id of [barber.site.id, shop.site.id, plain.site.id, detected.id])
+        must(await adminCall(`/sites/${id}`, { method: 'DELETE' }), 200);
     });
 
     await t.test('permisiunile clientului limitează portalul', async () => {

@@ -9,7 +9,9 @@ import {
   ImagePlus,
   LayoutTemplate,
   MapPin,
+  Maximize2,
   Monitor,
+  Pencil,
   PanelRight,
   Plus,
   Save,
@@ -17,6 +19,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import {
+  cmsTextFields,
   discountedPrice,
   documentLimit,
   companyFields,
@@ -47,22 +50,35 @@ import { CompanyFields } from './CompanyFields';
 import { FilePicker } from './FilePicker';
 import { LiveSitePreview, PageFields } from './SitePages';
 import { ProductsPanel, ReviewsPanel } from './ShopEditor';
-import { mergePages, type PageField } from '../../shared/site-pages';
+import type { PageField } from '../../shared/site-pages';
+import {
+  blueprintFor,
+  sectionLabel,
+  sectionsFor,
+  type EditorSection,
+} from '../../shared/site-type';
+import type { InlineField } from '../../shared/site-inline';
+import { siteTypes, type SiteType } from '../../shared/portal-brand';
 
-const sections = [
-  ['intro', 'Prima pagină'],
-  ['brand', 'Nume și culori'],
-  ['services', 'Servicii și prețuri'],
-  ['products', 'Produse (magazin)'],
-  ['reviews', 'Recenzii'],
-  ['media', 'Galerie și fișiere'],
-  ['contact', 'Program și contact'],
-  ['pages', 'Toate paginile'],
-] as const;
+// Neutral labels; each site type renames the ones it shows differently.
+const sectionLabels: Record<EditorSection, string> = {
+  intro: 'Prima pagină',
+  brand: 'Nume și culori',
+  services: 'Servicii și prețuri',
+  program: 'Program',
+  products: 'Produse (magazin)',
+  reviews: 'Recenzii',
+  media: 'Galerie și fișiere',
+  contact: 'Contact',
+  pages: 'Toate paginile',
+};
 type Slot = 'heroMedia' | 'logoMedia' | 'gallery' | 'documents';
 const singleImage = (slot: Slot): slot is 'heroMedia' | 'logoMedia' =>
   slot === 'heroMedia' || slot === 'logoMedia';
 const hexColor = (value: string) => /^#[a-f0-9]{6}$/i.test(value);
+// A page path from the framed site is only trusted as a public path.
+const fieldsafe = (value: string) =>
+  value.startsWith('/') && !value.includes('//') ? value : '/';
 const fileLimit = {
   heroMedia: 1,
   logoMedia: 1,
@@ -78,6 +94,15 @@ const update = <T,>(rows: T[], index: number, row: T) =>
   rows.map((old, i) => (i === index ? row : old));
 const remove = <T,>(rows: T[], index: number) =>
   rows.filter((_, i) => i !== index);
+// How much of the site actually landed in the draft, for the auto-import note.
+const countFilled = (before: SiteContent, after: SiteContent) =>
+  cmsTextFields.filter((key) => !before[key].trim() && after[key].trim()).length +
+  (after.services.length - before.services.length) +
+  (after.hours.length - before.hours.length) +
+  (after.products.length - before.products.length) +
+  (after.reviews.length - before.reviews.length) +
+  (after.images.length - before.images.length) +
+  ((after.pages ?? []).length > (before.pages ?? []).length ? 1 : 0);
 
 function RowActions({
   name,
@@ -153,10 +178,17 @@ export function SiteEditor({
   const [media, setMedia] = useState<CmsFile[]>([]),
     [loadError, setLoadError] = useState('');
   const [attempt, setAttempt] = useState(0),
-    [section, setSection] = useState<(typeof sections)[number][0]>('intro');
+    [section, setSection] = useState<EditorSection>('intro');
+  // The blueprint is the portal's shape for this site: a barbershop gets
+  // bookings and a price list, a shop gets the catalogue, a brochure neither.
+  const blueprint = blueprintFor(site.site_type);
+  const [bigPreview, setBigPreview] = useState(true),
+    [inline, setInline] = useState(false);
   const [preview, setPreview] = useState(false),
     [notice, setNotice] = useState('');
   const [busyLabel, setBusyLabel] = useState('');
+  // A site that already publishes a shop or a price list tells us what it is.
+  const [detected, setDetected] = useState<SiteType | null>(null);
   const [live, setLive] = useState(false),
     [pagePath, setPagePath] = useState('/');
   // The pinned preview keeps the editor and the real page side by side, which
@@ -180,27 +212,40 @@ export function SiteEditor({
         setData(result);
         setDraft(result.content);
         setLoadError('');
-        if (staff) {
-          // Automatically fill only sites advertising the multipage integration.
-          void request<SiteImport>(`${editorPath}/import?pages=1`, 'POST')
-            .then((source) => {
-              const pages = source.pages;
-              if (active && pages?.length)
-                setDraft(
-                  (previous) =>
-                    previous &&
-                    (previous.pages?.length
-                      ? {
-                          ...previous,
-                          pages: mergePages(previous.pages, pages),
-                        }
-                      : fillFromSite(previous, source)),
-                );
-            })
-            .catch(() => {
-              /* Legacy sites still support manual import. */
+        // Import runs by itself: whatever the site already publishes lands in
+        // the right section without the user asking for it. Fields that already
+        // hold a value are never overwritten.
+        void request<SiteImport>(`${editorPath}/import`, 'POST')
+          .catch(() => null)
+          .then(async (full) => {
+            if (!active) return;
+            const source =
+              full && (full.pages?.length || !staff)
+                ? full
+                : await request<SiteImport>(
+                    `${editorPath}/import?pages=1`,
+                    'POST',
+                  ).catch(() => full);
+            if (!active || !source) return;
+            // fillFromSite is pure, so the count is computed from the same two
+            // values the state updater receives.
+            let applied = 0;
+            setDraft((previous) => {
+              if (!previous) return previous;
+              const next = fillFromSite(previous, source);
+              applied = countFilled(previous, next);
+              return applied ? next : previous;
             });
-        }
+            if (source.siteType && source.siteType !== site.site_type)
+              setDetected(source.siteType);
+            if (applied)
+              setNotice(
+                `Am preluat automat ${applied} ${applied === 1 ? 'element' : 'elemente'} de pe site în secțiunile potrivite. Verifică, apoi apasă „Publică modificările” ca să apară în pagini.`,
+              );
+          })
+          .catch(() => {
+            /* A site without public data keeps the editor as it is. */
+          });
       },
       (error) => {
         if (active) setLoadError(message(error));
@@ -263,6 +308,49 @@ export function SiteEditor({
   const edit = (patch: Partial<SiteContent>) => {
     setDraft((previous) => previous && { ...previous, ...patch });
     setNotice('');
+  };
+  const { sections, extra } = sectionsFor(site.site_type, draft);
+  // A section can disappear when its list empties or the type changes.
+  const currentSection = sections.includes(section) ? section : sections[0];
+  // Editing the page itself: the field is written into the draft, and a page
+  // the editor has not imported yet is created on the spot, so a text that is
+  // visible in the preview is always editable.
+  const inlineField = (field: InlineField, value: string) => {
+    if (field.source === 'text') {
+      edit({ [field.field]: value });
+      return;
+    }
+    const pages = draft.pages ?? [];
+    const page = pages.find((item) => item.path === field.page);
+    const existing = page?.fields.find((item) => item.id === field.id);
+    if (existing) {
+      changePage(field.page, { ...existing, value });
+      return;
+    }
+    edit({
+      pages: page
+        ? pages.map((item) =>
+            item.path === field.page
+              ? {
+                  ...item,
+                  fields: [
+                    ...item.fields,
+                    { id: field.id, label: 'Text din pagină', kind: 'text', value },
+                  ],
+                }
+              : item,
+          )
+        : [
+            ...pages,
+            {
+              path: fieldsafe(field.page),
+              title: field.page === '/' ? 'Prima pagină' : field.page,
+              fields: [
+                { id: field.id, label: 'Text din pagină', kind: 'text', value },
+              ],
+            },
+          ],
+    });
   };
   const importFromSite = () => {
     setNotice('');
@@ -557,7 +645,8 @@ export function SiteEditor({
             <LayoutTemplate size={21} /> Editor site
           </h2>
           <p className="muted">
-            Editează pe secțiuni, verifică previzualizarea, apoi publică.
+            {blueprint.summary} Editează pe secțiuni sau direct în previzualizare,
+            apoi publică.
           </p>
         </div>
         <div className="controls">
@@ -577,7 +666,7 @@ export function SiteEditor({
           >
             Deschide site-ul <ExternalLink size={15} />
           </a>
-          {staff && (
+          {staff && !bigPreview && (
             <button
               type="button"
               className="button secondary"
@@ -588,7 +677,9 @@ export function SiteEditor({
                   : 'Vezi site-ul lângă câmpuri, în timp ce editezi.'
               }
               onClick={() => {
-                setPinned(!pinned);
+                // Below 1100px the split view has no room: show the frame only
+                // when it is asked for, never by default.
+                setPinned(pinned ? false : wide());
                 setLive(false);
                 setPreview(false);
               }}
@@ -597,6 +688,44 @@ export function SiteEditor({
               {pinned ? 'Ascunde previzualizarea' : 'Previzualizare alături'}
             </button>
           )}
+          <button
+            type="button"
+            className="button secondary"
+            aria-pressed={bigPreview}
+            title={
+              bigPreview
+                ? 'Revino la editorul pe secțiuni, lângă previzualizare.'
+                : 'Previzualizarea mare: site-ul real, pe tot ecranul.'
+            }
+            onClick={() => {
+              setBigPreview(!bigPreview);
+              setLive(false);
+              setPreview(false);
+              if (bigPreview) setInline(false);
+              // The section view shows the page next to the fields, so the
+              // split preview comes back with it.
+              else setPinned(true);
+            }}
+          >
+            <Maximize2 size={17} />{' '}
+            {bigPreview ? 'Editor pe secțiuni' : 'Previzualizare mare'}
+          </button>
+          <button
+            type="button"
+            className="button secondary"
+            aria-pressed={inline}
+            hidden={!bigPreview}
+            title="Apasă pe orice text din pagină și scrie direct în el."
+            onClick={() => {
+              setLive(false);
+              setPreview(false);
+              setInline(!inline);
+            }}
+          >
+            <Pencil size={17} />{' '}
+            {inline ? 'Oprește editarea în pagină' : 'Editează în pagină'}
+          </button>
+          {!bigPreview && (
           <button
             type="button"
             className="button secondary"
@@ -610,7 +739,8 @@ export function SiteEditor({
             <Eye size={17} />{' '}
             {preview ? 'Înapoi la editor' : 'Previzualizează'}
           </button>
-          {staff && (
+          )}
+          {staff && !bigPreview && (
             <button
               type="button"
               className="button secondary"
@@ -627,6 +757,16 @@ export function SiteEditor({
           )}
         </div>
       </header>
+      {detected && (
+        <p className="cms-detect" role="status">
+          Site-ul publică deja conținut de tip <strong>{siteTypes[detected]}</strong>.
+          {detected !== site.site_type &&
+            ' Alege acest tip în Setări site ca portalul să arate secțiunile potrivite.'}{' '}
+          <button type="button" className="text-button" onClick={() => setDetected(null)}>
+            Am înțeles
+          </button>
+        </p>
+      )}
       <p className="muted cms-info">
         Editezi pe secțiuni; previzualizarea alăturată arată site-ul real cu
         modificările nepublicate.{' '}
@@ -642,19 +782,72 @@ export function SiteEditor({
         </p>
       )}
       {live && (
+        <div className="cms-live-full">
+          <LiveSitePreview
+            domain={site.domain}
+            pages={draft.pages ?? []}
+            path={pagePath}
+            select={setPagePath}
+            content={draft}
+            frameClass={narrow ? 'cms-live-narrow' : ''}
+          />
+        </div>
+      )}
+      {/* The page is the main surface: the real site fills the editor and any
+          text can be edited right where it appears. The section form stays one
+          click away for the fields a page cannot show (colours, files, pages). */}
+      <div hidden={live || !bigPreview} className="cms-big" data-inline={inline}>
+        <div className="cms-big-bar">
+          <span className={`cms-big-mode${inline ? ' is-editing' : ''}`}>
+            {inline
+              ? 'Apasă pe un text din pagină ca să îl editezi.'
+              : 'Așa arată site-ul tău. Pornește „Editează în pagină” pentru modificări directe.'}
+          </span>
+          <div className="controls">
+            <button
+              type="button"
+              className="button secondary small"
+              aria-pressed={!narrow}
+              onClick={() => setNarrow(false)}
+            >
+              <Monitor size={15} /> Desktop
+            </button>
+            <button
+              type="button"
+              className="button secondary small"
+              aria-pressed={narrow}
+              onClick={() => setNarrow(true)}
+            >
+              <Smartphone size={15} /> Telefon
+            </button>
+            <button
+              type="button"
+              className="button primary small"
+              disabled={!dirty || action.busy}
+              onClick={publish}
+            >
+              <Save size={15} /> Publică modificările
+            </button>
+          </div>
+        </div>
         <LiveSitePreview
+          compact
           domain={site.domain}
           pages={draft.pages ?? []}
           path={pagePath}
           select={setPagePath}
           content={draft}
+          inline={inline}
+          change={inlineField}
           frameClass={narrow ? 'cms-live-narrow' : ''}
+          onConnection={(state) => setPreviewLive(!!state)}
         />
-      )}
+        {dirty && <span className="cms-big-dirty">Modificări nepublicate</span>}
+      </div>
       {/* Side by side: the page updates from the draft while you type, so the
           field you are editing and its result are always in view together. */}
       <div
-        hidden={live}
+        hidden={live || bigPreview}
         className={`cms-workspace${pinned ? ' cms-workspace-split' : ''}`}
       >
       <div
@@ -664,20 +857,21 @@ export function SiteEditor({
         <form onSubmit={publish} className="cms-form stack" hidden={preview}>
           <nav className="tabs" aria-label="Secțiuni editor">
             {sections
-              .filter(([id]) => staff || id !== 'pages')
-              .map(([id, name]) => (
+              .filter((id) => staff || id !== 'pages')
+              .map((id) => (
                 <button
                   key={id}
                   type="button"
-                  aria-current={section === id ? 'page' : undefined}
+                  aria-current={currentSection === id ? 'page' : undefined}
                   onClick={() => setSection(id)}
                 >
-                  {name}
+                  {sectionLabel(site.site_type, id, sectionLabels)}
+                  {extra.includes(id) && <small className="cms-extra-mark"> · de pe site</small>}
                 </button>
               ))}
           </nav>
           <fieldset disabled={action.busy} className="cms-fields stack">
-            {staff && section === 'pages' && (
+            {staff && currentSection === 'pages' && (
               <PageFields
                 pages={draft.pages ?? []}
                 path={pagePath}
@@ -686,7 +880,7 @@ export function SiteEditor({
                 upload={uploadPageImage}
               />
             )}
-            {section === 'intro' && (
+            {currentSection === 'intro' && (
               <>
                 <Panel
                   title="Secțiunea principală"
@@ -714,7 +908,7 @@ export function SiteEditor({
                 </Panel>
               </>
             )}
-            {section === 'brand' && (
+            {currentSection === 'brand' && (
               <Panel
                 title="Aspect și identitate"
                 description="Aceste setări sunt pentru pagina publică. Nu schimbă sigla sau culorile panoului de autentificare."
@@ -823,7 +1017,7 @@ export function SiteEditor({
                 </div>
               </Panel>
             )}
-            {section === 'services' && (
+            {currentSection === 'services' && (
               <Panel
                 title="Servicii și prețuri"
                 description="Adaugă servicii în ordinea în care vrei să le vadă clienții."
@@ -902,7 +1096,7 @@ export function SiteEditor({
                 </button>
               </Panel>
             )}
-            {section === 'products' && (
+            {currentSection === 'products' && (
               <ProductsPanel
                 products={draft.products}
                 library={productLibrary}
@@ -911,13 +1105,13 @@ export function SiteEditor({
                 onUpload={uploadProductImage}
               />
             )}
-            {section === 'reviews' && (
+            {currentSection === 'reviews' && (
               <ReviewsPanel
                 reviews={draft.reviews}
                 onChange={(reviews) => edit({ reviews })}
               />
             )}
-            {section === 'media' && (
+            {currentSection === 'media' && (
               <>
                 <Panel
                   title="Galerie"
@@ -954,69 +1148,89 @@ export function SiteEditor({
                 </Panel>
               </>
             )}
-            {section === 'contact' && (
+            {(currentSection === 'contact' || currentSection === 'program') && (
               <>
-                <Panel title="Program">
-                  {draft.hours.map((item, index) => (
-                    <div key={index} className="cms-entry stack">
-                      <div className="section-heading">
-                        <strong>Interval {index + 1}</strong>
-                        <RowActions
-                          name={`intervalul ${index + 1}`}
-                          index={index}
-                          length={draft.hours.length}
-                          onRemove={() =>
-                            edit({ hours: remove(draft.hours, index) })
-                          }
-                        />
-                      </div>
-                      <div className="form-grid">
-                        {(
-                          [
-                            ['day', 'Zi', 80],
-                            ['time', 'Interval', 120],
-                          ] as const
-                        ).map(([key, label, length]) => (
-                          <Field key={key} label={`${label} ${index + 1}`}>
-                            <input
-                              maxLength={length}
-                              value={item[key]}
-                              onChange={(e) =>
-                                edit({
-                                  hours: update(draft.hours, index, {
-                                    ...item,
-                                    [key]: e.target.value,
-                                  }),
-                                })
-                              }
-                            />
-                          </Field>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    className="button secondary"
-                    disabled={draft.hours.length >= hoursLimit}
-                    onClick={() =>
-                      edit({ hours: [...draft.hours, { day: '', time: '' }] })
-                    }
+                {(currentSection === 'program' || !blueprint.bookings) && (
+                  <Panel
+                    title="Program"
+                    description="Intervalele apar pe site în secțiunea de program."
                   >
-                    <Plus size={16} /> Adaugă interval
-                  </button>
-                </Panel>
-                <Panel title="Date de contact">
-                  <div className="form-grid">
-                    {field('phone', 'Telefon')}
-                    {field('whatsapp', 'WhatsApp')}
-                    {field('email', 'Email public')}
-                    {field('address', 'Adresă')}
-                    {field('mapsUrl', 'Link hartă (HTTPS)', { url: true })}
-                    {field('facebook', 'Facebook (HTTPS)', { url: true })}
-                    {field('instagram', 'Instagram (HTTPS)', { url: true })}
-                  </div>
-                </Panel>
+                    {draft.hours.map((item, index) => (
+                      <div key={index} className="cms-entry stack">
+                        <div className="section-heading">
+                          <strong>Interval {index + 1}</strong>
+                          <RowActions
+                            name={`intervalul ${index + 1}`}
+                            index={index}
+                            length={draft.hours.length}
+                            onRemove={() =>
+                              edit({ hours: remove(draft.hours, index) })
+                            }
+                          />
+                        </div>
+                        <div className="form-grid">
+                          {(
+                            [
+                              ['day', 'Zi', 80],
+                              ['time', 'Interval', 120],
+                            ] as const
+                          ).map(([key, label, length]) => (
+                            <Field key={key} label={`${label} ${index + 1}`}>
+                              <input
+                                maxLength={length}
+                                value={item[key]}
+                                onChange={(e) =>
+                                  edit({
+                                    hours: update(draft.hours, index, {
+                                      ...item,
+                                      [key]: e.target.value,
+                                    }),
+                                  })
+                                }
+                              />
+                            </Field>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="button secondary"
+                      disabled={draft.hours.length >= hoursLimit}
+                      onClick={() =>
+                        edit({ hours: [...draft.hours, { day: '', time: '' }] })
+                      }
+                    >
+                      <Plus size={16} /> Adaugă interval
+                    </button>
+                  </Panel>
+                )}
+                {currentSection === 'program' && blueprint.bookingFields && (
+                  <Panel
+                    title="Rezervări"
+                    description="Butonul de programare din pagina principală duce la acest link."
+                  >
+                    <div className="form-grid">
+                      {field('bookingLabel', 'Text buton rezervare')}
+                      {field('bookingUrl', 'Link rezervare (HTTPS)', {
+                        url: true,
+                      })}
+                    </div>
+                  </Panel>
+                )}
+                {currentSection === 'contact' && (
+                  <Panel title="Date de contact">
+                    <div className="form-grid">
+                      {field('phone', 'Telefon')}
+                      {field('whatsapp', 'WhatsApp')}
+                      {field('email', 'Email public')}
+                      {field('address', 'Adresă')}
+                      {field('mapsUrl', 'Link hartă (HTTPS)', { url: true })}
+                      {field('facebook', 'Facebook (HTTPS)', { url: true })}
+                      {field('instagram', 'Instagram (HTTPS)', { url: true })}
+                    </div>
+                  </Panel>
+                )}
               </>
             )}
           </fieldset>
@@ -1048,7 +1262,7 @@ export function SiteEditor({
         </form>
         <ContentPreview site={site} content={draft} />
       </div>
-      {staff && pinned && !live && (
+      {staff && pinned && !live && !bigPreview && (
         <aside
           className={`cms-pinned${narrow ? ' cms-pinned-narrow' : ''}`}
           aria-label="Previzualizare site în timp real"

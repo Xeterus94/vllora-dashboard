@@ -313,6 +313,8 @@ test(
       await master.getByLabel('Titlu principal', { exact: true }).inputValue(),
       'A D1-backed title',
     );
+    // The editor opens on the big preview; the section form is one click away.
+    await master.getByRole('button', { name: 'Editor pe secțiuni' }).click();
     await master
       .getByLabel('Titlu principal', { exact: true })
       .fill('Publicat de master');
@@ -331,7 +333,9 @@ test(
         },
       }),
     );
-    await master.getByRole('button', { name: 'Importă de pe site' }).click();
+    await master
+      .getByRole('button', { name: 'Importă de pe site' })
+      .click();
     await master
       .getByRole('status')
       .filter({ hasText: 'preluate din manifest' })
@@ -425,7 +429,10 @@ test(
     await master
       .getByRole('button', { name: 'Previzualizare alături', exact: true })
       .click();
-    await master.getByRole('button', { name: 'Publică modificările' }).click();
+    await master
+      .locator('.cms-publish')
+      .getByRole('button', { name: 'Publică modificările' })
+      .click();
     await master
       .getByRole('status')
       .filter({ hasText: 'Conținut publicat. Se afișează' })
@@ -527,6 +534,7 @@ test(
       });
     });
     await master.reload();
+    await master.getByRole('button', { name: 'Editor pe secțiuni' }).click();
     await master.getByRole('button', { name: 'Toate paginile' }).click();
     const choosePage = master.getByLabel('Pagina site-ului');
     await choosePage.selectOption('/despre/');
@@ -554,33 +562,27 @@ test(
     const replacement = master.locator('img.cms-slot-image[src^="/media/"]');
     await replacement.evaluate((image) => image.decode());
     await master.getByRole('button', { name: 'Elimină imaginea' }).click();
-    // The pinned frame already shows the draft; go full screen for the page picker.
-    const pinnedFrame = master
-      .locator('.cms-pinned')
-      .frameLocator('iframe[title="Site real — previzualizare"]');
-    // The pinned frame keeps receiving the draft after it first loads, so an edit
-    // made later shows up without reopening the preview.
-    await pinnedFrame
-      .getByRole('heading', { name: 'Titlu editat în master' })
-      .waitFor();
-    assert.equal(await pinnedFrame.locator('#chart').textContent(), '42');
-    assert.equal(
-      await master.locator('.cms-pinned-status').innerText(),
-      'Modificări nepublicate',
-    );
+    // Back to the big preview, which shows the draft in the same frame.
+    await master.getByRole('button', { name: 'Previzualizare mare' }).click();
     // The phone switch narrows the frame without reloading it.
     await master
-      .locator('.cms-pinned')
+      .locator('.cms-big-bar')
       .getByRole('button', { name: 'Telefon', exact: true })
       .click();
-    await master
-      .locator('.cms-pinned .cms-live-narrow')
-      .waitFor();
+    await master.locator('.cms-big .cms-live-narrow').waitFor();
+    assert.equal(
+      await master.locator('.cms-big-dirty').innerText(),
+      'Modificări nepublicate',
+    );
+    // The big preview owns the frame; the full-screen view is the section
+    // editor's own preview, so step into the sections first.
+    await master.getByRole('button', { name: 'Editor pe secțiuni' }).click();
     await master
       .getByRole('button', { name: 'Previzualizare pe tot ecranul' })
       .click();
+    await master.locator('.cms-live-full .cms-live-frame').waitFor();
     const frame = master.frameLocator(
-      'iframe[title="Site real — previzualizare"]',
+      '.cms-live-full iframe[title="Site real — previzualizare"]',
     );
     await frame
       .getByRole('heading', { name: 'Titlu editat în master' })
@@ -593,7 +595,14 @@ test(
       'fade',
     );
     await frame.locator('[data-vllora-image]').waitFor({ state: 'hidden' });
-    await master.getByLabel('Pagină de previzualizat').selectOption('/');
+    // The full-screen preview has no page picker of its own: leave it, choose a
+    // page in the form, then come back to the same frame.
+    await master.getByRole('button', { name: 'Înapoi la editare' }).click();
+    await master.getByRole('button', { name: 'Toate paginile' }).click();
+    await master.getByLabel('Pagina site-ului').selectOption('/');
+    await master
+      .getByRole('button', { name: 'Previzualizare pe tot ecranul' })
+      .click();
     await frame.getByRole('heading', { name: 'Bun venit!' }).waitFor();
     await frame.getByRole('link', { name: 'Mergi la Despre' }).click();
     await frame
@@ -610,7 +619,10 @@ test(
     await master
       .getByText('Nu există câmpuri goale', { exact: false })
       .waitFor();
-    await master.getByRole('button', { name: 'Publică modificările' }).click();
+    await master
+      .locator('.cms-publish')
+      .getByRole('button', { name: 'Publică modificările' })
+      .click();
     await master
       .getByRole('status')
       .filter({ hasText: 'Conținut publicat. Se afișează' })
@@ -642,10 +654,21 @@ test(
     }
     await master.setViewportSize({ width: 320, height: 640 });
     await staffCards.getByRole('button', { name: 'Editează site-ul' }).first().click();
-    // Below 1100px the split view starts hidden so the fields stay above the fold.
+    // The portal now opens on the full-width preview; the split view is the
+    // optional one, and below 1100px it stays off so the fields stay visible.
+    await master
+      .getByRole('button', { name: 'Editor pe secțiuni', exact: true })
+      .waitFor();
+    // The big preview is the landing surface even on a phone, and it really
+    // disappears (not just visually) once the section editor takes over.
+    assert.equal(await master.locator('.cms-big').isVisible(), true);
+    await master
+      .getByRole('button', { name: 'Editor pe secțiuni', exact: true })
+      .click();
+    assert.equal(await master.locator('.cms-big').isVisible(), false);
     await master
       .getByRole('button', { name: 'Previzualizare alături', exact: true })
-      .waitFor();
+      .click();
     assert.equal(await master.locator('.cms-pinned').count(), 0);
     // Staff detail page exposes the same administration block.
     const staffAdministration = master
@@ -688,7 +711,7 @@ test(
       .fill('Bluebird SRL');
     await master.getByLabel('CUI / CIF', { exact: true }).fill('RO12345678');
     await master
-      .getByLabel('Profilul site-ului', { exact: false })
+      .getByLabel('Tipul site-ului', { exact: true })
       .selectOption('ecommerce');
     await master
       .getByRole('button', { name: 'Indicator principal: Valoarea comenzilor' })
@@ -964,6 +987,8 @@ test(
     await client
       .getByRole('button', { name: 'Editează site-ul', exact: true })
       .click();
+    // The portal opens on the big preview; the section form is one click away.
+    await client.getByRole('button', { name: 'Editor pe secțiuni' }).click();
     await client
       .getByLabel('Titlu principal', { exact: true })
       .fill('Un titlu din editorul mobil');
@@ -1009,6 +1034,23 @@ test(
       .waitFor();
     await client.setViewportSize({ width: 320, height: 640 });
 
+    // The section form is visible; the big preview is stepped out of.
+    assert.equal(await client.locator('.cms-big').isVisible(), false);
+    // A shop's blueprint: the catalogue, never bookings or a price list. The
+    // page inventory stays a master tool, so the client does not see it.
+    assert.deepEqual(
+      await client
+        .locator('nav[aria-label="Secțiuni editor"] button')
+        .allTextContents(),
+      [
+        'Prima pagină',
+        'Nume și culori',
+        'Produse (magazin)',
+        'Recenzii',
+        'Galerie și fișiere',
+        'Contact',
+      ],
+    );
     // The shop lives in the same portal: full product form, photo upload and
     // review deletion, all through the client session.
     await client
@@ -1108,12 +1150,38 @@ test(
       ['Client mulțumit'],
     );
 
+    // A section outside the shop blueprint becomes reachable as soon as it
+    // holds data, so nothing the site already has can be lost.
+    await client.evaluate(async () => {
+      const me = await (
+        await fetch('/admin/api/portal/content', {
+          headers: { Accept: 'application/json' },
+        })
+      ).json();
+      await fetch('/admin/api/portal/content', {
+        method: 'PUT',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          revision: me.revision,
+          content: {
+            ...me.content,
+            services: [
+              { name: 'Tuns din portal', price: '90 lei', description: '', duration: '' },
+            ],
+          },
+        }),
+      });
+    });
+    await client.reload();
     await client
-      .getByRole('button', { name: 'Servicii și prețuri', exact: true })
+      .getByRole('button', { name: 'Editează site-ul', exact: true })
       .click();
-    await client.getByRole('button', { name: 'Adaugă serviciu' }).click();
+    await client.getByRole('button', { name: 'Editor pe secțiuni' }).click();
+    await client.getByRole('button', { name: /Servicii și prețuri/ }).click();
     await client.getByLabel('Nume serviciu 1').fill('Tuns din portal');
-    await client.getByLabel('Preț 1').fill('90 lei');
     await client
       .getByRole('button', { name: 'Galerie și fișiere', exact: true })
       .click();
@@ -1181,6 +1249,7 @@ test(
     await client
       .getByRole('button', { name: 'Editează site-ul', exact: true })
       .click();
+    await client.getByRole('button', { name: 'Editor pe secțiuni' }).click();
     assert.equal(
       await client.getByLabel('Titlu principal', { exact: true }).inputValue(),
       'Un titlu din editorul mobil',

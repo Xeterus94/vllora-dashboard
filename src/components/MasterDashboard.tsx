@@ -15,6 +15,12 @@ import {
 } from 'lucide-react';
 import { profileSettings, type MetricSettings } from '../../shared/metrics';
 import {
+  defaultSiteType,
+  profileForType,
+  siteTypes,
+} from '../../shared/portal-brand';
+import { blueprintFor } from '../../shared/site-type';
+import {
   permissionIds,
   permissions,
   presetFor,
@@ -694,6 +700,7 @@ function SiteSettings({
       'plan',
       'portal_host',
       'status',
+      'site_type',
       'primary_color',
       'secondary_color',
       'accent_color',
@@ -814,6 +821,21 @@ function SiteSettings({
                         required
                         maxLength={100}
                       />
+                    </Field>
+                    <Field
+                      label="Tipul site-ului"
+                      hint="Decide ce secțiuni are portalul: programări, magazin sau prezentare."
+                    >
+                      <select
+                        name="site_type"
+                        defaultValue={site.site_type || defaultSiteType}
+                      >
+                        {Object.entries(siteTypes).map(([id, label]) => (
+                          <option key={id} value={id}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
                     </Field>
                     <Field label="Plan">
                       <input
@@ -1064,7 +1086,11 @@ function SiteSettings({
 }
 function NewSite({ created }: { created: (id: string) => void }) {
   const [metrics, setMetrics] = useState<MetricSettings>(profileSettings()),
+    // Choosing the type first is what shapes the portal afterwards; the metric
+    // profile follows it, and both stay editable later.
+    [type, setType] = useState(defaultSiteType),
     action = useAction();
+  const blueprint = blueprintFor(type);
   return (
     <form
       className="stack"
@@ -1080,8 +1106,11 @@ function NewSite({ created }: { created: (id: string) => void }) {
               name: fields.get('name'),
               portal_host: fields.get('portal_host'),
               plan: fields.get('plan'),
-              company: readCompanyFields(fields),
+              site_type: type,
+              // The metric profile is sent explicitly: the API must not have to
+              // guess it from the type.
               metrics,
+              company: readCompanyFields(fields),
             },
           );
           created(site.id);
@@ -1104,6 +1133,25 @@ function NewSite({ created }: { created: (id: string) => void }) {
           </Field>
           <Field label="Nume afișat (opțional)">
             <input name="name" maxLength={100} />
+          </Field>
+          <Field
+            label="Tipul site-ului"
+            hint={blueprint.summary}
+          >
+            <select
+              value={type}
+              onChange={(e) => {
+                const next = e.target.value as typeof type;
+                setType(next);
+                setMetrics(profileSettings(profileForType[next]));
+              }}
+            >
+              {Object.entries(siteTypes).map(([id, label]) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="Plan">
             <input

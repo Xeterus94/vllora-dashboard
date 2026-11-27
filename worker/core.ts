@@ -1,6 +1,7 @@
 import type { Context } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { storedPermissions } from '../shared/permissions';
+import { defaultSiteType, type SiteType } from '../shared/portal-brand';
 
 export interface Env {
   DB: D1Database;
@@ -51,6 +52,7 @@ export interface Site {
   route_status: string;
   notes: string;
   created_at: number;
+  site_type: SiteType;
 }
 export interface User {
   id: string;
@@ -164,6 +166,7 @@ export const siteView = (env: Env, site: Site, admin = false, prefix = '') => ({
   logo_url: site.object_key
     ? publicMediaUrl(env, site.object_key, prefix)
     : null,
+  site_type: site.site_type || defaultSiteType,
   favicon_media_id: site.favicon_media_id,
   favicon_url: site.favicon_key
     ? publicMediaUrl(env, site.favicon_key, prefix)

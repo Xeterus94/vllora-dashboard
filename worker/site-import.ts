@@ -14,6 +14,7 @@ import {
 } from '../shared/site-content';
 import { absolute, discoveredColor, discovery, external } from './branding';
 import { fail, rate, type Ctx } from './core';
+import { detectSiteType } from '../shared/site-type';
 import { fieldText } from './site-content';
 import { normalizePages, pagePayloadLimit } from './site-pages';
 import type { ContentPage, PageField } from '../shared/site-pages';
@@ -240,13 +241,20 @@ async function readHtml(bytes: Uint8Array) {
     return {
       element(el: Element) {
         value = '';
-        el.onEndTag(() => remember(label, value));
+        const skip = chrome > 0 || banned > 0;
+        el.onEndTag(() => {
+          if (!skip) remember(label, value);
+        });
       },
       text(chunk: { text: string }) {
         value += chunk.text;
       },
     };
   };
+  // Track how deep we are inside the page chrome (nav, header, footer, aside).
+  // Copy from there is menu labels and legal lines, not editable content.
+  let chrome = 0,
+    banned = 0;
   const rewriter = new HTMLRewriter();
   for (const { selector, handler } of [
     capture('[data-vllora-field]', (el) => {
@@ -306,6 +314,24 @@ async function readHtml(bytes: Uint8Array) {
     // Independent buffer per element: the capture handlers above keep their own
     // state, so nothing here can swallow a title.
     // h1 is captured above into heroTitle; here only the remaining headings.
+    // Count the chrome only after the copy handlers are registered, so their
+    // own element callbacks run while the depth is still correct.
+    .on('nav, header, footer, aside', {
+      element(el) {
+        chrome++;
+        el.onEndTag(() => {
+          chrome = Math.max(0, chrome - 1);
+        });
+      },
+    })
+    .on('script, style, noscript, svg, [aria-hidden="true"]', {
+      element(el) {
+        banned++;
+        el.onEndTag(() => {
+          banned = Math.max(0, banned - 1);
+        });
+      },
+    })
     .on('h2, h3, h4', copyOf('Titlu'))
     .on('p:not([data-cms]), li, blockquote', copyOf('Text'))
     .on('a[href], button', copyOf('Buton'))
@@ -533,6 +559,8 @@ export async function inspectSite(
         images: manifest.images.length ? manifest.images : fallback.images,
       }
     : fallback;
+  // What the page itself says it sells decides the portal shape.
+  result.siteType = detectSiteType(result);
   if (
     !Object.keys(result.fields).length &&
     !result.images.length &&

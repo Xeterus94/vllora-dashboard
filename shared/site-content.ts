@@ -1,3 +1,4 @@
+import type { SiteType } from './portal-brand';
 import { mergePages, type ContentPage } from './site-pages';
 
 export const companyFields = [
@@ -199,6 +200,8 @@ export const hoursLimit = 14;
 
 export type SiteImport = {
   source: 'manifest' | 'html';
+  // Only the full scan sets it; ?pages=1 is an inventory call.
+  siteType?: SiteType;
   fields: Partial<Record<CmsTextField, string>>;
   images: string[];
   services: CmsService[];

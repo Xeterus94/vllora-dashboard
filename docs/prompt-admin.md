@@ -6,16 +6,19 @@ sunt identici; diferă doar partea de rutare.
 ## 1. Pregătire în dashboard (obligatoriu, în ambele variante)
 
 1. Deschide `/portal-admin/` (panoul master) → **Adaugă site**.
-2. La **Domeniu** scrie hostname-ul exact al site-ului: fără `https://`, fără `/`,
+2. Alege **Tipul site-ului**: frizerie → **Programări**, magazin → **Magazin online**,
+   restaurant → **Restaurant**, simplă prezentare → **Prezentare**. Tipul decide ce
+   secțiuni are portalul clientului și se poate schimba apoi din **Configurare**.
+3. La **Domeniu** scrie hostname-ul exact al site-ului: fără `https://`, fără `/`,
    fără `www.` dacă site-ul nu servește pe `www`. Exemplu: `frizeriata.pages.dev`.
    Hostname-urile se potrivesc **exact**; dacă diferă, `/admin` răspunde
    „Portalul nu există pe acest domeniu.”
-3. În site → **Acces client** → completează **Utilizator** și **Nume client** →
+4. În site → **Acces client** → completează **Utilizator** și **Nume client** →
    **Generează acces**. Copiază parola temporară: se afișează o singură dată, iar
    clientul o schimbă la prima autentificare.
-4. Dacă apare butonul **Sincronizează ruta**, apasă-l (încearcă automat ruta
+5. Dacă apare butonul **Sincronizează ruta**, apasă-l (încearcă automat ruta
    `/admin*` în zona Cloudflare, unde tokenul are acces).
-5. Opțional, pentru fiecare cont: alege drepturile (**Administrator**, **Editor**,
+6. Opțional, pentru fiecare cont: alege drepturile (**Administrator**, **Editor**,
    **Doar citire** sau bife individuale).
 
 ## 2. Varianta A — site pe Cloudflare Pages (`*.pages.dev` sau alt hostname partajat)
@@ -104,6 +107,9 @@ ecranul de login dar autentificarea eșuează, contul nu a fost generat din
 
 ## 6. După legare
 
+- La prima deschidere a editorului, **Importă de pe site** propune textele, produsele,
+  serviciile, programul și recenziile existente, fiecare în secțiunea tipului de site.
+  Nu se publică nimic până la **Publică modificările**.
 - Conținutul public ajunge pe site doar dacă site-ul citește datele din CMS:
   vezi [adaptorul pentru pagina publică](../integrations/static-cms/README.md).
 - Un cont nou primește implicit toate drepturile; restricționează-le din

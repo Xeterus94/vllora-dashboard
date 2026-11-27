@@ -17,6 +17,15 @@ export const webp = Buffer.from(
 export async function runtime({ bindings = {}, outbound } = {}) {
   const received = [];
   let rejectEmail = false;
+  const mail = async (request) => {
+    if (new URL(request.url).hostname !== 'mock-email.example.com')
+      return new Response(null, { status: 502 });
+    received.push(await request.json());
+    return new Response('{}', {
+      status: rejectEmail ? 500 : 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  };
   const { outputFiles } = await build({
     entryPoints: ['worker/index.ts'],
     bundle: true,
@@ -61,17 +70,15 @@ export async function runtime({ bindings = {}, outbound } = {}) {
         DEV_EMAIL_API_URL: 'https://mock-email.example.com/emails',
         ...bindings,
       },
-      outboundService:
-        outbound ??
-        (async (request) => {
-          if (new URL(request.url).hostname !== 'mock-email.example.com')
-            return new Response(null, { status: 502 });
-          received.push(await request.json());
-          return new Response('{}', {
-            status: rejectEmail ? 500 : 200,
-            headers: { 'Content-Type': 'application/json' },
-          });
-        }),
+      // A custom handler receives the email recorder as its second argument, so
+      // a test can answer its own hosts without losing the mail fixture. With
+      // no custom handler the recorder answers every request itself.
+      outboundService: (request) =>
+        (
+          outbound
+            ? outbound(request, mail)
+            : mail(request)
+        ).then((answer) => answer ?? new Response(null, { status: 502 })),
       serviceBindings: {
         ASSETS: async (request) => {
           const pathname = new URL(request.url).pathname;

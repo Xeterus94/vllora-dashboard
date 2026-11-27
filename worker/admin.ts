@@ -45,6 +45,13 @@ import {
 } from './portfolio';
 import { certificateReport, removeRoute, syncRoute } from './routes';
 import {
+  defaultSiteType,
+  isSiteType,
+  profileForType,
+  type SiteType,
+} from '../shared/portal-brand';
+import { profileSettings } from '../shared/metrics';
+import {
   companyPatch,
   editorContent,
   publishContent,
@@ -136,8 +143,16 @@ async function createSite(
     body.name === undefined || body.name === ''
       ? host
       : text(body.name, 100, 'Nume');
+  // The type decides which sections the portal shows, so it is stored on the
+  // site itself and never inferred again from the public page.
+  const type = body.site_type ?? defaultSiteType;
+  if (!isSiteType(type)) return fail(400, 'Tip de site invalid.');
   const id = `site_${random(12)}`,
-    config = body.metrics === undefined ? null : validateMetrics(body.metrics);
+    config = validateMetrics(
+      body.metrics === undefined
+        ? profileSettings(profileForType[type])
+        : body.metrics,
+    );
   const plan =
     body.plan === undefined ? 'Standard' : text(body.plan, 60, 'Plan');
   const changes = brandFields(body),
@@ -152,7 +167,7 @@ async function createSite(
     await c.env.DB.batch([
       stmt(
         c.env,
-        'INSERT INTO sites(id,domain,portal_host,name,plan,status,tracking_token,created_at,suspended_at,brand_source,primary_color,secondary_color,accent_color,scheme) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        'INSERT INTO sites(id,domain,portal_host,name,plan,status,tracking_token,created_at,suspended_at,brand_source,primary_color,secondary_color,accent_color,scheme,site_type) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
         id,
         host,
         portal,
@@ -167,6 +182,7 @@ async function createSite(
         changes.secondary_color ?? '#d6b46c',
         changes.accent_color ?? '#f6e6bc',
         changes.scheme ?? 'light',
+        type,
       ),
       ...[...new Set([host, ...(portal ? [portal] : [])])].map((h) =>
         stmt(c.env, 'INSERT INTO site_hosts(host,site_id) VALUES(?,?)', h, id),
@@ -244,7 +260,23 @@ async function updateSite(
     sets: string[] = [],
     values: (string | null | number)[] = [];
   const company = companyPatch(b.company);
-  const config = b.metrics === undefined ? null : validateMetrics(b.metrics);
+  if (b.site_type !== undefined) {
+    if (!isSiteType(b.site_type)) return fail(400, 'Tip de site invalid.');
+    update.site_type = b.site_type;
+  }
+  // Changing the type without sending metrics moves the KPI profile with it,
+  // unless the currency is already locked by a paid order.
+  const config =
+    b.metrics !== undefined
+      ? validateMetrics(b.metrics)
+      : update.site_type && update.site_type !== site.site_type
+        ? validateMetrics(
+            profileSettings(
+              profileForType[update.site_type as SiteType],
+              (await configView(c.env, site.id)).settings.currency,
+            ),
+          )
+        : null;
   if (b.domain !== undefined && b.domain !== site.domain)
     return fail(
       400,

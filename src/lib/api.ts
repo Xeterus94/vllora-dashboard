@@ -1,4 +1,5 @@
 import type { CompanyData } from '../../shared/site-content';
+import type { SiteType } from '../../shared/portal-brand';
 import type { PortalBrand } from '../../shared/portal-brand';
 import type { Permission } from '../../shared/permissions';
 import type { MetricId, MetricSettings } from '../../shared/metrics';
@@ -7,6 +8,7 @@ import { webImage, type MediaPurpose } from './web-image';
 export type Site = PortalBrand & {
   id: string;
   domain: string;
+  site_type: SiteType;
   portal_host: string | null;
   plan: string;
   status: 'active' | 'suspended' | 'deleting';
