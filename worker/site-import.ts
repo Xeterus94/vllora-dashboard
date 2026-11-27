@@ -2,8 +2,11 @@ import {
   cmsTextFields,
   companyFieldSpec,
   discountMax,
+  featuresLimit,
   galleryLimit,
+  stockMax,
   productLimit,
+  reviewLimit,
   servicesLimit,
   hoursLimit,
   type SiteImport,
@@ -116,6 +119,17 @@ function normalize(
       const name = clean(row.name, 160);
       if (!name) return [];
       const discount = Number(row.discount ?? 0);
+      const stock = row.stock === undefined ? null : Number(row.stock);
+      const features = Array.isArray(row.features)
+        ? row.features
+            .slice(0, featuresLimit)
+            .flatMap((feature) => clean(feature, 120) || [])
+        : typeof row.features === 'string'
+          ? row.features
+              .split('|')
+              .slice(0, featuresLimit)
+              .flatMap((feature) => feature.trim() || [])
+          : [];
       return [
         {
           name,
@@ -127,13 +141,42 @@ function normalize(
               ? discount
               : 0,
           bestseller: row.bestseller === true,
+          active: row.active !== false,
           category: clean(row.category, 80),
+          subcategory: clean(row.subcategory, 80),
+          stock:
+            stock !== null && Number.isInteger(stock) && stock >= 0
+              ? Math.min(stock, stockMax)
+              : null,
+          unit: clean(row.unit, 40),
+          badge: clean(row.badge, 40),
+          season: clean(row.season, 40),
+          features,
           imageUrl: absolute(row.imageUrl, base) ?? '',
           image: null,
         },
       ];
     });
-  return { source, fields, images, services, hours, products };
+  // Local reviews: an array in the manifest, or Review JSON-LD on the page.
+  const reviews = [...array(raw.reviews)]
+    .slice(0, reviewLimit)
+    .map(object)
+    .flatMap((row) => {
+      const name = clean(row.name ?? row.author, 80),
+        rating = Number(row.rating);
+      if (!name || !Number.isInteger(rating) || rating < 1 || rating > 5)
+        return [];
+      return [
+        {
+          name,
+          rating,
+          location: clean(row.location, 80),
+          text: clean(row.text ?? row.body, 1500),
+          date: clean(row.date, 10),
+        },
+      ];
+    });
+  return { source, fields, images, services, hours, products, reviews };
 }
 
 async function readHtml(bytes: Uint8Array) {
@@ -141,7 +184,8 @@ async function readHtml(bytes: Uint8Array) {
   const basic: Record<string, unknown> = {};
   const explicit: string[] = [],
     gallery: string[] = [],
-    jsonLd: Record<string, unknown>[] = [];
+    jsonLd: Record<string, unknown>[] = [],
+    jsonLdReviews: Record<string, unknown>[] = [];
   // Visible copy, so a site without CMS markup still lands in the page editor.
   // Only short text nodes are kept and everything is re-cleaned by normalize.
   const copy: { label: string; value: string }[] = [];
@@ -268,10 +312,13 @@ async function readHtml(bytes: Uint8Array) {
     .on('script[type="application/ld+json"]', {
       text(t) {
         if (jsonLd.length >= productLimit) return;
-        const parsed = ldProducts(t.text);
-        for (const product of parsed) {
+        for (const entry of ldProducts(t.text)) {
+          if (entry.kind === 'review') {
+            if (jsonLdReviews.length < reviewLimit) jsonLdReviews.push(entry);
+            continue;
+          }
           if (jsonLd.length >= productLimit) break;
-          jsonLd.push(product);
+          jsonLd.push(entry);
         }
       },
     })
@@ -298,6 +345,7 @@ async function readHtml(bytes: Uint8Array) {
     )
     .arrayBuffer();
   if (jsonLd.length) raw.jsonLdProducts = jsonLd;
+  if (jsonLdReviews.length) raw.reviews = jsonLdReviews;
   return {
     basic,
     raw,
@@ -369,6 +417,24 @@ function ldProducts(text: string): Record<string, unknown>[] {
             : image && typeof image === 'object'
               ? (image as Record<string, unknown>).url
               : undefined,
+      });
+      return;
+    }
+    if (types.includes('Review')) {
+      const author =
+        node.author && typeof node.author === 'object'
+          ? (node.author as Record<string, unknown>).name
+          : node.author;
+      const rating = node.reviewRating;
+      rows.push({
+        kind: 'review',
+        name: author,
+        rating:
+          rating && typeof rating === 'object'
+            ? (rating as Record<string, unknown>).ratingValue
+            : undefined,
+        text: node.reviewBody ?? node.description,
+        date: node.datePublished,
       });
       return;
     }

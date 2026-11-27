@@ -141,9 +141,16 @@
     }
     for (const list of document.querySelectorAll('[data-vllora-list]')) {
       const key = list.dataset.vlloraList;
-      if (!['services', 'hours', 'images', 'documents', 'products'].includes(key))
+      if (
+        !['services', 'hours', 'images', 'documents', 'products', 'reviews'].includes(
+          key,
+        )
+      )
         continue;
-      const rows = content[key];
+      let rows = content[key];
+      // Hidden products stay in the CMS but never reach the shop page.
+      if (key === 'products' && Array.isArray(rows))
+        rows = rows.filter((product) => product && product.active !== false);
       const template = document.getElementById(
         list.dataset.vlloraTemplate || '',
       );
@@ -158,6 +165,7 @@
         let item = typeof value === 'string' ? { url: value } : value;
         if (!item || typeof item !== 'object') continue;
         if (key === 'products') item = deal(item);
+        if (key === 'reviews') item = { ...item, stars: '★'.repeat(item.rating || 0) };
         const row = template.content.cloneNode(true);
         for (const element of row.querySelectorAll('[data-vllora-item]')) {
           const field = item[element.dataset.vlloraItem];

@@ -749,6 +749,36 @@ th {
 .cms-brand-mark { display: grid; place-items: center; width: 52px; height: 52px; flex: 0 0 auto; border-radius: 12px; font-weight: 800; font-size: 1.05rem; overflow: hidden; }
 .cms-brand-mark img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
 .cms-brand-swatch { display: block; height: 8px; width: 140px; border-radius: 999px; }
+/* Shop: a scannable product list, each row expanding into its full form. */
+.cms-products-toolbar { align-items: flex-end; flex-wrap: wrap; gap: 10px; }
+.cms-products-toolbar > * { flex: 1 1 180px; }
+.cms-products-toolbar > .button { flex: 0 0 auto; }
+.cms-product-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.cms-product-item { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.cms-product-item.is-hidden { opacity: .62; }
+.cms-product-head { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; padding: 8px 10px; }
+/* The editor column can be narrow inside the split view, so the row reflows on
+   its own width instead of the viewport width. */
+.cms-grid, .cms-workspace-split > .cms-grid { container-type: inline-size; }
+.cms-product-item .cms-product-form { border-top: 1px solid var(--line); padding: 12px; background: var(--subtle); }
+.cms-product-thumb { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 8px; background: var(--subtle); color: var(--muted); overflow: hidden; }
+.cms-product-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.cms-product-head > .cms-product-title { flex: 1 1 160px; }
+.cms-product-title { display: grid; gap: 1px; min-width: 0; }
+.cms-product-title strong { overflow: hidden; text-overflow: ellipsis; }
+.cms-product-title strong { font-size: .92rem; }
+.cms-product-title small { font-size: .74rem; }
+.cms-product-flags { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex: 1 1 auto; justify-content: flex-end; }
+.cms-product-flags .badge { font-size: .66rem; padding: 1px 6px; }
+.cms-product-actions { display: flex; gap: 5px; }
+.cms-review-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.cms-review { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 10px; border: 1px solid var(--line); border-radius: 12px; }
+.cms-review p { margin: 0; font-size: .88rem; }
+/* Below ~520px of panel width everything stacks: photo, name, then actions. */
+@container (max-width: 520px) {
+  .cms-product-head { align-items: flex-start; }
+  .cms-product-flags, .cms-product-actions { flex-basis: 100%; justify-content: flex-start; }
+}
 /* Product rows: the photo, the price and the deal stay in one glance. */
 .cms-product-body { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 14px; align-items: start; }
 .cms-product-image { display: grid; gap: 6px; }
@@ -762,6 +792,11 @@ th {
 .cms-discount { display: inline-flex; align-items: center; gap: 6px; font-size: .86rem; font-weight: 600; }
 .cms-discount input { width: 72px; }
 .cms-product-price { flex: 1 1 220px; margin: 0; }
+.cms-product-flags .cms-product-price { display: inline-flex; align-items: baseline; gap: 6px; flex: 0 0 auto; }
+.cms-product-flags .cms-product-price b { font-size: .95rem; }
+.cms-product-flags .cms-product-price s { color: var(--muted); font-size: .78rem; }
+.cms-product-flags .cms-product-price em { font-style: normal; font-size: .7rem; font-weight: 700; color: #b45309; background: #fef3c7; border-radius: 999px; padding: 1px 7px; }
+.cms-product-deal .cms-product-price { flex-basis: 100%; }
 .cms-preview-products { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
 .cms-preview-product { position: relative; display: grid; gap: 2px; }
 .cms-preview-product img, .cms-preview-product-empty { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; background: var(--subtle); }
@@ -911,3 +946,4 @@ th {
 .cms-live-frame { display: block; width: 100%; min-width: 0; height: clamp(360px, 75vh, 960px); border: 1px solid var(--line); border-radius: 10px; background: var(--surface); margin-inline: auto; }
 .cms-live-narrow { max-width: 390px; }
 .cms-slot-image { display: block; width: min(100%, 280px); max-height: 180px; object-fit: contain; object-position: left center; }
+.cms-product-flags .badge-quiet { background: var(--subtle); color: var(--muted); }

@@ -56,17 +56,44 @@ export type CmsHours = { day: string; time: string };
 // A shop row. The shop owner keeps the regular price; the discount is a whole
 // percent, so the effective price is derived everywhere from these two values
 // and the site never has to store a second, drifting price.
+// The shop categories FITOPLANT-style stores use; a free-text value is still
+// accepted, so an older row or another shop keeps working.
+export const productCategories = [
+  'Semințe & Plante',
+  'Unelte Grădină',
+  'Irigații',
+  'Curte & Decor',
+  'Casă & Întreținere',
+] as const;
 export type CmsProduct = {
   name: string;
   description: string;
+  // Whole lei as text, so the shop keeps its own formatting ("69", "69,00").
   price: string;
   comparePrice: string;
   discount: number;
   bestseller: boolean;
   category: string;
+  subcategory: string;
+  stock: number | null;
+  unit: string;
+  badge: string;
+  season: string;
+  features: string[];
+  active: boolean;
   imageUrl: string;
   image: CmsFile | null;
 };
+export type CmsReview = {
+  name: string;
+  rating: number;
+  location: string;
+  text: string;
+  date: string;
+};
+export const reviewLimit = 200;
+export const featuresLimit = 12;
+export const stockMax = 1_000_000;
 export const productLimit = 200;
 export const discountMax = 90;
 export const productFields = [
@@ -77,8 +104,33 @@ export const productFields = [
   'discount',
   'bestseller',
   'category',
+  'subcategory',
+  'stock',
+  'unit',
+  'badge',
+  'season',
+  'features',
+  'active',
   'imageUrl',
 ] as const;
+export const emptyProduct = (): CmsProduct => ({
+  name: '',
+  description: '',
+  price: '',
+  comparePrice: '',
+  discount: 0,
+  bestseller: false,
+  category: '',
+  subcategory: '',
+  stock: null,
+  unit: '',
+  badge: '',
+  season: '',
+  features: [],
+  active: true,
+  imageUrl: '',
+  image: null,
+});
 // "69 lei" -> 6900, "1.234,50 lei" -> 123450, "12,50" -> 1250. Returns null
 // when the text is not a plain price, so a site can show its own text untouched.
 export function priceCents(value: string): number | null {
@@ -136,6 +188,7 @@ export type SiteContent = Record<CmsTextField, string> & {
   services: CmsService[];
   hours: CmsHours[];
   products: CmsProduct[];
+  reviews: CmsReview[];
   pages?: ContentPage[];
 };
 export type EditorData = { content: SiteContent; revision: string };
@@ -151,6 +204,7 @@ export type SiteImport = {
   services: CmsService[];
   hours: CmsHours[];
   products: CmsProduct[];
+  reviews: CmsReview[];
   pages?: ContentPage[];
 };
 
@@ -201,6 +255,22 @@ export function fillFromSite(draft: SiteContent, source: SiteImport) {
   }
   if (!draft.services.length) next.services = source.services;
   if (!draft.hours.length) next.hours = source.hours;
+  if (source.reviews?.length) {
+    // Reviews have no stable id, so compare the text and author together.
+    const known = new Set(
+      draft.reviews.map(
+        (review) => `${review.name}\u0000${review.text}`.toLowerCase(),
+      ),
+    );
+    const added = source.reviews.filter(
+      (review) => !known.has(`${review.name}\u0000${review.text}`.toLowerCase()),
+    );
+    if (added.length)
+      next.reviews = [
+        ...draft.reviews,
+        ...added.slice(0, Math.max(0, reviewLimit - draft.reviews.length)),
+      ];
+  }
   if (source.products?.length) {
     // Never overwrite an edited row: match on the name, keep what exists and
     // append what the site has but the editor does not.
@@ -216,6 +286,7 @@ export function fillFromSite(draft: SiteContent, source: SiteImport) {
         ...added
           .slice(0, Math.max(0, productLimit - draft.products.length))
           .map((product) => ({
+            ...emptyProduct(),
             ...product,
             image: null,
             discount: product.discount ?? 0,

@@ -1097,6 +1097,114 @@ test(
       must(await put([{ name: '', price: '69' }]), 400);
     });
 
+    await t.test('produsele au fișa completă, iar recenziile se șterg', async () => {
+      const shop = must(
+        await adminCall('/sites', send({ domain: 'shop-details.com' })),
+        201,
+      ).json.site;
+      const save = async (content) => {
+        const { revision } = must(
+          await adminCall(`/sites/${shop.id}/content`),
+          200,
+        ).json;
+        return adminCall(`/sites/${shop.id}/content`, {
+          method: 'PUT',
+          body: { revision, content: { siteName: 'Fitoplant', ...content } },
+        });
+      };
+      const full = {
+        name: 'Amestec gazon premium 1 kg',
+        description: 'Graminee pentru gazon des.',
+        price: '69',
+        discount: 10,
+        bestseller: true,
+        active: true,
+        category: 'Semințe & Plante',
+        subcategory: 'Gazon',
+        stock: 48,
+        unit: '1 kg',
+        badge: 'Bestseller',
+        season: 'Primăvară–Toamnă',
+        features: ['Rezistent la secetă', 'Creștere rapidă'],
+        imageUrl: '',
+      };
+      const kept = must(await save({ products: [full] }), 200).json.content
+        .products[0];
+      assert.equal(kept.category, 'Semințe & Plante');
+      assert.equal(kept.subcategory, 'Gazon');
+      assert.equal(kept.stock, 48);
+      assert.equal(kept.unit, '1 kg');
+      assert.equal(kept.badge, 'Bestseller');
+      assert.equal(kept.season, 'Primăvară–Toamnă');
+      assert.deepEqual(kept.features, ['Rezistent la secetă', 'Creștere rapidă']);
+      assert.equal(kept.active, true);
+      // „Vizibil pe site” dezactivat se salvează, dar produsul nu ajunge public.
+      const hidden = must(
+        await save({ products: [{ ...full, active: false }] }),
+        200,
+      ).json.content.products[0];
+      assert.equal(hidden.active, false);
+      // Stocul trebuie să fie un număr întreg pozitiv sau gol.
+      must(await save({ products: [{ ...full, stock: -1 }] }), 400);
+      must(await save({ products: [{ ...full, stock: 1.5 }] }), 400);
+
+      // Recenziile: notă 1–5, text și ștergere prin salvare.
+      const reviews = [
+        {
+          name: 'Andrei M.',
+          rating: 5,
+          location: 'Brașov',
+          text: 'Gazonul a răsărit în două săptămâni.',
+          date: '2026-04-12',
+        },
+        {
+          name: 'Ioana P.',
+          rating: 4,
+          location: 'Cluj',
+          text: 'Livrare rapidă.',
+          date: '2026-05-02',
+        },
+      ];
+      const saved = must(await save({ reviews }), 200).json.content.reviews;
+      assert.equal(saved.length, 2);
+      assert.equal(saved[0].rating, 5);
+      assert.equal(saved[1].location, 'Cluj');
+      // Ștergerea unei recenzii = salvarea listei fără ea.
+      const afterDelete = must(
+        await save({ reviews: saved.slice(1) }),
+        200,
+      ).json.content.reviews;
+      assert.deepEqual(
+        afterDelete.map((review) => review.name),
+        ['Ioana P.'],
+      );
+      must(await save({ reviews: [{ ...reviews[0], rating: 0 }] }), 400);
+      must(await save({ reviews: [{ ...reviews[0], rating: 6 }] }), 400);
+      must(await save({ reviews: [{ ...reviews[0], name: '' }] }), 400);
+
+      // Fără sesiune nu se scrie nimic: portalul răspunde 401.
+      must(
+        await call(
+          mf,
+          platform,
+          `/api/admin/sites/${shop.id}/content`,
+          {
+            method: 'PUT',
+            body: { revision: 'x', content: { reviews: [] } },
+          },
+        ),
+        401,
+      );
+      must(
+        await call(mf, platform, `/api/admin/sites/${shop.id}/media`, {
+          method: 'POST',
+          body: new FormData(),
+        }),
+        401,
+      );
+      must(await adminCall(`/sites/${shop.id}`, { method: 'DELETE' }), 200);
+    });
+
     await t.test('permisiunile clientului limitează portalul', async () => {
       // Earlier subtests delete their sites, so this one needs its own.
       const host = 'http://permutations-client.com',

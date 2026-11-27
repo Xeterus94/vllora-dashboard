@@ -702,6 +702,53 @@ test(
     await master
       .getByRole('heading', { name: 'Bluebird Studio', exact: true })
       .waitFor();
+    // Local reviews come from the site; the portal only removes them.
+    const seededCookie = (await master.context().cookies())
+      .map((c) => `${c.name}=${c.value}`)
+      .join('; ');
+    const seededSite = (
+      await call(env.mf, masterOrigin, '/api/admin/sites', {
+        cookie: seededCookie,
+      })
+    ).json.sites.find((s) => s.domain === 'siteclient.com');
+    const seededRevision = (
+      await call(env.mf, masterOrigin, `/api/admin/sites/${seededSite.id}/content`, {
+        cookie: seededCookie,
+      })
+    ).json.revision;
+    const seeded = await call(
+      env.mf,
+      masterOrigin,
+      `/api/admin/sites/${seededSite.id}/content`,
+      {
+        method: 'PUT',
+        cookie: seededCookie,
+        body: {
+          revision: seededRevision,
+          content: {
+            siteName: 'Bluebird Studio',
+            reviews: [
+              {
+                name: 'Client mulțumit',
+                rating: 5,
+                location: 'Brașov',
+                text: 'Foarte mulțumit de colaborare.',
+                date: '2026-04-01',
+              },
+              {
+                name: 'Recenzie de șters',
+                rating: 4,
+                location: 'Cluj',
+                text: 'Text scurt.',
+                date: '2026-04-02',
+              },
+            ],
+          },
+        },
+      },
+    );
+    assert.equal(seeded.status, 200);
+    assert.equal(seeded.json.content.reviews.length, 2);
     await master
       .getByRole('button', { name: 'Acces client', exact: true })
       .click();
@@ -961,6 +1008,106 @@ test(
       .filter({ hasText: 'Fișiere atașate în editor' })
       .waitFor();
     await client.setViewportSize({ width: 320, height: 640 });
+
+    // The shop lives in the same portal: full product form, photo upload and
+    // review deletion, all through the client session.
+    await client
+      .getByRole('button', { name: 'Produse (magazin)', exact: true })
+      .click();
+    await client.getByRole('button', { name: 'Produs nou' }).click();
+    await client.getByLabel('Nume produs 1').fill('Amestec gazon mobil');
+    await client
+      .getByLabel('Categorie 1', { exact: true })
+      .selectOption('Semințe & Plante');
+    await client.getByLabel('Subcategorie 1', { exact: true }).fill('Gazon');
+    await client.getByLabel('Preț întreg 1').fill('69');
+    await client.getByLabel('Discount 1 (%)').fill('10');
+    await client.getByLabel('Stoc 1').fill('12');
+    await client.getByLabel('Unitate / ambalaj 1').fill('1 kg');
+    await client.getByLabel('Etichetă (badge) 1').fill('Nou');
+    await client.getByLabel('Sezon 1').fill('Primăvară');
+    await client
+      .getByLabel('Caracteristici 1 (separate cu |)')
+      .fill('Rezistent la secetă | Creștere rapidă');
+    await client.getByLabel('Bestseller').check();
+    // The reduced price is derived, never typed: 69 lei − 10 % = 62,10 lei.
+    await client.getByText('Se afișează 62.10 lei, cu 69 lei tăiat.').waitFor();
+    const shopPhoto = client.waitForResponse(
+      (r) =>
+        r.url().includes('/portal/media') && r.request().method() === 'POST',
+    );
+    const shopChooser = client.waitForEvent('filechooser');
+    await client
+      .getByRole('button', { name: 'Încarcă poză', exact: true })
+      .click();
+    await (
+      await shopChooser
+    ).setFiles({ name: 'gazon.jpg', mimeType: 'image/jpeg', buffer: jpg });
+    const shopImage = (await (await shopPhoto).json()).item;
+    assert.equal(shopImage.content_type, 'image/webp');
+    // The upload fills the Imagine field and the list thumbnail by itself.
+    await client
+      .locator(`.cms-product-thumb img[src="${shopImage.url}"]`)
+      .first()
+      .evaluate((img) => img.decode());
+    await client
+      .getByRole('button', { name: 'Șterge poza', exact: true })
+      .click();
+    assert.equal(await client.locator('.cms-product-thumb img').count(), 0);
+    // A file the shop refuses never leaves the browser.
+    const rejected = [];
+    client.once('filechooser', () => rejected.push(true));
+    const chooserAgain = client.waitForEvent('filechooser');
+    await client
+      .getByRole('button', { name: 'Încarcă poză', exact: true })
+      .click();
+    await (
+      await chooserAgain
+    ).setFiles({ name: 'prea-mare.jpg', mimeType: 'image/jpeg', buffer: Buffer.alloc(6 * 1024 * 1024, 1) });
+    await client
+      .getByRole('alert')
+      .filter({ hasText: 'Poza produsului poate avea cel mult 5 MB.' })
+      .waitFor();
+    // Reviews: the two seeded ones are listed; only deletion is offered.
+    await client.getByRole('button', { name: 'Recenzii', exact: true }).click();
+    assert.equal(await client.locator('.cms-review').count(), 2);
+    await client
+      .getByRole('button', { name: 'Șterge recenzia: Recenzie de șters' })
+      .click();
+    assert.equal(await client.locator('.cms-review').count(), 1);
+    await client.getByRole('button', { name: 'Produse (magazin)', exact: true }).click();
+    await client.getByRole('button', { name: /Ascunde/ }).click();
+    assert.equal(
+      await client
+        .getByRole('button', { name: 'Publică', exact: true })
+        .count(),
+      1,
+    );
+    await client.getByRole('button', { name: 'Publică modificările' }).click();
+    await client
+      .getByRole('status')
+      .filter({ hasText: 'Conținut publicat' })
+      .waitFor();
+    const shopContent = (
+      await call(env.mf, masterOrigin, '/api/content?site=siteclient.com')
+    ).json.content;
+    assert.equal(shopContent.products[0].name, 'Amestec gazon mobil');
+    assert.equal(shopContent.products[0].discount, 10);
+    assert.equal(shopContent.products[0].stock, 12);
+    assert.equal(shopContent.products[0].badge, 'Nou');
+    assert.deepEqual(shopContent.products[0].features, [
+      'Rezistent la secetă',
+      'Creștere rapidă',
+    ]);
+    assert.equal(shopContent.products[0].bestseller, true);
+    // Hidden in the editor, so the public payload keeps it flagged and the
+    // adapter drops it from the shop.
+    assert.equal(shopContent.products[0].active, false);
+    assert.deepEqual(
+      shopContent.reviews.map((review) => review.name),
+      ['Client mulțumit'],
+    );
+
     await client
       .getByRole('button', { name: 'Servicii și prețuri', exact: true })
       .click();
@@ -1188,6 +1335,9 @@ test(
       <div data-vllora-list="services" data-vllora-template="service"><p>Rezervă existentă</p></div>
       <template id="service"><p data-vllora-item="name"></p></template>
       <div data-vllora-list="products" data-vllora-template="produ"><p>Card existent</p></div>
+      <div data-vllora-list="reviews" data-vllora-template="review"><p>Recenzie existentă</p></div>
+      <template id="review"><blockquote><b data-vllora-item="name"></b><small data-vllora-item="location"></small>
+        <span data-vllora-item="stars" aria-hidden="true"></span><p data-vllora-item="text"></p></blockquote></template>
       <template id="produ"><article class="card"><img data-vllora-item="image" alt=""><b data-vllora-item="name"></b>
         <span data-vllora-item="price"></span><s data-vllora-item="comparePrice"></s>
         <i data-vllora-item="discountLabel"></i><em data-vllora-item="bestseller" data-vllora-label="Bestseller"></em></article></template>
@@ -1226,6 +1376,16 @@ test(
                 image: { url: 'https://img.example.org/gazon.webp' },
               },
               { name: 'Îngrășământ', price: '85 lei', discount: 0 },
+              // Hidden products stay in the CMS but never reach the shop page.
+              { name: 'Ascuns', price: '99 lei', discount: 0, active: false },
+            ],
+            reviews: [
+              {
+                name: 'Andrei M.',
+                rating: 4,
+                location: 'Brașov',
+                text: 'Gazonul a răsărit repede.',
+              },
             ],
             bookingUrl: 'javascript:void(0)',
           },
@@ -1254,6 +1414,12 @@ test(
     assert.equal(await plain.locator('i').count(), 0);
     assert.equal(await plain.locator('em').count(), 0);
     assert.equal(await plain.getByText('85 lei', { exact: true }).count(), 1);
+    // The hidden product is filtered out before the template runs.
+    assert.equal(await publicSite.getByText('Ascuns', { exact: true }).count(), 0);
+    const review = publicSite.locator('blockquote').first();
+    await review.getByText('Andrei M.', { exact: true }).waitFor();
+    assert.equal(await review.locator('span').innerText(), '★★★★');
+    assert.equal(await review.getByText('Brașov', { exact: true }).count(), 1);
     assert.equal(await publicSite.locator('h1 em').count(), 0);
     await publicSite.getByText('Nume nou', { exact: true }).waitFor();
     await publicSite
